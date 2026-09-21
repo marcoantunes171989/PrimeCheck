@@ -34,6 +34,14 @@ export interface FieldMapping {
   targetHeader: string
 }
 
+export interface ManualFieldAdjustment {
+  originalTargetValue: string
+  adjustedValue: string
+  status: Exclude<Severity, 'NÃO IMPORTADO'>
+  note: string
+  adjustedAt: string
+}
+
 export interface ComparisonFieldResult {
   fieldId: string
   fieldLabel: string
@@ -42,6 +50,7 @@ export interface ComparisonFieldResult {
   targetValue: string
   status: Severity
   reason: string
+  manualAdjustment?: ManualFieldAdjustment
 }
 
 export interface ClientComparison {

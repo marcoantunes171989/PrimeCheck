@@ -74,8 +74,29 @@ export const exportReportExcel = (report: ComparisonReport) => {
       Destino: f.targetValue,
       Status: f.status,
       Motivo: f.reason,
+      Ajustado_Manualmente: f.manualAdjustment ? 'SIM' : 'NÃO',
+      Destino_Original: f.manualAdjustment?.originalTargetValue ?? '',
+      Destino_Ajustado: f.manualAdjustment?.adjustedValue ?? '',
+      Observacao_Manual: f.manualAdjustment?.note ?? '',
+      Data_Ajuste: f.manualAdjustment?.adjustedAt ?? '',
     })))
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(issueRows), 'Divergencias')
+
+  const manualRows = report.clients.flatMap(c => c.fields
+    .filter(f => Boolean(f.manualAdjustment))
+    .map(f => ({
+      Codigo: c.key,
+      Cliente: c.name,
+      Grupo: f.group,
+      Campo: f.fieldLabel,
+      Origem: f.originValue,
+      Destino_Original: f.manualAdjustment!.originalTargetValue,
+      Destino_Ajustado: f.manualAdjustment!.adjustedValue,
+      Status_Apos_Ajuste: f.manualAdjustment!.status,
+      Observacao: f.manualAdjustment!.note,
+      Data_Ajuste: f.manualAdjustment!.adjustedAt,
+    })))
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(manualRows), 'Ajustes_Manuais')
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(report.fieldSummary.map(f => ({
     Grupo: f.group,
