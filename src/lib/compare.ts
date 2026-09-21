@@ -95,6 +95,15 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
   return { status: 'DIVERGENTE', reason: 'Valores diferentes após normalização; revisar conversão.' }
 }
 
+
+export type ManualReviewStatus = 'AUTO' | 'CONFORME' | 'ATENÇÃO' | 'DIVERGENTE' | 'NÃO VALIDÁVEL'
+
+export interface ManualAdjustmentInput {
+  adjustedValue: string
+  status: ManualReviewStatus
+  note: string
+}
+
 const detectInactive = (row: Record<string, CellValue>, statusHeader: string) => statusHeader ? isInactiveValue(statusHeader, row[statusHeader]) : false
 
 const createFieldResult = (
@@ -281,6 +290,133 @@ export const compareDatasets = (origin: Dataset, target: Dataset, mapping: Field
       conformTests: validFieldResults.filter(f => f.status === 'CONFORME').length,
     },
   }
+}
+
+
+const rebuildReport = (report: ComparisonReport, clients: ClientComparison[]): ComparisonReport => {
+  const fieldSummary = summarizeFields(clients.filter(client => client.found))
+  const validFieldResults = clients
+    .filter(client => client.found)
+    .flatMap(client => client.fields)
+    .filter(field => field.status !== 'NÃO VALIDÁVEL')
+
+  return {
+    ...report,
+    generatedAt: new Date().toISOString(),
+    clients,
+    fieldSummary,
+    summary: {
+      ...report.summary,
+      foundTotal: clients.filter(client => client.found).length,
+      conformClients: clients.filter(client => client.status === 'CONFORME').length,
+      divergentClients: clients.filter(client => client.status === 'DIVERGENTE').length,
+      attentionClients: clients.filter(client => client.status === 'ATENÇÃO').length,
+      notImportedClients: clients.filter(client => client.status === 'NÃO IMPORTADO').length,
+      validTests: validFieldResults.length,
+      conformTests: validFieldResults.filter(field => field.status === 'CONFORME').length,
+    },
+  }
+}
+
+const rebuildClientFromFields = (
+  client: ClientComparison,
+  fields: ComparisonFieldResult[],
+): ClientComparison => {
+  if (!client.found) return { ...client, fields }
+
+  const divergentCount = fields.filter(field => field.status === 'DIVERGENTE').length
+  const attentionCount = fields.filter(field => field.status === 'ATENÇÃO').length
+  const status: Severity = divergentCount
+    ? 'DIVERGENTE'
+    : attentionCount
+      ? 'ATENÇÃO'
+      : 'CONFORME'
+
+  return { ...client, fields, divergentCount, attentionCount, status }
+}
+
+export const applyManualFieldAdjustment = (
+  report: ComparisonReport,
+  clientKey: string,
+  fieldId: string,
+  input: ManualAdjustmentInput,
+): ComparisonReport => {
+  const definition = fieldById.get(fieldId)
+  if (!definition) throw new Error('Campo de homologação não encontrado.')
+
+  const clients = report.clients.map(client => {
+    if (client.key !== clientKey) return client
+    if (!client.found) return client
+
+    const fields = client.fields.map(field => {
+      if (field.fieldId !== fieldId) return field
+
+      const originalTargetValue =
+        field.manualAdjustment?.originalTargetValue ?? field.targetValue
+      const adjustedValue = input.adjustedValue.trim()
+      const automatic = compareField(definition, field.originValue, adjustedValue)
+
+      const status: Severity =
+        input.status === 'AUTO' ? automatic.status : input.status
+
+      const note = input.note.trim()
+      const classification =
+        input.status === 'AUTO'
+          ? automatic.reason
+          : `Classificação manual definida como ${status}.`
+
+      return {
+        ...field,
+        targetValue: adjustedValue,
+        status,
+        reason: `AJUSTE MANUAL: ${classification}${note ? ` Observação: ${note}` : ''}`,
+        manualAdjustment: {
+          originalTargetValue,
+          adjustedValue,
+          status,
+          note,
+          adjustedAt: new Date().toISOString(),
+        },
+      }
+    })
+
+    return rebuildClientFromFields(client, fields)
+  })
+
+  return rebuildReport(report, clients)
+}
+
+export const revertManualFieldAdjustment = (
+  report: ComparisonReport,
+  clientKey: string,
+  fieldId: string,
+): ComparisonReport => {
+  const definition = fieldById.get(fieldId)
+  if (!definition) throw new Error('Campo de homologação não encontrado.')
+
+  const clients = report.clients.map(client => {
+    if (client.key !== clientKey) return client
+    if (!client.found) return client
+
+    const fields = client.fields.map(field => {
+      if (field.fieldId !== fieldId || !field.manualAdjustment) return field
+
+      const targetValue = field.manualAdjustment.originalTargetValue
+      const compared = compareField(definition, field.originValue, targetValue)
+      const { manualAdjustment: _manualAdjustment, ...rest } = field
+
+      return {
+        ...rest,
+        targetValue,
+        status: compared.status,
+        reason: compared.reason,
+      }
+    })
+
+    return rebuildClientFromFields(client, fields)
+  })
+
+  return rebuildReport(report, clients)
 }
 
 export const worstStatus = (statuses: Severity[]) => [...statuses].sort((a,b) => statusPriority[b] - statusPriority[a])[0] ?? 'CONFORME'
