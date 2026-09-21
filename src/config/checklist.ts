@@ -1,0 +1,37 @@
+import type { FieldDefinition } from '../types'
+
+export const CHECKLIST_FIELDS: FieldDefinition[] = [
+  { id: 'codigoInterno', label: 'Código interno', group: 'Identificação', kind: 'code', requiredForMatch: true, aliases: ['COD_CLIENTE','CLIENTE_CODIGO','CODIGO_CLIENTE','CODIGO','CODCLIENTE','COD_CLI','ID_CLIENTE'] },
+  { id: 'nome', label: 'Nome', group: 'Identificação', kind: 'text', aliases: ['NOME','CLIENTE_NOME','DES_CLIENTE','NOME_CLIENTE','RAZAO_SOCIAL','NOME_RAZAO_SOCIAL','DES_RAZAO_SOCIAL'] },
+  { id: 'apelido', label: 'Apelido', group: 'Identificação', kind: 'text', aliases: ['APELIDO','NOME_FANTASIA','FANTASIA','DES_FANTASIA','CLIENTE_APELIDO'] },
+  { id: 'cpfCnpj', label: 'CPF/CNPJ', group: 'Documentos', kind: 'document', aliases: ['CPF_CNPJ','CNPJ_CPF','CGC','NUM_CGC','CNPJ','CPF','NUM_CPF','NUM_CNPJ','DOCUMENTO'] },
+  { id: 'ie', label: 'Inscrição Estadual', group: 'Documentos', kind: 'ie', aliases: ['IE','INSCRICAO_ESTADUAL','INSC_EST','NUM_INSC_EST','NUM_INSCRICAO_ESTADUAL','CLIENTE_INSCRICAO'] },
+  { id: 'rg', label: 'RG', group: 'Documentos', kind: 'text', aliases: ['RG','NUM_RG','REGISTRO_GERAL','IDENTIDADE'] },
+  { id: 'pessoaTipo', label: 'Pessoa Física ou Jurídica', group: 'Identificação', kind: 'personType', aliases: ['TIPO_PESSOA','TIP_PESSOA','PESSOA_FISICA_JURIDICA','FISICA_JURIDICA','PESSOA','TIPO_CLIENTE'] },
+  { id: 'limiteCheque', label: 'Limite Cheque', group: 'Crédito / Convênio', kind: 'money', aliases: ['LIMITE_CHEQUE','VLR_LIMITE_CHEQUE','VALOR_LIMITE_CHEQUE'] },
+  { id: 'limiteConvenio', label: 'Limite Convênio', group: 'Crédito / Convênio', kind: 'money', aliases: ['LIMITE_CONVENIO','VLR_LIMITE_CONVENIO','VALOR_LIMITE_CONVENIO'] },
+  { id: 'dataCadastro', label: 'Data de Cadastro', group: 'Cadastro', kind: 'date', aliases: ['DATA_CADASTRO','DTA_CADASTRO','DAT_CADASTRO','DT_CADASTRO','DATA_INCLUSAO','DTA_INCLUSAO'] },
+  { id: 'endereco', label: 'Endereço', group: 'Endereço', kind: 'text', aliases: ['ENDERECO','DES_ENDERECO','LOGRADOURO','ENDERECO_RESIDENCIAL'] },
+  { id: 'numeroEndereco', label: 'Nº Endereço', group: 'Endereço', kind: 'text', aliases: ['NUMERO','NUM_ENDERECO','NUMERO_ENDERECO','NRO_ENDERECO','ENDERECO_NUMERO'] },
+  { id: 'complemento', label: 'Complemento', group: 'Endereço', kind: 'text', aliases: ['COMPLEMENTO','DES_COMPLEMENTO','COMPL_ENDERECO'] },
+  { id: 'bairro', label: 'Bairro', group: 'Endereço', kind: 'text', aliases: ['BAIRRO','DES_BAIRRO'] },
+  { id: 'cidade', label: 'Cidade', group: 'Endereço', kind: 'text', aliases: ['CIDADE','DES_CIDADE','MUNICIPIO','DES_MUNICIPIO'] },
+  { id: 'uf', label: 'UF', group: 'Endereço', kind: 'state', aliases: ['UF','ESTADO','SIGLA_UF','DES_UF'] },
+  { id: 'cep', label: 'CEP', group: 'Endereço', kind: 'code', aliases: ['CEP','NUM_CEP','COD_CEP'] },
+  { id: 'telefone', label: 'Telefone', group: 'Contato', kind: 'phone', aliases: ['TELEFONE','FONE','NUM_TELEFONE','TEL','FONE1'] },
+  { id: 'celular', label: 'Celular', group: 'Contato', kind: 'phone', aliases: ['CELULAR','NUM_CELULAR','FONE_CELULAR','TELEFONE_CELULAR','WHATSAPP'] },
+  { id: 'fax', label: 'Fax', group: 'Contato', kind: 'phone', aliases: ['FAX','NUM_FAX'] },
+  { id: 'contato', label: 'Contato', group: 'Contato', kind: 'text', aliases: ['CONTATO','NOME_CONTATO','DES_CONTATO'] },
+  { id: 'dataNascimento', label: 'Data de Nascimento', group: 'Dados pessoais', kind: 'date', aliases: ['DATA_NASCIMENTO','DTA_NASCIMENTO','DAT_NASCIMENTO','DT_NASCIMENTO','NASCIMENTO'] },
+  { id: 'sexo', label: 'Sexo', group: 'Dados pessoais', kind: 'sex', aliases: ['SEXO','GENERO'] },
+  { id: 'estadoCivil', label: 'Estado Civil', group: 'Dados pessoais', kind: 'text', aliases: ['ESTADO_CIVIL','EST_CIVIL','DES_ESTADO_CIVIL'] },
+  { id: 'statusCheque', label: 'Status Cheque', group: 'Crédito / Convênio', kind: 'text', aliases: ['STATUS_CHEQUE','SIT_CHEQUE','SITUACAO_CHEQUE'] },
+  { id: 'statusConvenio', label: 'Status Convênio', group: 'Crédito / Convênio', kind: 'text', aliases: ['STATUS_CONVENIO','SIT_CONVENIO','SITUACAO_CONVENIO'] },
+  { id: 'empresaConvenio', label: 'Empresa Convênio', group: 'Crédito / Convênio', kind: 'text', aliases: ['EMPRESA_CONVENIO','COD_EMPRESA_CONVENIO','DES_EMPRESA_CONVENIO'] },
+  { id: 'diaFechamento', label: 'Dia de Fechamento', group: 'Crédito / Convênio', kind: 'code', aliases: ['DIA_FECHAMENTO','DIA_FECHA','DIA_FATURAMENTO'] },
+  { id: 'conveniado', label: 'Conveniado', group: 'Crédito / Convênio', kind: 'boolean', aliases: ['CONVENIADO','FLG_CONVENIADO','IND_CONVENIADO'] },
+  { id: 'condicaoPagamento', label: 'Condição de Pagamento', group: 'Comercial', kind: 'text', aliases: ['CONDICAO_PAGAMENTO','COND_PAGAMENTO','COD_CONDICAO_PAGAMENTO','DES_CONDICAO_PAGAMENTO'] },
+  { id: 'observacao', label: 'Observação', group: 'Complementar', kind: 'text', aliases: ['OBSERVACAO','OBS','DES_OBSERVACAO','COMENTARIO','ANOTACAO'] },
+]
+
+export const RECORD_STATUS_ALIASES = ['INATIVO','FLG_INATIVO','IND_INATIVO','ATIVO','FLG_ATIVO','STATUS','SITUACAO']

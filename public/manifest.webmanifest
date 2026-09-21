@@ -1,0 +1,12 @@
+{
+  "name": "PrimeCheck - Conversão & Homologação",
+  "short_name": "PrimeCheck",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#012E46",
+  "description": "Conversão, comparação, validação e homologação de dados no navegador.",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
