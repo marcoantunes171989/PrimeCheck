@@ -41,8 +41,8 @@ export const normalizeIE = (value: CellValue) => asText(value)
 export const normalizePersonType = (value: CellValue) => {
   const v = normalizeText(value)
   if (!v) return ''
-  if (['F','PF','FISICA','PESSOA FISICA','PESSOAFISICA'].includes(v)) return 'F'
-  if (['J','PJ','JURIDICA','PESSOA JURIDICA','PESSOAJURIDICA'].includes(v)) return 'J'
+  if (['F','PF','FISICA','PESSOA FISICA','PESSOAFISICA','N','0'].includes(v)) return 'F'
+  if (['J','PJ','JURIDICA','PESSOA JURIDICA','PESSOAJURIDICA','S','1'].includes(v)) return 'J'
   return v
 }
 
@@ -57,8 +57,8 @@ export const normalizeBoolean = (value: CellValue) => {
 export const normalizeSex = (value: CellValue) => {
   const v = normalizeText(value)
   if (!v) return ''
-  if (['M','MASCULINO','HOMEM'].includes(v)) return 'M'
-  if (['F','FEMININO','MULHER'].includes(v)) return 'F'
+  if (['M','MASCULINO','HOMEM','0'].includes(v)) return 'M'
+  if (['F','FEMININO','MULHER','1'].includes(v)) return 'F'
   return v
 }
 
