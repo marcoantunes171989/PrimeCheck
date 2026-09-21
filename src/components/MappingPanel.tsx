@@ -21,7 +21,7 @@ export default function MappingPanel({ mapping, originHeaders, targetHeaders, on
         <div>
           <span className="eyebrow">ETAPA 2</span>
           <h2>Mapeamento dos campos</h2>
-          <p>Revise o mapeamento automático antes de executar a homologação.</p>
+          <p>Revise o mapeamento automático. Se algum campo não for identificado, selecione manualmente a coluna correta antes de executar a homologação.</p>
         </div>
         <div className="coverage">
           <strong>{coverage.both}/{coverage.total}</strong>
