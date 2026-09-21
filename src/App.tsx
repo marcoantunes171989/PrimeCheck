@@ -39,7 +39,7 @@ function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(20)
 
   useEffect(() => {
     if (origin.headers.length && target.headers.length) {
@@ -245,12 +245,7 @@ function App() {
                   <option value="CONFORME">Conforme</option>
                   <option value="NÃO IMPORTADO">Não importado</option>
                 </select>
-                <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-                  <option value={50}>50 por página</option>
-                  <option value={100}>100 por página</option>
-                  <option value={200}>200 por página</option>
-                  <option value={500}>500 por página</option>
-                </select>
+                <PageSizeSelect value={pageSize} onChange={setPageSize} />
               </div>
             )}
 
@@ -319,8 +314,39 @@ function Kpi({ label, value, note, tone = '' }: { label: string; value: number; 
   return <div className={`kpi ${tone}`}><span>{label}</span><strong>{number(value)}</strong><small>{note}</small></div>
 }
 
-function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (page: number) => void }) {
-  return <div className="pagination"><button disabled={page <= 1} onClick={() => onChange(page - 1)}>← Anterior</button><span>Página {page} de {pages}</span><button disabled={page >= pages} onClick={() => onChange(page + 1)}>Próxima →</button></div>
+function PageSizeSelect({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <select
+      className="page-size-select"
+      value={value}
+      onChange={event => onChange(Number(event.target.value))}
+      aria-label="Registros por página"
+    >
+      <option value={10}>10 por página</option>
+      <option value={20}>20 por página</option>
+      <option value={50}>50 por página</option>
+    </select>
+  )
+}
+
+function Pagination({
+  page,
+  pages,
+  onChange,
+}: {
+  page: number
+  pages: number
+  onChange: (page: number) => void
+}) {
+  return (
+    <div className="pagination">
+      <button disabled={page <= 1} onClick={() => onChange(1)} aria-label="Primeira página">«</button>
+      <button disabled={page <= 1} onClick={() => onChange(page - 1)}>← Anterior</button>
+      <span>Página <strong>{page}</strong> de <strong>{pages}</strong></span>
+      <button disabled={page >= pages} onClick={() => onChange(page + 1)}>Próxima →</button>
+      <button disabled={page >= pages} onClick={() => onChange(pages)} aria-label="Última página">»</button>
+    </div>
+  )
 }
 
 function Overview({ report, onOpenClient }: { report: ComparisonReport; onOpenClient: (client: ClientComparison) => void }) {
@@ -362,20 +388,138 @@ function FieldSummaryView({ report }: { report: ComparisonReport }) {
 }
 
 function DuplicatesView({ report }: { report: ComparisonReport }) {
-  return <div className="panel">
-    <div className="section-head compact"><div><h3>Duplicidades</h3><p>{number(report.duplicates.length)} grupos duplicados em CPF/CNPJ ou IE.</p></div></div>
-    {report.duplicates.length === 0 ? <div className="empty-state">Nenhuma duplicidade identificada nos campos mapeados.</div> : <div className="table-wrap"><table><thead><tr><th>Lado</th><th>Campo</th><th>Valor</th><th>Qtd.</th><th>Registros envolvidos</th></tr></thead><tbody>
-      {report.duplicates.map((dup, i) => <tr key={`${dup.side}-${dup.fieldId}-${dup.normalizedValue}-${i}`}><td><strong>{dup.side}</strong></td><td>{dup.fieldLabel}</td><td className="mono">{dup.normalizedValue}</td><td>{dup.count}</td><td>{dup.records.map(r => `${r.key}${r.name ? ` · ${r.name}` : ''}`).join(' | ')}</td></tr>)}
-    </tbody></table></div>}
-  </div>
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+
+  useEffect(() => setPage(1), [pageSize])
+
+  const pages = Math.max(1, Math.ceil(report.duplicates.length / pageSize))
+  const pageItems = report.duplicates.slice((page - 1) * pageSize, page * pageSize)
+
+  return (
+    <div className="panel">
+      <div className="section-head compact">
+        <div>
+          <h3>Duplicidades</h3>
+          <p>{number(report.duplicates.length)} grupos duplicados em CPF/CNPJ ou IE.</p>
+        </div>
+        <PageSizeSelect value={pageSize} onChange={setPageSize} />
+      </div>
+
+      {report.duplicates.length === 0 ? (
+        <div className="empty-state">Nenhuma duplicidade identificada nos campos mapeados.</div>
+      ) : (
+        <>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Lado</th><th>Campo</th><th>Valor</th><th>Qtd.</th><th>Registros envolvidos</th></tr>
+              </thead>
+              <tbody>
+                {pageItems.map((dup, i) => (
+                  <tr key={`${dup.side}-${dup.fieldId}-${dup.normalizedValue}-${i}`}>
+                    <td><strong>{dup.side}</strong></td>
+                    <td>{dup.fieldLabel}</td>
+                    <td className="mono">{dup.normalizedValue}</td>
+                    <td>{dup.count}</td>
+                    <td>{dup.records.map(r => `${r.key}${r.name ? ` · ${r.name}` : ''}`).join(' | ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={page} pages={pages} onChange={setPage} />
+        </>
+      )}
+    </div>
+  )
 }
 
-function MissingView({ report, onOpenClient }: { report: ComparisonReport; onOpenClient: (client: ClientComparison) => void }) {
-  const missing = report.clients.filter(c => !c.found)
-  return <div className="two-panels">
-    <section className="panel"><div className="section-head compact"><div><h3>Origem não localizada no destino</h3><p>{number(missing.length)} registros.</p></div></div><div className="table-wrap"><table><thead><tr><th>Código</th><th>Cliente</th><th>Origem inativa</th><th>Resultado</th><th></th></tr></thead><tbody>{missing.map(c => <tr key={c.key}><td className="mono">{c.key}</td><td>{c.name || '—'}</td><td>{c.originInactive ? 'Sim' : 'Não'}</td><td><StatusBadge status={c.status} /></td><td><button className="link-button" onClick={() => onOpenClient(c)}>Analisar</button></td></tr>)}</tbody></table></div></section>
-    <section className="panel"><div className="section-head compact"><div><h3>Somente no destino</h3><p>{number(report.targetOnly.length)} registros.</p></div></div><div className="table-wrap"><table><thead><tr><th>Código</th><th>Cliente</th></tr></thead><tbody>{report.targetOnly.map(c => <tr key={c.key}><td className="mono">{c.key}</td><td>{c.name || '—'}</td></tr>)}</tbody></table></div></section>
-  </div>
+function MissingView({
+  report,
+  onOpenClient,
+}: {
+  report: ComparisonReport
+  onOpenClient: (client: ClientComparison) => void
+}) {
+  const [pageSize, setPageSize] = useState(20)
+  const [originPage, setOriginPage] = useState(1)
+  const [targetPage, setTargetPage] = useState(1)
+
+  const missing = report.clients.filter(client => !client.found)
+  const originPages = Math.max(1, Math.ceil(missing.length / pageSize))
+  const targetPages = Math.max(1, Math.ceil(report.targetOnly.length / pageSize))
+  const originItems = missing.slice((originPage - 1) * pageSize, originPage * pageSize)
+  const targetItems = report.targetOnly.slice((targetPage - 1) * pageSize, targetPage * pageSize)
+
+  useEffect(() => {
+    setOriginPage(1)
+    setTargetPage(1)
+  }, [pageSize])
+
+  return (
+    <div className="missing-view">
+      <div className="table-toolbar">
+        <span>Registros por página</span>
+        <PageSizeSelect value={pageSize} onChange={setPageSize} />
+      </div>
+
+      <div className="two-panels">
+        <section className="panel">
+          <div className="section-head compact">
+            <div>
+              <h3>Origem não localizada no destino</h3>
+              <p>{number(missing.length)} registros.</p>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Código</th><th>Cliente</th><th>Origem inativa</th><th>Resultado</th><th></th></tr>
+              </thead>
+              <tbody>
+                {originItems.map(client => (
+                  <tr key={client.key}>
+                    <td className="mono">{client.key}</td>
+                    <td>{client.name || '—'}</td>
+                    <td>{client.originInactive ? 'Sim' : 'Não'}</td>
+                    <td><StatusBadge status={client.status} /></td>
+                    <td>
+                      <button className="link-button" onClick={() => onOpenClient(client)}>Analisar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={originPage} pages={originPages} onChange={setOriginPage} />
+        </section>
+
+        <section className="panel">
+          <div className="section-head compact">
+            <div>
+              <h3>Somente no destino</h3>
+              <p>{number(report.targetOnly.length)} registros.</p>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Código</th><th>Cliente</th></tr></thead>
+              <tbody>
+                {targetItems.map(client => (
+                  <tr key={client.key}>
+                    <td className="mono">{client.key}</td>
+                    <td>{client.name || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={targetPage} pages={targetPages} onChange={setTargetPage} />
+        </section>
+      </div>
+    </div>
+  )
 }
 
 export default App
