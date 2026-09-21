@@ -37,7 +37,7 @@ export interface FieldMapping {
 export interface ManualFieldAdjustment {
   originalTargetValue: string
   adjustedValue: string
-  status: Severity
+  status: Exclude<Severity, 'NÃO IMPORTADO'>
   note: string
   adjustedAt: string
 }
