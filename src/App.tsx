@@ -6,7 +6,7 @@ import StatusBadge from './components/StatusBadge'
 import { CHECKLIST_FIELDS } from './config/checklist'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
-import { compareDatasets } from './lib/compare'
+import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustment } from './lib/compare'
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonReport, FieldMapping, ImportedFile, Severity } from './types'
@@ -68,6 +68,26 @@ function App() {
         setBusy(false)
       }
     }, 40)
+  }
+
+  const handleManualAdjustment = (
+    clientKey: string,
+    fieldId: string,
+    input: Parameters<typeof applyManualFieldAdjustment>[3],
+  ) => {
+    if (!report) return
+
+    const next = applyManualFieldAdjustment(report, clientKey, fieldId, input)
+    setReport(next)
+    setSelectedClient(next.clients.find(client => client.key === clientKey) ?? null)
+  }
+
+  const handleRevertManualAdjustment = (clientKey: string, fieldId: string) => {
+    if (!report) return
+
+    const next = revertManualFieldAdjustment(report, clientKey, fieldId)
+    setReport(next)
+    setSelectedClient(next.clients.find(client => client.key === clientKey) ?? null)
   }
 
   const filteredClients = useMemo(() => {
@@ -261,10 +281,10 @@ function App() {
                 <div className="section-head compact"><div><h3>Divergências e atenções</h3><p>{number(issues.length)} ocorrências no filtro atual.</p></div></div>
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Código</th><th>Cliente</th><th>Campo</th><th>Origem</th><th>Destino</th><th>Status</th><th>Motivo</th></tr></thead>
+                    <thead><tr><th>Código</th><th>Cliente</th><th>Campo</th><th>Origem</th><th>Destino</th><th>Status</th><th>Motivo</th><th>Ação</th></tr></thead>
                     <tbody>
                       {pageSlice(issues).map((item, idx) => <tr key={`${item.client.key}-${item.field.fieldId}-${idx}`}>
-                        <td className="mono">{item.client.key}</td><td><button className="link-button left" onClick={() => setSelectedClient(item.client)}>{item.client.name || '—'}</button></td><td><strong>{item.field.fieldLabel}</strong><small className="block-muted">{item.field.group}</small></td><td>{item.field.originValue || '—'}</td><td>{item.field.targetValue || '—'}</td><td><StatusBadge status={item.field.status} /></td><td className="reason-cell">{item.field.reason}</td>
+                        <td className="mono">{item.client.key}</td><td><button className="link-button left" onClick={() => setSelectedClient(item.client)}>{item.client.name || '—'}</button></td><td><strong>{item.field.fieldLabel}</strong><small className="block-muted">{item.field.group}</small>{item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}</td><td>{item.field.originValue || '—'}</td><td>{item.field.targetValue || '—'}</td><td><StatusBadge status={item.field.status} /></td><td className="reason-cell">{item.field.reason}</td><td><button className="button secondary compact-button" onClick={() => setSelectedClient(item.client)}>Manutenção</button></td>
                       </tr>)}
                     </tbody>
                   </table>
@@ -285,7 +305,12 @@ function App() {
         <span>Arquivos processados localmente no navegador.</span>
       </footer>
 
-      <ClientDrawer client={selectedClient} onClose={() => setSelectedClient(null)} />
+      <ClientDrawer
+        client={selectedClient}
+        onClose={() => setSelectedClient(null)}
+        onApplyManualAdjustment={handleManualAdjustment}
+        onRevertManualAdjustment={handleRevertManualAdjustment}
+      />
     </div>
   )
 }
