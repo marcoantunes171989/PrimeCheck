@@ -356,8 +356,10 @@ export const applyManualFieldAdjustment = (
       const adjustedValue = input.adjustedValue.trim()
       const automatic = compareField(definition, field.originValue, adjustedValue)
 
-      const status: Severity =
-        input.status === 'AUTO' ? automatic.status : input.status
+      const status: Exclude<Severity, 'NÃO IMPORTADO'> =
+        input.status === 'AUTO'
+          ? automatic.status as Exclude<Severity, 'NÃO IMPORTADO'>
+          : input.status
 
       const note = input.note.trim()
       const classification =
