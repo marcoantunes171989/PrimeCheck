@@ -1,0 +1,112 @@
+import * as XLSX from 'xlsx'
+import type { ClientComparison, ComparisonReport } from '../types'
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+const csvEscape = (value: unknown) => {
+  const str = String(value ?? '')
+  return `"${str.replace(/"/g, '""')}"`
+}
+
+export const exportClientsCsv = (clients: ClientComparison[], filename = 'primecheck_clientes.csv') => {
+  const header = ['Código','Cliente','Encontrado','Resultado','Divergências','Atenções']
+  const lines = [header.map(csvEscape).join(';')]
+  clients.forEach(client => lines.push([
+    client.key,
+    client.name,
+    client.found ? 'SIM' : 'NÃO',
+    client.status,
+    client.divergentCount,
+    client.attentionCount,
+  ].map(csvEscape).join(';')))
+  downloadBlob(new Blob(['\ufeff', lines.join('\n')], { type: 'text/csv;charset=utf-8' }), filename)
+}
+
+export const exportReportExcel = (report: ComparisonReport) => {
+  const wb = XLSX.utils.book_new()
+
+  const summary = [
+    ['PrimeCheck - Homologação de Conversão'],
+    ['Gerado em', new Date(report.generatedAt).toLocaleString('pt-BR')],
+    [],
+    ['Indicador','Quantidade'],
+    ['Registros origem', report.summary.originTotal],
+    ['Registros destino', report.summary.targetTotal],
+    ['Encontrados', report.summary.foundTotal],
+    ['Clientes conformes', report.summary.conformClients],
+    ['Clientes divergentes', report.summary.divergentClients],
+    ['Clientes em atenção', report.summary.attentionClients],
+    ['Não importados', report.summary.notImportedClients],
+    ['Somente no destino', report.summary.targetOnlyClients],
+    ['Testes válidos', report.summary.validTests],
+    ['Testes conformes', report.summary.conformTests],
+  ]
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Resumo')
+
+  const clientRows = report.clients.map(c => ({
+    Codigo: c.key,
+    Cliente: c.name,
+    Encontrado: c.found ? 'SIM' : 'NÃO',
+    Resultado: c.status,
+    Divergencias: c.divergentCount,
+    Atencoes: c.attentionCount,
+    Inativo_Origem: c.originInactive ? 'SIM' : 'NÃO',
+  }))
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientRows), 'Clientes')
+
+  const issueRows = report.clients.flatMap(c => c.fields
+    .filter(f => f.status !== 'CONFORME')
+    .map(f => ({
+      Codigo: c.key,
+      Cliente: c.name,
+      Grupo: f.group,
+      Campo: f.fieldLabel,
+      Origem: f.originValue,
+      Destino: f.targetValue,
+      Status: f.status,
+      Motivo: f.reason,
+    })))
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(issueRows), 'Divergencias')
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(report.fieldSummary.map(f => ({
+    Grupo: f.group,
+    Campo: f.fieldLabel,
+    Conformes: f.conform,
+    Divergentes: f.divergent,
+    Atencoes: f.attention,
+    Nao_Validaveis: f.notValidatable,
+    Percentual_Conformidade: f.conformityPercent === null ? '' : `${f.conformityPercent.toFixed(2)}%`,
+  }))), 'Resumo_Campos')
+
+  const duplicateRows = report.duplicates.flatMap(d => d.records.map(r => ({
+    Arquivo: d.side,
+    Campo: d.fieldLabel,
+    Valor: d.normalizedValue,
+    Quantidade: d.count,
+    Codigo: r.key,
+    Cliente: r.name,
+  })))
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(duplicateRows), 'Duplicidades')
+
+  const absentRows = report.clients.filter(c => !c.found).map(c => ({
+    Codigo: c.key,
+    Cliente: c.name,
+    Resultado: c.status,
+    Inativo_Origem: c.originInactive ? 'SIM' : 'NÃO',
+  }))
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(absentRows), 'Nao_Importados')
+
+  const targetOnlyRows = report.targetOnly.map(item => ({ Codigo: item.key, Cliente: item.name }))
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(targetOnlyRows), 'Somente_Destino')
+
+  XLSX.writeFile(wb, `PrimeCheck_Homologacao_${new Date().toISOString().slice(0,10)}.xlsx`)
+}
