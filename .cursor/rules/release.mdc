@@ -39,15 +39,60 @@ solicitação → desenvolvimento → branch → build/typecheck → commit → 
 - A URL oficial de validação após cada tarefa é a produção:
   https://prime-check-nine.vercel.app
 
+## Auditoria obrigatória — código liberado x Vercel
+
+Após cada tarefa liberada, disponibilizar sempre o código exato que foi aprovado para produção e compará-lo com o commit efetivamente publicado pela Vercel.
+
+O relatório deve conter obrigatoriamente:
+- nome da branch de desenvolvimento/liberação;
+- SHA final da branch liberada antes do merge;
+- SHA funcional integrado à `main`;
+- SHA atual da `main`;
+- tree SHA do código liberado;
+- link imutável do commit no GitHub;
+- link imutável para baixar o código-fonte ZIP do commit aprovado;
+- SHA/commit associado ao último deployment Vercel com status `success`/Ready;
+- tree SHA desse commit publicado, quando possível;
+- resultado da comparação entre o último commit Vercel bem-sucedido e o código liberado;
+- quantidade de commits de diferença;
+- lista dos arquivos que ainda não chegaram à produção.
+
+Formato do ZIP imutável:
+`https://github.com/marcoantunes171989/PrimeCheck/archive/<SHA>.zip`
+
+Formato do código imutável no GitHub:
+`https://github.com/marcoantunes171989/PrimeCheck/tree/<SHA>`
+
+Se o SHA da Vercel for diferente do SHA/tree do código liberado:
+- declarar explicitamente `PRODUÇÃO DESATUALIZADA`;
+- não informar a tarefa como publicada;
+- mostrar os dois SHAs lado a lado;
+- listar os arquivos pendentes obtidos por comparação Git;
+- executar o retry de deploy permitido pela política, se ele ainda não tiver sido executado para aquela tarefa.
+
+Se o acesso direto à API da Vercel estiver indisponível, sem permissão ou retornar erro:
+- usar o status de integração Vercel anexado aos commits do GitHub como fonte de auditoria;
+- localizar o commit mais recente com status Vercel `success`;
+- comparar esse commit com o HEAD liberado;
+- registrar no relatório que a verificação foi feita pela integração GitHub → Vercel.
+
 ## Relatório final obrigatório
 
 Ao concluir cada tarefa, informar:
 - branch utilizada;
-- commit final;
-- PR utilizado, quando houver;
+- SHA final da branch liberada;
+- commit funcional integrado à `main`;
 - commit atual da `main`;
+- tree SHA do código liberado;
+- link para visualizar o código imutável no GitHub;
+- link para baixar o ZIP imutável do código liberado;
+- PR utilizado, quando houver;
 - status dos checks;
 - status do Vercel Production;
+- SHA efetivamente publicado na Vercel;
+- comparação código liberado x Vercel (igual/desatualizado);
+- quantidade de commits de diferença;
+- arquivos pendentes de publicação;
 - URL oficial;
 - resultado do smoke test;
 - qualquer warning ou risco residual.
