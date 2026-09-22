@@ -229,6 +229,27 @@ const isTruncatedValue = (originNormalized: string, targetNormalized: string) =>
   return originNormalized.length - targetNormalized.length >= 3
 }
 
+const characterCount = (value: CellValue) => Array.from(asText(value)).length
+
+const characterDifferenceDetail = (
+  field: FieldDefinition,
+  origin: CellValue,
+  target: CellValue,
+) => {
+  if (field.kind !== 'text') return ''
+
+  const originLength = characterCount(origin)
+  const targetLength = characterCount(target)
+  const difference = targetLength - originLength
+  const relation = difference === 0
+    ? 'mesma quantidade de caracteres, porém conteúdo diferente'
+    : difference > 0
+      ? `destino possui ${difference} ${difference === 1 ? 'caractere a mais' : 'caracteres a mais'}`
+      : `destino possui ${Math.abs(difference)} ${Math.abs(difference) === 1 ? 'caractere a menos' : 'caracteres a menos'}`
+
+  return ` Origem: ${originLength} ${originLength === 1 ? 'caractere' : 'caracteres'}; destino: ${targetLength} ${targetLength === 1 ? 'caractere' : 'caracteres'}; ${relation}.`
+}
+
 const compareField = (field: FieldDefinition, origin: CellValue, target: CellValue): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
   if (field.kind === 'document') return compareDocument(origin, target)
 
@@ -325,20 +346,29 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
     return { status: 'ATENÇÃO', reason: 'Origem sem informação e destino preenchido. Confirmar regra/default aplicado na conversão.' }
   }
 
-  if (originText && !targetText) return { status: 'DIVERGENTE', reason: 'Existe informação na origem, mas o campo está vazio no destino.' }
+  if (originText && !targetText) return {
+    status: 'DIVERGENTE',
+    reason: 'Existe informação na origem, mas o campo está vazio no destino.' + characterDifferenceDetail(field, origin, target),
+  }
 
   if (field.id === 'contato' && targetText.length < originText.length && targetText.length <= 35 && originText.startsWith(targetText)) {
-    return { status: 'DIVERGENTE', reason: `Possível truncamento: origem possui ${originText.length} caracteres e destino ${targetText.length}.` }
+    return {
+      status: 'DIVERGENTE',
+      reason: 'Possível truncamento identificado.' + characterDifferenceDetail(field, origin, target),
+    }
   }
 
   if (TRUNCATION_FIELDS.has(field.id) && isTruncatedValue(o, t)) {
     return {
       status: 'DIVERGENTE',
-      reason: `Possível truncamento: origem possui ${originText.length} caracteres e destino ${targetText.length}.`,
+      reason: 'Possível truncamento identificado.' + characterDifferenceDetail(field, origin, target),
     }
   }
 
-  return { status: 'DIVERGENTE', reason: 'Valores diferentes após normalização; revisar conversão.' }
+  return {
+    status: 'DIVERGENTE',
+    reason: 'Valores diferentes após normalização; revisar conversão.' + characterDifferenceDetail(field, origin, target),
+  }
 }
 
 

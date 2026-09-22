@@ -4,6 +4,7 @@ import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
 import { DuplicateCodeList, DuplicateGroupDetails } from './components/DuplicateRecordList'
 import StatusBadge from './components/StatusBadge'
+import IssuePrintReport, { type IssuePrintItem } from './components/IssuePrintReport'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
@@ -11,10 +12,11 @@ import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustmen
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
 import { validateCpfCnpj } from './lib/normalizers'
-import type { ClientComparison, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
+import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
 type Tab = 'overview' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
+type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
 
 const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
@@ -108,6 +110,8 @@ function App({
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<string>>(new Set())
+  const [issuePrintItems, setIssuePrintItems] = useState<IssuePrintItem[]>([])
   const [focusedFieldId, setFocusedFieldId] = useState<string | undefined>()
   const [selectedOccurrenceKey, setSelectedOccurrenceKey] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -165,6 +169,16 @@ function App({
   }, [origin.headers.join('|'), target.headers.join('|'), profile.id, conservativeMapping])
 
   useEffect(() => setPage(1), [search, statusFilter, issueFieldFilter, activeTab, pageSize])
+
+  useEffect(() => {
+    const handleAfterPrint = () => setIssuePrintItems([])
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [])
+
+  useEffect(() => {
+    setSelectedIssueKeys(new Set())
+  }, [report?.generatedAt])
 
   const coverage = useMemo(() => mappingCoverage(mapping), [mapping])
   const keyFields = profile.fields.filter(field => field.requiredForMatch)
@@ -394,6 +408,46 @@ function App({
         onNext: () => goToOccurrence(occurrenceIndex + 1),
       }
     : undefined
+
+  const currentIssuePage = pageSlice(sortedIssues)
+  const currentIssueKeys = currentIssuePage.map(item => occurrenceKeyOf(item.client.key, item.field.fieldId))
+  const selectedIssues = sortedIssues.filter(item =>
+    selectedIssueKeys.has(occurrenceKeyOf(item.client.key, item.field.fieldId)),
+  )
+  const allCurrentIssuesSelected = currentIssueKeys.length > 0
+    && currentIssueKeys.every(key => selectedIssueKeys.has(key))
+
+  const toggleIssueSelection = (key: string) => {
+    setSelectedIssueKeys(current => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const toggleCurrentIssuePage = () => {
+    setSelectedIssueKeys(current => {
+      const next = new Set(current)
+      if (allCurrentIssuesSelected) currentIssueKeys.forEach(key => next.delete(key))
+      else currentIssueKeys.forEach(key => next.add(key))
+      return next
+    })
+  }
+
+  const requestIssuePrint = (items: IssueOccurrence[]) => {
+    if (!items.length) return
+    setIssuePrintItems(items)
+    window.setTimeout(() => window.print(), 80)
+  }
+
+  const issuePrintFilterDescription = [
+    issueFieldFilter === 'TODOS'
+      ? 'Todos os campos'
+      : resultProfile.fields.find(field => field.id === issueFieldFilter)?.label || issueFieldFilter,
+    statusFilter === 'TODOS' ? 'Divergências e atenções' : statusFilter,
+    search.trim() ? 'Pesquisa: ' + search.trim() : '',
+  ].filter(Boolean).join(' · ')
 
   const hasFiles = origin.headers.length > 0 || target.headers.length > 0
 
@@ -666,7 +720,7 @@ function App({
                           <td>{client.attentionCount}</td>
                           {showDocument && <td className="mono">{doc || '—'}</td>}
                           {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
-                          <td><button type="button" className="link-button" onClick={() => openRecord(client)}>Analisar</button></td>
+                          <td><button type="button" className="analysis-action-button" onClick={() => openRecord(client)}>Abrir análise</button></td>
                         </tr>
                       })}
                     </tbody>
@@ -677,97 +731,183 @@ function App({
             )}
 
             {activeTab === 'issues' && (
-              <div className="panel">
-                {fieldAnalysis && (
-                  <div className="field-analysis-banner">
-                    <div className="field-analysis-copy">
-                      <span className="eyebrow">ANÁLISE DO CAMPO</span>
-                      <strong>{fieldAnalysis.fieldLabel}</strong>
-                      <span>{fieldAnalysis.group}</span>
+              <>
+                <div className="panel issues-panel">
+                  {fieldAnalysis && (
+                    <div className="field-analysis-banner">
+                      <div className="field-analysis-copy">
+                        <span className="eyebrow">ANÁLISE DO CAMPO</span>
+                        <strong>{fieldAnalysis.fieldLabel}</strong>
+                        <span>{fieldAnalysis.group}</span>
+                      </div>
+                      <div className="field-analysis-meta">
+                        <span className={`analysis-status-badge ${statusFilter === 'DIVERGENTE' ? 'error' : statusFilter === 'ATENÇÃO' ? 'warning' : 'mixed'}`}>
+                          {analysisStatusLabel}
+                        </span>
+                        <span className="field-analysis-count">{analysisCountLabel}</span>
+                      </div>
+                      <div className="field-analysis-actions">
+                        <button type="button" className="button ghost compact-button" onClick={backToFields}>
+                          Voltar para Por campo
+                        </button>
+                        <button type="button" className="button secondary compact-button" onClick={clearIssueFieldFilter}>
+                          Limpar filtro do campo
+                        </button>
+                      </div>
                     </div>
-                    <div className="field-analysis-meta">
-                      <span className={`analysis-status-badge ${statusFilter === 'DIVERGENTE' ? 'error' : statusFilter === 'ATENÇÃO' ? 'warning' : 'mixed'}`}>
-                        {analysisStatusLabel}
+                  )}
+
+                  <div className="section-head compact issues-section-head">
+                    <div>
+                      <h3>Divergências e atenções</h3>
+                      <p>{number(issues.length)} ocorrências no filtro atual.</p>
+                    </div>
+                    <div className="issue-print-actions">
+                      <span className="issue-selection-count">
+                        {number(selectedIssues.length)} selecionada{selectedIssues.length === 1 ? '' : 's'}
                       </span>
-                      <span className="field-analysis-count">{analysisCountLabel}</span>
-                    </div>
-                    <div className="field-analysis-actions">
-                      <button type="button" className="button ghost compact-button" onClick={backToFields}>
-                        Voltar para Por campo
+                      <button
+                        type="button"
+                        className="button ghost compact-button"
+                        onClick={toggleCurrentIssuePage}
+                        disabled={!currentIssuePage.length}
+                      >
+                        {allCurrentIssuesSelected ? 'Desmarcar página' : 'Selecionar página'}
                       </button>
-                      <button type="button" className="button secondary compact-button" onClick={clearIssueFieldFilter}>
-                        Limpar filtro do campo
+                      <button
+                        type="button"
+                        className="button secondary compact-button"
+                        onClick={() => setSelectedIssueKeys(new Set())}
+                        disabled={!selectedIssues.length}
+                      >
+                        Limpar seleção
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary compact-button"
+                        onClick={() => requestIssuePrint(selectedIssues)}
+                        disabled={!selectedIssues.length}
+                      >
+                        Imprimir selecionados
+                      </button>
+                      <button
+                        type="button"
+                        className="button primary compact-button"
+                        onClick={() => requestIssuePrint(sortedIssues)}
+                        disabled={!sortedIssues.length}
+                      >
+                        Imprimir filtro
                       </button>
                     </div>
                   </div>
-                )}
-                <div className="section-head compact"><div><h3>Divergências e atenções</h3><p>{number(issues.length)} ocorrências no filtro atual.</p></div></div>
-                {issues.length === 0 ? (
-                  <div className="empty-state">Nenhuma ocorrência no filtro atual.</div>
-                ) : (
-                <>
-                <div className="table-wrap">
-                  <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
-                    <thead>
-                      <tr>
-                        <SortableHeader label="Código" sortKey="code" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                        <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Campo" sortKey="field" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Origem" sortKey="origin" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                        <th>Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pageSlice(sortedIssues).map((item, idx) => {
-                        const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
-                        const highlight = issueFieldFilter !== 'TODOS'
-                        return (
-                          <tr key={`${item.client.key}-${item.field.fieldId}-${idx}`}>
-                            <td className="mono">{item.client.key}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="link-button left"
-                                onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
-                              >
-                                {item.client.name || '—'}
-                              </button>
-                            </td>
-                            <td>
-                              <strong>{item.field.fieldLabel}</strong>
-                              <small className="block-muted">{item.field.group}</small>
-                              {item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}
-                            </td>
-                            <td>
-                              <IssueValueCell label="Origem" value={item.field.originValue} status={item.field.status} highlight={highlight} />
-                            </td>
-                            <td>
-                              <IssueValueCell label="Destino" value={item.field.targetValue} status={item.field.status} highlight={highlight} />
-                            </td>
-                            <td><StatusBadge status={item.field.status} /></td>
-                            <td className="reason-cell">{item.field.reason}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="button secondary compact-button"
-                                onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
-                              >
-                                Analisar
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+
+                  {issues.length === 0 ? (
+                    <div className="empty-state">Nenhuma ocorrência no filtro atual.</div>
+                  ) : (
+                    <>
+                      <div className="table-wrap">
+                        <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
+                          <thead>
+                            <tr>
+                              <th className="issue-select-col">
+                                <input
+                                  type="checkbox"
+                                  checked={allCurrentIssuesSelected}
+                                  onChange={toggleCurrentIssuePage}
+                                  aria-label="Selecionar ocorrências da página"
+                                />
+                              </th>
+                              <SortableHeader label="Código" sortKey="code" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <SortableHeader label="Campo" sortKey="field" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <SortableHeader label="Origem" sortKey="origin" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <th>Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentIssuePage.map((item, idx) => {
+                              const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
+                              const highlight = issueFieldFilter !== 'TODOS'
+                              const fieldDefinition = resultProfile.fields.find(field => field.id === item.field.fieldId)
+                              const showCharacterCount = fieldDefinition?.kind === 'text'
+                              return (
+                                <tr
+                                  key={`${item.client.key}-${item.field.fieldId}-${idx}`}
+                                  className={selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : ''}
+                                >
+                                  <td className="issue-select-col">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedIssueKeys.has(occurrenceKey)}
+                                      onChange={() => toggleIssueSelection(occurrenceKey)}
+                                      aria-label={`Selecionar ${item.client.key} · ${item.field.fieldLabel}`}
+                                    />
+                                  </td>
+                                  <td className="mono">{item.client.key}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="link-button left"
+                                      onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
+                                    >
+                                      {item.client.name || '—'}
+                                    </button>
+                                  </td>
+                                  <td>
+                                    <strong>{item.field.fieldLabel}</strong>
+                                    <small className="block-muted">{item.field.group}</small>
+                                    {item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}
+                                  </td>
+                                  <td>
+                                    <IssueValueCell
+                                      label="Origem"
+                                      value={item.field.originValue}
+                                      status={item.field.status}
+                                      highlight={highlight}
+                                      showCharacterCount={showCharacterCount}
+                                    />
+                                  </td>
+                                  <td>
+                                    <IssueValueCell
+                                      label="Destino"
+                                      value={item.field.targetValue}
+                                      status={item.field.status}
+                                      highlight={highlight}
+                                      showCharacterCount={showCharacterCount}
+                                    />
+                                  </td>
+                                  <td><StatusBadge status={item.field.status} /></td>
+                                  <td className="reason-cell">{item.field.reason}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="analysis-action-button"
+                                      onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
+                                    >
+                                      Abrir análise
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
+                    </>
+                  )}
                 </div>
-                <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
-                </>
-                )}
-              </div>
+
+                <IssuePrintReport
+                  items={issuePrintItems}
+                  profileLabel={resultProfile.label}
+                  recordLabel={resultProfile.recordLabel}
+                  filterDescription={issuePrintFilterDescription}
+                />
+              </>
             )}
 
             {activeTab === 'fields' && <FieldSummaryView report={report} onAnalyzeField={openFieldAnalysis} />}
@@ -920,11 +1060,13 @@ function IssueValueCell({
   value,
   status,
   highlight,
+  showCharacterCount = false,
 }: {
   label: string
   value: string
   status: Severity
   highlight: boolean
+  showCharacterCount?: boolean
 }) {
   const tone = highlight
     ? status === 'DIVERGENTE'
@@ -933,11 +1075,17 @@ function IssueValueCell({
         ? 'issue-value-attention'
         : ''
     : ''
+  const length = Array.from(value || '').length
 
   return (
     <div className={`issue-value ${tone}`.trim()}>
       <small>{label}</small>
       <strong>{value || '—'}</strong>
+      {showCharacterCount && (
+        <span className="issue-char-count">
+          {length} {length === 1 ? 'caractere' : 'caracteres'}
+        </span>
+      )}
     </div>
   )
 }
@@ -1283,7 +1431,11 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
 
   const printItems = printGroupId
     ? sorted.filter(item => rowIdOf(item) === printGroupId)
-    : sorted
+    : [...sorted].sort((left, right) =>
+        left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
+        || left.side.localeCompare(right.side, 'pt-BR')
+        || left.normalizedValue.localeCompare(right.normalizedValue, 'pt-BR', { numeric: true, sensitivity: 'base' }),
+      )
 
   const filterDescription = [
     sideFilter === 'TODOS' ? 'Origem e destino' : sideFilter === 'ORIGEM' ? 'Somente origem' : 'Somente destino',
