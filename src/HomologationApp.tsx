@@ -1120,6 +1120,7 @@ function App({
                               <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
                               <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
                               <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <th>Análise</th>
                               <th>Ação</th>
                             </tr>
                             <tr className="column-filter-row">
@@ -1145,6 +1146,7 @@ function App({
                               </th>
                               <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
                               <th />
+                              <th />
                             </tr>
                           </thead>
                           <tbody>
@@ -1156,7 +1158,10 @@ function App({
                               return (
                                 <tr
                                   key={`${item.client.key}-${item.field.fieldId}-${idx}`}
-                                  className={selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : ''}
+                                  className={[
+                                    selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : '',
+                                    reviewedIssueKeys.has(occurrenceKey) ? 'row-reviewed' : '',
+                                  ].filter(Boolean).join(' ')}
                                 >
                                   <td className="issue-select-col">
                                     <input
@@ -1171,7 +1176,10 @@ function App({
                                     <button
                                       type="button"
                                       className="link-button left"
-                                      onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
+                                      onClick={() => {
+                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                      }}
                                     >
                                       {item.client.name || '—'}
                                     </button>
@@ -1204,8 +1212,20 @@ function App({
                                   <td>
                                     <button
                                       type="button"
+                                      className={'review-chip ' + (reviewedIssueKeys.has(occurrenceKey) ? 'done' : '')}
+                                      onClick={() => setReviewedIssueKeys(current => toggleStringSet(current, occurrenceKey))}
+                                    >
+                                      {reviewedIssueKeys.has(occurrenceKey) ? '✓ Analisado' : 'Marcar analisado'}
+                                    </button>
+                                  </td>
+                                  <td>
+                                    <button
+                                      type="button"
                                       className="analysis-action-button"
-                                      onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
+                                      onClick={() => {
+                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                      }}
                                     >
                                       Abrir análise
                                     </button>
