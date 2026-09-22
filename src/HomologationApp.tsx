@@ -707,7 +707,7 @@ function App({
               {tabs.map(tab => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
             </nav>
 
-            {activeTab !== 'overview' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
+            {activeTab !== 'overview' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
               <div className={`filters${activeTab === 'issues' ? ' filters-issues' : ''}`}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Pesquisar código, ${resultProfile.recordLabel.toLowerCase()} ou qualquer valor…`} />
                 {activeTab === 'issues' && (
@@ -737,44 +737,158 @@ function App({
 
             {activeTab === 'overview' && <Overview report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
             {activeTab === 'clients' && (
-              <div className="panel">
-                <div className="section-head compact"><div><h3>{resultProfile.label}</h3><p>{number(filteredClients.length)} registros no filtro atual.</p></div><button className="button ghost" onClick={() => exportClientsCsv(filteredClients, `primecheck_${resultProfile.id}.csv`, resultProfile.recordLabel)}>Exportar CSV filtrado</button></div>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Resultado" sortKey="status" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Divergências" sortKey="divergent" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Atenções" sortKey="attention" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        {showDocument && <SortableHeader label="CPF/CNPJ origem" sortKey="document" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
-                        {showDocument && <SortableHeader label="Validade" sortKey="validity" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
-                        <th>Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pageSlice(sortedClients).map(client => {
-                        const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
-                        const validation = validateCpfCnpj(doc)
-                        return <tr key={client.key}>
-                          <td className="mono">{client.key}</td>
-                          <td><strong>{client.name || '—'}</strong></td>
-                          <td>{client.found ? 'Sim' : 'Não'}</td>
-                          <td><StatusBadge status={client.status} /></td>
-                          <td>{client.divergentCount}</td>
-                          <td>{client.attentionCount}</td>
-                          {showDocument && <td className="mono">{doc || '—'}</td>}
-                          {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
-                          <td><button type="button" className="analysis-action-button" onClick={() => openRecord(client)}>Abrir análise</button></td>
+              <>
+                <div className="panel">
+                  <div className="section-head compact">
+                    <div>
+                      <h3>{resultProfile.label}</h3>
+                      <p>{number(filteredClients.length)} registros no filtro atual.</p>
+                    </div>
+                    <div className="section-head-actions">
+                      <button
+                        type="button"
+                        className="button ghost compact-button"
+                        onClick={() => {
+                          setClientColumnFilters({
+                            code: '',
+                            name: '',
+                            found: 'TODOS',
+                            status: 'TODOS',
+                            divergent: '',
+                            attention: '',
+                            document: '',
+                            validity: 'TODOS',
+                          })
+                        }}
+                      >
+                        Limpar filtros
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary compact-button"
+                        disabled={!sortedClients.length}
+                        onClick={() => window.print()}
+                      >
+                        Imprimir filtro
+                      </button>
+                      <button
+                        className="button ghost compact-button"
+                        onClick={() => exportClientsCsv(filteredClients, `primecheck_${resultProfile.id}.csv`, resultProfile.recordLabel)}
+                      >
+                        Exportar CSV filtrado
+                      </button>
+                    </div>
+                  </div>
+                  <div className="table-wrap">
+                    <table className="records-table">
+                      <thead>
+                        <tr>
+                          <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Resultado" sortKey="status" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Divergências" sortKey="divergent" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Atenções" sortKey="attention" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          {showDocument && <SortableHeader label="CPF/CNPJ origem" sortKey="document" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                          {showDocument && <SortableHeader label="Validade" sortKey="validity" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                          <th>Ação</th>
                         </tr>
-                      })}
-                    </tbody>
-                  </table>
+                        <tr className="column-filter-row">
+                          <th><input value={clientColumnFilters.code} onChange={e => setClientColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Filtrar…" /></th>
+                          <th><input value={clientColumnFilters.name} onChange={e => setClientColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Filtrar…" /></th>
+                          <th>
+                            <select value={clientColumnFilters.found} onChange={e => setClientColumnFilters(current => ({ ...current, found: e.target.value }))}>
+                              <option value="TODOS">Todos</option>
+                              <option value="SIM">Sim</option>
+                              <option value="NAO">Não</option>
+                            </select>
+                          </th>
+                          <th>
+                            <select value={clientColumnFilters.status} onChange={e => setClientColumnFilters(current => ({ ...current, status: e.target.value }))}>
+                              <option value="TODOS">Todos</option>
+                              <option value="CONFORME">Conforme</option>
+                              <option value="DIVERGENTE">Divergente</option>
+                              <option value="ATENÇÃO">Atenção</option>
+                              <option value="NÃO IMPORTADO">Não importado</option>
+                            </select>
+                          </th>
+                          <th><input value={clientColumnFilters.divergent} onChange={e => setClientColumnFilters(current => ({ ...current, divergent: e.target.value }))} placeholder="Qtd." /></th>
+                          <th><input value={clientColumnFilters.attention} onChange={e => setClientColumnFilters(current => ({ ...current, attention: e.target.value }))} placeholder="Qtd." /></th>
+                          {showDocument && <th><input value={clientColumnFilters.document} onChange={e => setClientColumnFilters(current => ({ ...current, document: e.target.value }))} placeholder="Filtrar…" /></th>}
+                          {showDocument && (
+                            <th>
+                              <select value={clientColumnFilters.validity} onChange={e => setClientColumnFilters(current => ({ ...current, validity: e.target.value }))}>
+                                <option value="TODOS">Todos</option>
+                                <option value="VÁLIDO">Válido</option>
+                                <option value="INVÁLIDO">Inválido</option>
+                                <option value="AUSENTE">Ausente</option>
+                              </select>
+                            </th>
+                          )}
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageSlice(sortedClients).map(client => {
+                          const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
+                          const validation = validateCpfCnpj(doc)
+                          return <tr key={client.key}>
+                            <td className="mono">{client.key}</td>
+                            <td><strong>{client.name || '—'}</strong></td>
+                            <td>{client.found ? 'Sim' : 'Não'}</td>
+                            <td><StatusBadge status={client.status} /></td>
+                            <td>{client.divergentCount}</td>
+                            <td>{client.attentionCount}</td>
+                            {showDocument && <td className="mono">{doc || '—'}</td>}
+                            {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
+                            <td><button type="button" className="analysis-action-button" onClick={() => openRecord(client)}>Abrir análise</button></td>
+                          </tr>
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Pagination page={page} pages={pageCount(sortedClients)} onChange={setPage} />
                 </div>
-                <Pagination page={page} pages={pageCount(sortedClients)} onChange={setPage} />
-              </div>
+
+                <DataPrintReport
+                  title={`Relatório de ${resultProfile.label}`}
+                  subtitle="Registros conforme filtros aplicados na tela"
+                  filterDescription={[
+                    search.trim() ? 'Pesquisa: ' + search.trim() : '',
+                    clientColumnFilters.code ? 'Código: ' + clientColumnFilters.code : '',
+                    clientColumnFilters.name ? resultProfile.recordLabel + ': ' + clientColumnFilters.name : '',
+                    clientColumnFilters.found !== 'TODOS' ? 'Encontrado: ' + clientColumnFilters.found : '',
+                    clientColumnFilters.status !== 'TODOS' ? 'Resultado: ' + clientColumnFilters.status : '',
+                    clientColumnFilters.document ? 'CPF/CNPJ: ' + clientColumnFilters.document : '',
+                    clientColumnFilters.validity !== 'TODOS' ? 'Validade: ' + clientColumnFilters.validity : '',
+                  ].filter(Boolean).join(' · ')}
+                  columns={[
+                    { key: 'codigo', label: 'Código' },
+                    { key: 'registro', label: resultProfile.recordLabel },
+                    { key: 'encontrado', label: 'Encontrado' },
+                    { key: 'resultado', label: 'Resultado' },
+                    { key: 'divergencias', label: 'Divergências' },
+                    { key: 'atencoes', label: 'Atenções' },
+                    ...(showDocument ? [
+                      { key: 'documento', label: 'CPF/CNPJ origem' },
+                      { key: 'validade', label: 'Validade' },
+                    ] : []),
+                  ]}
+                  rows={sortedClients.map(client => {
+                    const doc = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
+                    return {
+                      codigo: client.key,
+                      registro: client.name || '—',
+                      encontrado: client.found ? 'Sim' : 'Não',
+                      resultado: client.status,
+                      divergencias: client.divergentCount,
+                      atencoes: client.attentionCount,
+                      documento: doc || '—',
+                      validade: showDocument ? validateCpfCnpj(doc).status : '',
+                    }
+                  })}
+                />
+              </>
             )}
 
             {activeTab === 'issues' && (
