@@ -153,7 +153,7 @@ export default function WorkspaceDataPage({
           </div>
         ) : (
           <>
-            <div className="workspace-data-table-wrap">
+            <div className="workspace-data-table-wrap stable-filter-table-wrap">
               <table className="workspace-data-table">
                 <thead>
                   <tr>
@@ -185,12 +185,6 @@ export default function WorkspaceDataPage({
                   ))}
                 </tbody>
               </table>
-              {!pageRows.length && (
-                <div className="workspace-data-empty">
-                  <strong>Nenhum registro encontrado.</strong>
-                  <span>Altere o termo de pesquisa para continuar.</span>
-                </div>
-              )}
             </div>
 
             <div className="workspace-pagination">
