@@ -1129,7 +1129,10 @@ function App({
                   <div className="section-head compact issues-section-head">
                     <div>
                       <h3>Divergências e atenções</h3>
-                      <p>{number(issues.length)} ocorrências no filtro atual.</p>
+                      <p>
+                        {number(issues.length)} {issues.length === 1 ? 'registro encontrado' : 'registros encontrados'}
+                        {issues.length !== issueScope.length ? ` · ${number(issueScope.length)} no contexto da análise` : ' no contexto atual'}.
+                      </p>
                     </div>
                     <div className="issue-print-actions">
                       <span className="issue-selection-count">
@@ -1142,6 +1145,7 @@ function App({
                           setSearch('')
                           setIssueFieldFilter('TODOS')
                           setStatusFilter('TODOS')
+                          setIssueDuplicateFilter('TODOS')
                           setIssueColumnFilters({ code: '', name: '', origin: '', target: '', reason: '' })
                         }}
                       >
@@ -1182,147 +1186,156 @@ function App({
                     </div>
                   </div>
 
-                  {issues.length === 0 ? (
-                    <div className="empty-state">Nenhuma ocorrência no filtro atual.</div>
-                  ) : (
-                    <>
-                      <div className="table-wrap">
-                        <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
-                          <thead>
-                            <tr>
-                              <th className="issue-select-col">
+                  <div className="table-wrap">
+                    <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
+                      <thead>
+                        <tr>
+                          <th className="issue-select-col">
+                            <input
+                              type="checkbox"
+                              checked={allCurrentIssuesSelected}
+                              onChange={toggleCurrentIssuePage}
+                              aria-label="Selecionar ocorrências da página"
+                            />
+                          </th>
+                          <SortableHeader label="Código" sortKey="code" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Campo" sortKey="field" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Origem" sortKey="origin" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <th>Análise</th>
+                          <th>Ação</th>
+                        </tr>
+                        <tr className="column-filter-row">
+                          <th />
+                          <th><input value={issueColumnFilters.code} onChange={e => setIssueColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                          <th><input value={issueColumnFilters.name} onChange={e => setIssueColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                          <th>
+                            <select value={issueFieldFilter} onChange={e => setIssueFieldFilter(e.target.value)}>
+                              <option value="TODOS">Todos os campos</option>
+                              {issueFieldOptions.map(field => (
+                                <option key={field.fieldId} value={field.fieldId}>{field.fieldLabel}</option>
+                              ))}
+                            </select>
+                          </th>
+                          <th><input value={issueColumnFilters.origin} onChange={e => setIssueColumnFilters(current => ({ ...current, origin: e.target.value }))} placeholder="Origem…" /></th>
+                          <th><input value={issueColumnFilters.target} onChange={e => setIssueColumnFilters(current => ({ ...current, target: e.target.value }))} placeholder="Destino…" /></th>
+                          <th>
+                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
+                              <option value="TODOS">Todos</option>
+                              <option value="DIVERGENTE">Divergente</option>
+                              <option value="ATENÇÃO">Atenção</option>
+                            </select>
+                          </th>
+                          <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
+                          <th />
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentIssuePage.length === 0 ? (
+                          <tr className="table-empty-row">
+                            <td colSpan={10}>
+                              <div className="inline-empty-state">
+                                <strong>Nenhum registro encontrado.</strong>
+                                <span>A análise, o campo selecionado e os filtros permanecem ativos. Altere a pesquisa para visualizar registros novamente.</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : currentIssuePage.map((item, idx) => {
+                          const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
+                          const highlight = issueFieldFilter !== 'TODOS'
+                          const fieldDefinition = resultProfile.fields.find(field => field.id === item.field.fieldId)
+                          const showCharacterCount = fieldDefinition?.kind === 'text'
+                          return (
+                            <tr
+                              key={`${item.client.key}-${item.field.fieldId}-${idx}`}
+                              className={[
+                                selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : '',
+                                reviewedIssueKeys.has(occurrenceKey) ? 'row-reviewed' : '',
+                              ].filter(Boolean).join(' ')}
+                            >
+                              <td className="issue-select-col">
                                 <input
                                   type="checkbox"
-                                  checked={allCurrentIssuesSelected}
-                                  onChange={toggleCurrentIssuePage}
-                                  aria-label="Selecionar ocorrências da página"
+                                  checked={selectedIssueKeys.has(occurrenceKey)}
+                                  onChange={() => toggleIssueSelection(occurrenceKey)}
+                                  aria-label={`Selecionar ${item.client.key} · ${item.field.fieldLabel}`}
                                 />
-                              </th>
-                              <SortableHeader label="Código" sortKey="code" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Campo" sortKey="field" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Origem" sortKey="origin" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <th>Análise</th>
-                              <th>Ação</th>
-                            </tr>
-                            <tr className="column-filter-row">
-                              <th />
-                              <th><input value={issueColumnFilters.code} onChange={e => setIssueColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
-                              <th><input value={issueColumnFilters.name} onChange={e => setIssueColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
-                              <th>
-                                <select value={issueFieldFilter} onChange={e => setIssueFieldFilter(e.target.value)}>
-                                  <option value="TODOS">Todos os campos</option>
-                                  {issueFieldOptions.map(field => (
-                                    <option key={field.fieldId} value={field.fieldId}>{field.fieldLabel}</option>
-                                  ))}
-                                </select>
-                              </th>
-                              <th><input value={issueColumnFilters.origin} onChange={e => setIssueColumnFilters(current => ({ ...current, origin: e.target.value }))} placeholder="Origem…" /></th>
-                              <th><input value={issueColumnFilters.target} onChange={e => setIssueColumnFilters(current => ({ ...current, target: e.target.value }))} placeholder="Destino…" /></th>
-                              <th>
-                                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
-                                  <option value="TODOS">Todos</option>
-                                  <option value="DIVERGENTE">Divergente</option>
-                                  <option value="ATENÇÃO">Atenção</option>
-                                </select>
-                              </th>
-                              <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
-                              <th />
-                              <th />
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {currentIssuePage.map((item, idx) => {
-                              const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
-                              const highlight = issueFieldFilter !== 'TODOS'
-                              const fieldDefinition = resultProfile.fields.find(field => field.id === item.field.fieldId)
-                              const showCharacterCount = fieldDefinition?.kind === 'text'
-                              return (
-                                <tr
-                                  key={`${item.client.key}-${item.field.fieldId}-${idx}`}
-                                  className={[
-                                    selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : '',
-                                    reviewedIssueKeys.has(occurrenceKey) ? 'row-reviewed' : '',
-                                  ].filter(Boolean).join(' ')}
+                              </td>
+                              <td className="mono">{item.client.key}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="link-button left"
+                                  onClick={() => {
+                                    setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                    openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                  }}
                                 >
-                                  <td className="issue-select-col">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedIssueKeys.has(occurrenceKey)}
-                                      onChange={() => toggleIssueSelection(occurrenceKey)}
-                                      aria-label={`Selecionar ${item.client.key} · ${item.field.fieldLabel}`}
-                                    />
-                                  </td>
-                                  <td className="mono">{item.client.key}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="link-button left"
-                                      onClick={() => {
-                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
-                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
-                                      }}
-                                    >
-                                      {item.client.name || '—'}
-                                    </button>
-                                  </td>
-                                  <td>
-                                    <strong>{item.field.fieldLabel}</strong>
-                                    <small className="block-muted">{item.field.group}</small>
-                                    {item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}
-                                  </td>
-                                  <td>
-                                    <IssueValueCell
-                                      label="Origem"
-                                      value={item.field.originValue}
-                                      status={item.field.status}
-                                      highlight={highlight}
-                                      showCharacterCount={showCharacterCount}
-                                    />
-                                  </td>
-                                  <td>
-                                    <IssueValueCell
-                                      label="Destino"
-                                      value={item.field.targetValue}
-                                      status={item.field.status}
-                                      highlight={highlight}
-                                      showCharacterCount={showCharacterCount}
-                                    />
-                                  </td>
-                                  <td><StatusBadge status={item.field.status} /></td>
-                                  <td className="reason-cell">{item.field.reason}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className={'review-chip ' + (reviewedIssueKeys.has(occurrenceKey) ? 'done' : '')}
-                                      onClick={() => setReviewedIssueKeys(current => toggleStringSet(current, occurrenceKey))}
-                                    >
-                                      {reviewedIssueKeys.has(occurrenceKey) ? '✓ Analisado' : 'Marcar analisado'}
-                                    </button>
-                                  </td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="analysis-action-button"
-                                      onClick={() => {
-                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
-                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
-                                      }}
-                                    >
-                                      Abrir análise
-                                    </button>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
-                    </>
+                                  {item.client.name || '—'}
+                                </button>
+                              </td>
+                              <td>
+                                <strong>{item.field.fieldLabel}</strong>
+                                <small className="block-muted">{item.field.group}</small>
+                                {item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}
+                              </td>
+                              <td>
+                                <IssueValueCell
+                                  label="Origem"
+                                  value={item.field.originValue}
+                                  status={item.field.status}
+                                  highlight={highlight}
+                                  showCharacterCount={showCharacterCount}
+                                  duplicate={item.duplicate}
+                                  onOpenDuplicate={item.duplicate
+                                    ? () => openDuplicates(item.field.fieldId, item.duplicate!.normalizedValue, 'ORIGEM')
+                                    : undefined}
+                                />
+                              </td>
+                              <td>
+                                <IssueValueCell
+                                  label="Destino"
+                                  value={item.field.targetValue}
+                                  status={item.field.status}
+                                  highlight={highlight}
+                                  showCharacterCount={showCharacterCount}
+                                />
+                              </td>
+                              <td><StatusBadge status={item.field.status} /></td>
+                              <td className="reason-cell">{item.field.reason}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className={'review-chip ' + (reviewedIssueKeys.has(occurrenceKey) ? 'done' : '')}
+                                  onClick={() => setReviewedIssueKeys(current => toggleStringSet(current, occurrenceKey))}
+                                >
+                                  {reviewedIssueKeys.has(occurrenceKey) ? '✓ Analisado' : 'Marcar analisado'}
+                                </button>
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="analysis-action-button"
+                                  onClick={() => {
+                                    setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                    openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                  }}
+                                >
+                                  Abrir análise
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {sortedIssues.length > 0 && (
+                    <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
                   )}
                 </div>
 
