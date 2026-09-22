@@ -131,9 +131,9 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">P</div>
-          <div><strong>PrimeCheck</strong><span>Conversão & Homologação</span></div>
+        <div className="module-topbar-title">
+          <strong>Homologação</strong>
+          <span>Importação, vínculo e comparação de dados</span>
         </div>
         <div className="topbar-actions">
           <div className="privacy-pill"><span>●</span> Processamento local no navegador</div>
