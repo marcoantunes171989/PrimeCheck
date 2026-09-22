@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import FileDropZone from './components/FileDropZone'
 import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
-import DuplicateRecordList, { DuplicateCodeList } from './components/DuplicateRecordList'
+import { DuplicateCodeList, DuplicateGroupDetails } from './components/DuplicateRecordList'
 import StatusBadge from './components/StatusBadge'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
 import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustment } from './lib/compare'
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
+import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
@@ -1011,111 +1012,108 @@ function DuplicatePrintReport({
   items,
   profile,
   filterDescription,
+  generatedAt,
 }: {
   items: ComparisonReport['duplicates']
   profile: EntityProfile
   filterDescription: string
+  generatedAt: string
 }) {
-  const totalRecords = items.reduce((sum, item) => sum + item.count, 0)
-  const title = profile.id === 'product'
-    ? 'Produtos duplicados'
-    : profile.id === 'supplier'
-      ? 'Fornecedores duplicados'
-      : profile.id === 'client'
-        ? 'Clientes duplicados'
-        : profile.label + ' duplicados'
-
-  const nameLabel = profile.id === 'product'
-    ? 'Descrição'
-    : profile.id === 'supplier'
-      ? 'Razão social / Nome'
-      : 'Nome / Razão social'
+  const nameLabel = profile.fields.find(field => field.id === profile.nameFieldId)?.label
+    || (profile.id === 'product' ? 'Descrição' : profile.id === 'supplier' ? 'Razão Social' : 'Nome')
+  const printedAt = (() => {
+    const date = new Date(generatedAt)
+    return Number.isNaN(date.getTime()) ? new Date().toLocaleString('pt-BR') : date.toLocaleString('pt-BR')
+  })()
 
   return (
     <section className="dup-print-report" aria-hidden="true">
-      <header className="dup-print-head">
-        <span className="dup-print-brand">PrimeCheck · Conversão e Homologação</span>
-        <h1>Relatório de {title}</h1>
-        <p>Análise agrupada para identificação e decisão sobre cadastros com informações duplicadas.</p>
+      {items.map((dup, groupIndex) => {
+        const ctx = {
+          fieldId: dup.fieldId,
+          fieldLabel: dup.fieldLabel,
+          normalizedValue: dup.normalizedValue,
+          nameLabel,
+        }
+        const codes = dup.records.map(record => record.key).filter(Boolean)
+        return (
+          <article
+            className="dup-print-page"
+            key={dup.side + '-' + dup.fieldId + '-' + dup.normalizedValue + '-' + groupIndex}
+          >
+            <header className="dup-print-head">
+              <span className="dup-print-brand">PrimeCheck</span>
+              <h1>Relatório de Duplicidades</h1>
+              <p>{profile.label}</p>
+              <div className="dup-print-summary">
+                <div><span>Data/hora de geração</span><strong>{printedAt}</strong></div>
+                <div><span>Grupo</span><strong>{groupIndex + 1} de {items.length}</strong></div>
+                <div><span>Filtro aplicado</span><strong>{filterDescription}</strong></div>
+              </div>
+            </header>
 
-        <div className="dup-print-summary">
-          <div><span>Perfil analisado</span><strong>{profile.label}</strong></div>
-          <div><span>Grupos duplicados</span><strong>{number(items.length)}</strong></div>
-          <div><span>Registros envolvidos</span><strong>{number(totalRecords)}</strong></div>
-        </div>
-        <small>Filtro aplicado: {filterDescription}</small>
-      </header>
-
-      <div className="dup-print-guidance">
-        <strong>Orientação para análise</strong>
-        <p>
-          Estes registros possuem valores duplicados e devem ser revisados antes da importação/conversão.
-          Quando não existe um parâmetro confiável para definir qual cadastro deve ser o principal,
-          o processo não possui uma regra segura de prioridade: um dos registros pode ser utilizado como
-          referência e os demais podem receber tratamento genérico. Valide os códigos, {nameLabel.toLowerCase()},
-          nome fantasia/apelido, CPF/CNPJ e demais dados cadastrais antes de decidir qual registro deve prevalecer.
-        </p>
-      </div>
-
-      {items.map((dup, groupIndex) => (
-        <article
-          className="dup-print-group"
-          key={dup.side + '-' + dup.fieldId + '-' + dup.normalizedValue + '-' + groupIndex}
-        >
-          <div className="dup-print-group-head">
-            <div>
-              <span>Grupo {groupIndex + 1}</span>
-              <h2>{dup.fieldLabel} duplicado</h2>
-              <p>{dup.fieldGroup || dup.category}</p>
+            <div className="dup-print-guidance">
+              <strong>Orientação para análise</strong>
+              <p>
+                Os registros abaixo possuem informações duplicadas no campo indicado. É necessário validar
+                manualmente qual cadastro deve ser considerado principal para a conversão/importação. Na ausência
+                de uma regra específica e confiável de prioridade, o processo poderá considerar um registro de
+                forma não determinística, sendo recomendada análise prévia.
+              </p>
             </div>
-            <div>
-              <b>{dup.side}</b>
-              <b>{number(dup.count)} registros</b>
-            </div>
-          </div>
 
-          <div className="dup-print-group-summary">
-            <div><span>Campo duplicado</span><strong>{dup.fieldLabel}</strong></div>
-            <div><span>Valor duplicado</span><strong className="mono">{dup.normalizedValue || '—'}</strong></div>
-            <div><span>Códigos envolvidos</span><strong>{dup.records.map(record => record.key || '—').join(', ')}</strong></div>
-          </div>
-
-          <div className="dup-print-records">
-            {dup.records.map((record, recordIndex) => {
-              const duplicateValue = record.rawValue.trim() || dup.normalizedValue
-              return (
-                <div className="dup-print-record" key={record.key + '-' + recordIndex}>
-                  <div className="dup-print-record-head">
-                    <span>Registro {recordIndex + 1}</span>
-                    <b>Código {record.key || '—'}</b>
-                  </div>
-
-                  <div className="dup-print-data main">
-                    <span>{nameLabel}</span>
-                    <strong>{record.name || 'Não informado'}</strong>
-                  </div>
-
-                  <div className="dup-print-data duplicated">
-                    <span>{dup.fieldLabel} duplicado</span>
-                    <strong>{duplicateValue || '—'}</strong>
-                  </div>
-
-                  {record.extras.map(extra => (
-                    <div className="dup-print-data" key={record.key + '-' + extra.label}>
-                      <span>{extra.label}</span>
-                      <strong>{extra.value}</strong>
-                    </div>
-                  ))}
+            <div className="dup-print-block">
+              <div className="dup-print-group-head">
+                <div>
+                  <span>Grupo {groupIndex + 1}</span>
+                  <h2>{dup.fieldLabel} duplicado</h2>
+                  <p>{dup.category}</p>
                 </div>
-              )
-            })}
-          </div>
-        </article>
-      ))}
+                <div>
+                  <b>{sideLabel(dup.side)}</b>
+                  <b>{number(dup.count)} {dup.count === 1 ? 'registro' : 'registros'}</b>
+                </div>
+              </div>
 
-      <footer className="dup-print-footer">
-        Gerado pelo PrimeCheck em {new Date().toLocaleString('pt-BR')} · Relatório de apoio à validação da conversão.
-      </footer>
+              <div className="dup-print-group-summary">
+                <div><span>Lado</span><strong>{sideLabel(dup.side)}</strong></div>
+                <div><span>Campo duplicado</span><strong>{dup.fieldLabel}</strong></div>
+                <div><span>Tipo</span><strong>{dup.category}</strong></div>
+                <div><span>Valor duplicado</span><strong className="mono">{dup.normalizedValue || '—'}</strong></div>
+                <div><span>Quantidade de registros</span><strong>{number(dup.count)}</strong></div>
+                <div className="dup-print-codes">
+                  <span>Códigos envolvidos</span>
+                  <div className="dup-print-chips">
+                    {codes.length
+                      ? codes.map((code, index) => <b key={code + '-' + index}>{code}</b>)
+                      : <strong>—</strong>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <h3 className="dup-print-records-title">Registros do grupo</h3>
+            <div className="dup-print-records">
+              {dup.records.map((record, recordIndex) => {
+                const fields = buildRecordDisplayFields(record, ctx)
+                return (
+                  <div className="dup-print-record" key={record.key + '-' + recordIndex}>
+                    {fields.map(field => (
+                      <div
+                        className={'dup-print-data' + (field.id === '__nome' ? ' main' : '') + (field.id === dup.fieldId ? ' duplicated' : '')}
+                        key={record.key + '-' + field.id}
+                      >
+                        <span>{field.label}</span>
+                        <strong className={isMonoDuplicateField(field.id) ? 'mono' : undefined}>{field.value || '—'}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          </article>
+        )
+      })}
     </section>
   )
 }
@@ -1129,6 +1127,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
   const [sort, setSort] = useState<SortState>({ key: 'count', direction: 'desc' })
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
   const [printGroupId, setPrintGroupId] = useState<string | null>(null)
 
   const fieldOptions = useMemo(() => {
@@ -1148,7 +1147,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
       record.key,
       record.name,
       record.rawValue,
-      ...record.extras.flatMap(extra => [extra.label, extra.value]),
+      ...record.extras.flatMap(extra => [extra.id, extra.label, extra.value]),
     ]).join(' ')
     const text = [
       dup.side,
@@ -1198,6 +1197,22 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     else next.add(id)
     return next
   }
+
+  const toggleGroup = (rowId: string) => {
+    setOpenGroups(current => {
+      const next = toggleSet(current, rowId)
+      if (!next.has(rowId)) {
+        setExpandedRecords(records => {
+          const copy = new Set(records)
+          copy.delete(rowId)
+          return copy
+        })
+      }
+      return next
+    })
+  }
+
+  const nameLabel = profile.fields.find(field => field.id === profile.nameFieldId)?.label ?? profile.recordLabel
 
   const printItems = printGroupId
     ? sorted.filter(item => rowIdOf(item) === printGroupId)
@@ -1294,7 +1309,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
                     <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Registros detalhados" sortKey="records" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1302,51 +1317,81 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
                     const rowId = rowIdOf(dup)
                     const field = profile.fields.find(item => item.id === dup.fieldId)
                     const monoValue = field ? monoKinds.has(field.kind) : true
+                    const open = openGroups.has(rowId)
                     return (
-                      <tr key={rowId + '-' + index}>
-                        <td>
-                          <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
-                        </td>
-                        <td>
-                          <div className="dup-field">
-                            <strong>{dup.fieldLabel}</strong>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="dup-category">{dup.category}</span>
-                        </td>
-                        <td>
-                          <div className="dup-value">
-                            <span>Valor duplicado</span>
-                            <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="dup-count">
-                            <strong>{number(dup.count)}</strong>
-                            <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
-                          </span>
-                        </td>
-                        <td>
-                          <DuplicateCodeList
-                            codes={dup.records.map(record => record.key)}
-                            expanded={expandedCodes.has(rowId)}
-                            onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
-                          />
-                        </td>
-                        <td>
-                          <DuplicateRecordList
-                            groupId={rowId}
-                            fieldLabel={dup.fieldLabel}
-                            normalizedValue={dup.normalizedValue}
-                            records={dup.records}
-                            expanded={expandedRecords.has(rowId)}
-                            onToggle={() => setExpandedRecords(current => toggleSet(current, rowId))}
-                            onPrint={() => requestPrint(rowId)}
-                            monoValue={monoValue}
-                          />
-                        </td>
-                      </tr>
+                      <Fragment key={rowId + '-' + index}>
+                        <tr className={'dup-group-row' + (open ? ' is-open' : '')}>
+                          <td>
+                            <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
+                          </td>
+                          <td>
+                            <div className="dup-field">
+                              <strong>{dup.fieldLabel}</strong>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="dup-category">{dup.category}</span>
+                          </td>
+                          <td>
+                            <div className="dup-value">
+                              <span>Valor duplicado</span>
+                              <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="dup-count">
+                              <strong>{number(dup.count)}</strong>
+                              <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
+                            </span>
+                          </td>
+                          <td>
+                            <DuplicateCodeList
+                              codes={dup.records.map(record => record.key)}
+                              expanded={expandedCodes.has(rowId)}
+                              onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
+                            />
+                          </td>
+                          <td>
+                            <div className="dup-actions">
+                              <button
+                                type="button"
+                                className="button ghost compact-button"
+                                onClick={() => toggleGroup(rowId)}
+                                aria-expanded={open}
+                              >
+                                {open ? 'Ocultar' : 'Ver registros'}
+                              </button>
+                              <button
+                                type="button"
+                                className="dup-print-group"
+                                onClick={() => requestPrint(rowId)}
+                                aria-label={'Imprimir grupo duplicado de ' + dup.fieldLabel}
+                              >
+                                Imprimir grupo
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr className="dup-expand-row">
+                            <td colSpan={7}>
+                              <DuplicateGroupDetails
+                                groupId={rowId}
+                                fieldId={dup.fieldId}
+                                fieldLabel={dup.fieldLabel}
+                                normalizedValue={dup.normalizedValue}
+                                nameLabel={nameLabel}
+                                records={dup.records}
+                                codesExpanded={expandedCodes.has(rowId + '::details')}
+                                onToggleCodes={() => setExpandedCodes(current => toggleSet(current, rowId + '::details'))}
+                                recordsExpanded={expandedRecords.has(rowId)}
+                                onToggleRecords={() => setExpandedRecords(current => toggleSet(current, rowId))}
+                                monoValue={monoValue}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     )
                   })}
                 </tbody>
@@ -1361,6 +1406,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
         items={printItems}
         profile={profile}
         filterDescription={filterDescription}
+        generatedAt={report.generatedAt}
       />
     </>
   )
