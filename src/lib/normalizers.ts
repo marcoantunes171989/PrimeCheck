@@ -207,6 +207,14 @@ export const normalizeDate = (value: CellValue) => {
   return Number.isNaN(parsed.getTime()) ? normalizeText(raw) : parsed.toISOString().slice(0, 10)
 }
 
+export const formatDateForDisplay = (value: CellValue) => {
+  const normalized = normalizeDate(value)
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return asText(value)
+  const [, year, month, day] = match
+  return `${day}/${month}/${year}`
+}
+
 export const normalizeForField = (value: CellValue, field: FieldDefinition): string => {
   if (field.id === 'cep') return onlyDigits(value)
 
