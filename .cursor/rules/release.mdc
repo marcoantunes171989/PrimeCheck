@@ -1,29 +1,48 @@
 ---
-description: Política obrigatória de release do PrimeCheck
+description: Política obrigatória de release automático do PrimeCheck
 alwaysApply: true
 ---
 
-# PrimeCheck — regra de release
+# PrimeCheck — regra de release automático
 
-- Nunca considerar Preview Deployment como produção publicada.
-- A branch de produção é sempre \`main\`.
-- Desenvolvimento deve ocorrer em branch de feature/fix.
-- Antes de qualquer liberação: executar build e typecheck e validar o Preview da Vercel.
-- Toda tarefa concluída deve ser enviada ao GitHub e disponibilizada automaticamente em Vercel Preview, aguardando status Ready antes de ser declarada finalizada.
-- Não interpretar "ok", "pode continuar" ou "pode prosseguir" como liberação de produção.
-- Quando o usuário informar que a tarefa foi validada, liberada ou aprovada, concluir automaticamente o ciclo de release: merge em main, Vercel Production, Ready e smoke test, sem exigir uma segunda frase de promoção.
+A partir de 22/09/2026, toda solicitação de desenvolvimento concluída no PrimeCheck deve seguir automaticamente até a Vercel Production, sem exigir uma nova autorização do usuário.
+
+## Regra principal
+
+- A branch de produção é sempre `main`.
+- Desenvolvimento deve ocorrer em branch de feature/fix/chore.
+- Toda tarefa concluída deve passar por build e typecheck.
+- Toda tarefa concluída deve ser commitada e enviada ao GitHub.
+- Quando houver PR, concluir o merge para `main` automaticamente após os checks obrigatórios.
+- Após o merge em `main`, aguardar o Vercel Production concluir.
+- A tarefa só pode ser declarada finalizada quando o deployment de produção estiver `Ready`/sucesso.
+- Executar smoke test básico da URL oficial após o deployment, sempre que tecnicamente possível.
+- Não é necessário solicitar novamente frases como "pode publicar", "pode promover" ou "liberado".
+- Uma nova solicitação de desenvolvimento já constitui autorização para concluir o ciclo de release até produção.
+- Exceção: se o usuário disser explicitamente "não publicar", "somente preview", "não atualizar produção" ou equivalente, interromper antes do merge em `main`.
 
 ## Fluxo obrigatório
 
-branch → PR → Preview Vercel → validação humana → merge em main → Vercel Production → Ready → smoke test
+solicitação → desenvolvimento → branch → build/typecheck → commit → push → PR → checks → merge main → Vercel Production → Ready → smoke test
 
-## Após a liberação
+## Vercel
 
-Confirmar e registrar:
-- PR mesclado;
-- commit atual da main;
-- status do deployment de produção;
+- Nunca trocar a Production Branch da Vercel: deve permanecer `main`.
+- Preview pode ser usado como etapa intermediária de validação técnica, mas não encerra a tarefa por padrão.
+- A URL oficial de validação após cada tarefa é a produção:
+  https://prime-check-nine.vercel.app
+
+## Relatório final obrigatório
+
+Ao concluir cada tarefa, informar:
+- branch utilizada;
+- commit final;
+- PR utilizado, quando houver;
+- commit atual da `main`;
+- status dos checks;
+- status do Vercel Production;
 - URL oficial;
-- resultado do smoke test.
+- resultado do smoke test;
+- qualquer warning ou risco residual.
 
-Nunca alterar a Production Branch da Vercel para uma branch de desenvolvimento.
+Não declarar uma tarefa como atualizada na Vercel enquanto a produção ainda estiver em Preview, Building, Pending ou Failed.
