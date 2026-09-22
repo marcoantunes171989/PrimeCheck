@@ -16,6 +16,7 @@ import {
   hasReplacementCharacter,
   isInactiveValue,
   normalizeForField,
+  normalizeText,
   validateCpfCnpj,
 } from './normalizers'
 import { detectStatusHeader } from './mapping'
@@ -60,11 +61,61 @@ const compareDocument = (origin: CellValue, target: CellValue): Pick<ComparisonF
   }
 }
 
+const normalizeLooseText = (value: CellValue) =>
+  normalizeText(value)
+    .replace(/[º°]/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const normalizeClientName = (value: CellValue) =>
+  normalizeLooseText(value)
+    .replace(/\s+\d+$/, '')
+    .trim()
+
 const compareField = (field: FieldDefinition, origin: CellValue, target: CellValue): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
   if (field.kind === 'document') return compareDocument(origin, target)
 
   const originText = asText(origin)
   const targetText = asText(target)
+
+  if (field.id === 'nome') {
+    const originName = normalizeClientName(origin)
+    const targetName = normalizeClientName(target)
+    if (originName === targetName) {
+      return { status: 'CONFORME', reason: 'Nome equivalente após normalização de acentos, pontuação, espaços e sufixo de código.' }
+    }
+  }
+
+  if (field.id === 'endereco') {
+    if (normalizeLooseText(origin) === normalizeLooseText(target)) {
+      return { status: 'CONFORME', reason: 'Endereço equivalente após normalização de pontuação e Nº/N°.' }
+    }
+  }
+
+  if (field.id === 'estadoCivil') {
+    const o = normalizeText(origin)
+    const t = normalizeText(target)
+    if ((o === '0' && t === 'SOLTEIRO') || (o === 'SOLTEIRO' && t === '0')) {
+      return { status: 'CONFORME', reason: 'Regra local aplicada: código 0 corresponde a Solteiro.' }
+    }
+  }
+
+  if (field.id === 'statusCheque' || field.id === 'statusConvenio') {
+    const o = normalizeText(origin)
+    const t = normalizeText(target)
+    if ((o === '0' && !t) || (o === '1' && t === '1')) {
+      return { status: 'CONFORME', reason: 'Regra local aplicada: 0 corresponde a vazio e 1 corresponde a 1.' }
+    }
+  }
+
+  if (field.id === 'empresaConvenio') {
+    const o = normalizeText(origin)
+    const t = normalizeText(target)
+    if (o === '0' && !t) {
+      return { status: 'CONFORME', reason: 'Regra local aplicada: código de convênio 0 corresponde a ausência de empresa convênio.' }
+    }
+  }
   if (hasReplacementCharacter(target)) {
     return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
   }
@@ -111,7 +162,37 @@ const createFieldResult = (
   map: FieldMapping | undefined,
   originRow: Record<string, CellValue>,
   targetRow: Record<string, CellValue> | undefined,
+  allMappings: Map<string, FieldMapping>,
 ): ComparisonFieldResult => {
+  if (field.id === 'pessoaTipo' && map?.originHeader && targetRow) {
+    const documentMap = allMappings.get('cpfCnpj')
+    const targetDocument = documentMap?.targetHeader
+      ? asText(targetRow[documentMap.targetHeader])
+      : ''
+
+    if (targetDocument) {
+      const normalizedDocument = validateCpfCnpj(targetDocument).normalized
+      const inferredTarget = normalizedDocument.length === 11
+        ? 'F'
+        : normalizedDocument.length === 14
+          ? 'J'
+          : ''
+
+      if (inferredTarget) {
+        const originValue = asText(originRow[map.originHeader])
+        const compared = compareField(field, originValue, inferredTarget)
+        return {
+          fieldId: field.id,
+          fieldLabel: field.label,
+          group: field.group,
+          originValue,
+          targetValue: inferredTarget === 'F' ? 'PF (inferido pelo CPF)' : 'PJ (inferido pelo CNPJ)',
+          ...compared,
+        }
+      }
+    }
+  }
+
   if (!map?.originHeader || !map?.targetHeader) {
     return {
       fieldId: field.id,
@@ -250,7 +331,7 @@ export const compareDatasets = (origin: Dataset, target: Dataset, mapping: Field
       }
     }
 
-    const fields = CHECKLIST_FIELDS.map(field => createFieldResult(field, mapIndex.get(field.id), originRow, targetRow))
+    const fields = CHECKLIST_FIELDS.map(field => createFieldResult(field, mapIndex.get(field.id), originRow, targetRow, mapIndex))
     const divergentCount = fields.filter(f => f.status === 'DIVERGENTE').length
     const attentionCount = fields.filter(f => f.status === 'ATENÇÃO').length
     const status: Severity = divergentCount ? 'DIVERGENTE' : attentionCount ? 'ATENÇÃO' : 'CONFORME'
