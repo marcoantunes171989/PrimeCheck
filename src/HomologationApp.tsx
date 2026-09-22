@@ -190,7 +190,13 @@ function App() {
             )}
 
             {origin.headers.length > 0 && target.headers.length > 0 && (
-              <MappingPanel mapping={mapping} originHeaders={origin.headers} targetHeaders={target.headers} onChange={setMapping} />
+              <MappingPanel
+                mapping={mapping}
+                originHeaders={origin.headers}
+                targetHeaders={target.headers}
+                onChange={setMapping}
+                onAutoMap={() => setMapping(autoMap(origin, target))}
+              />
             )}
 
             {error && <div className="global-error">{error}</div>}
