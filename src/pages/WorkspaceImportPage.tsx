@@ -9,10 +9,16 @@ export default function WorkspaceImportPage({
   files,
   onFilesChange,
   onContinue,
+  onClear,
+  restoring = false,
+  storageMessage = '',
 }: {
   files: ImportedFile[]
   onFilesChange: (files: ImportedFile[]) => void
   onContinue: () => void
+  onClear: () => void
+  restoring?: boolean
+  storageMessage?: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -87,9 +93,15 @@ export default function WorkspaceImportPage({
             O PrimeCheck identifica os campos e habilita automaticamente os módulos correspondentes.
           </p>
         </div>
-        <div className="workspace-import-counter">
-          <strong>{physicalFiles.length}/{MAX_FILES}</strong>
-          <span>arquivos</span>
+        <div className="workspace-import-hero-actions">
+          <div className="workspace-storage-state">
+            <i />
+            <span>{storageMessage || 'Persistência local neste navegador.'}</span>
+          </div>
+          <div className="workspace-import-counter">
+            <strong>{physicalFiles.length}/{MAX_FILES}</strong>
+            <span>arquivos</span>
+          </div>
         </div>
       </section>
 
@@ -193,16 +205,27 @@ export default function WorkspaceImportPage({
       <div className="workspace-import-action">
         <div>
           <strong>{matches.length ? 'Dados prontos para organização.' : 'Aguardando arquivos reconhecidos.'}</strong>
-          <span>Os dados permanecem somente na memória desta aba.</span>
+          <span>Os arquivos processados ficam salvos localmente neste navegador até você limpar os dados.</span>
         </div>
-        <button
-          type="button"
-          className="button primary large"
-          disabled={!files.length || !matches.length || busy}
-          onClick={onContinue}
-        >
-          Organizar dados e abrir módulos
-        </button>
+        <div className="workspace-import-action-buttons">
+          {files.length > 0 && (
+            <button
+              type="button"
+              className="button workspace-clear-button"
+              onClick={onClear}
+            >
+              Limpar dados importados
+            </button>
+          )}
+          <button
+            type="button"
+            className="button primary large workspace-organize-button"
+            disabled={!files.length || !matches.length || busy || restoring}
+            onClick={onContinue}
+          >
+            Organizar dados e abrir módulos
+          </button>
+        </div>
       </div>
     </main>
   )
