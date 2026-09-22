@@ -1060,11 +1060,13 @@ function IssueValueCell({
   value,
   status,
   highlight,
+  showCharacterCount = false,
 }: {
   label: string
   value: string
   status: Severity
   highlight: boolean
+  showCharacterCount?: boolean
 }) {
   const tone = highlight
     ? status === 'DIVERGENTE'
@@ -1073,11 +1075,17 @@ function IssueValueCell({
         ? 'issue-value-attention'
         : ''
     : ''
+  const length = Array.from(value || '').length
 
   return (
     <div className={`issue-value ${tone}`.trim()}>
       <small>{label}</small>
       <strong>{value || '—'}</strong>
+      {showCharacterCount && (
+        <span className="issue-char-count">
+          {length} {length === 1 ? 'caractere' : 'caracteres'}
+        </span>
+      )}
     </div>
   )
 }
