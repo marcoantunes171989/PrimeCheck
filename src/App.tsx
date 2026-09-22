@@ -4,7 +4,7 @@ import HomologationApp from './HomologationApp'
 import CnpjValidatorPage from './pages/CnpjValidatorPage'
 import IeValidatorPage from './pages/IeValidatorPage'
 import WorkspaceImportPage from './pages/WorkspaceImportPage'
-import WorkspaceDataPage from './pages/WorkspaceDataPage'
+import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceModules'
 import type { ImportedFile } from './types'
 
@@ -19,13 +19,8 @@ const staticModuleTitle: Record<'importacao' | 'homologacao' | 'cnpj' | 'ie', st
 
 export default function App() {
   const [module, setModule] = useState<ModuleId>('importacao')
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
   const [workspaceFiles, setWorkspaceFiles] = useState<ImportedFile[]>([])
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem('primecheck.sidebar.collapsed')
-    if (saved === 'true') setCollapsed(true)
-  }, [])
 
   const toggleSidebar = () => {
     setCollapsed(current => {
@@ -88,7 +83,7 @@ export default function App() {
         )}
 
         {activeWorkspaceModule && (
-          <WorkspaceDataPage
+          <ModuleComparisonPage
             module={activeWorkspaceModule}
             files={workspaceFiles}
             onBackToImport={() => setModule('importacao')}
