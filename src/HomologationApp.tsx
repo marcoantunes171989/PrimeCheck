@@ -19,7 +19,16 @@ import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityP
 
 type Tab = 'overview' | 'dashboard' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
-type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
+type IssueDuplicateInfo = {
+  count: number
+  normalizedValue: string
+}
+
+type IssueOccurrence = {
+  client: ClientComparison
+  field: ComparisonFieldResult
+  duplicate?: IssueDuplicateInfo
+}
 
 const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
@@ -120,6 +129,7 @@ function App({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'TODOS' | Severity>('TODOS')
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
+  const [issueDuplicateFilter, setIssueDuplicateFilter] = useState<'TODOS' | 'DUPLICADOS' | 'NAO_DUPLICADOS'>('TODOS')
   const [clientColumnFilters, setClientColumnFilters] = useState({
     code: '',
     name: '',
@@ -138,6 +148,8 @@ function App({
     reason: '',
   })
   const [duplicateFieldFocus, setDuplicateFieldFocus] = useState<string | undefined>()
+  const [duplicateSearchFocus, setDuplicateSearchFocus] = useState('')
+  const [duplicateSideFocus, setDuplicateSideFocus] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
   const [selectedClientKeys, setSelectedClientKeys] = useState<Set<string>>(new Set())
