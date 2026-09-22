@@ -2,7 +2,7 @@ import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { CHECKLIST_FIELDS, RECORD_STATUS_ALIASES } from '../config/checklist'
 import type { DataRow, Dataset, ImportedFile } from '../types'
-import { normalizeHeader } from './normalizers'
+import { normalizeHeader, repairEncoding } from './normalizers'
 
 const ACCEPTED = ['csv','txt','tsv','xls','xlsx','xlsm','xlsb','ods','fods']
 const DELIMITERS = [';', ',', '\t', '|']
@@ -26,7 +26,7 @@ const collectHeaders = (rows: DataRow[]) => {
 const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
 
 const sanitizeText = (value: unknown) =>
-  String(value ?? '')
+  repairEncoding(String(value ?? ''))
     .replace(/^\uFEFF/, '')
     .replace(/^ï»¿/, '')
     .trim()
@@ -36,16 +36,18 @@ const decodeText = (buffer: ArrayBuffer) => {
   const badUtf = (utf.match(/�/g) || []).length
   const cleanedUtf = utf.replace(/^\uFEFF/, '').replace(/^ï»¿/, '')
 
-  if (badUtf === 0) return cleanedUtf
+  if (badUtf === 0) return repairEncoding(cleanedUtf)
 
   try {
     const win = new TextDecoder('windows-1252').decode(buffer)
     const badWin = (win.match(/�/g) || []).length
-    return (badWin < badUtf ? win : utf)
-      .replace(/^\uFEFF/, '')
-      .replace(/^ï»¿/, '')
+    return repairEncoding(
+      (badWin < badUtf ? win : utf)
+        .replace(/^\uFEFF/, '')
+        .replace(/^ï»¿/, ''),
+    )
   } catch {
-    return cleanedUtf
+    return repairEncoding(cleanedUtf)
   }
 }
 
