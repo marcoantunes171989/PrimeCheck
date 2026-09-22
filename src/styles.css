@@ -6198,3 +6198,357 @@ body {
     text-align: center;
   }
 }
+
+
+/* =========================================================
+   Diagnóstico rápido, filtros por coluna e relatórios gerais
+   ========================================================= */
+
+.section-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.overview-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.overview-toolbar .screen-search {
+  margin: 0;
+}
+
+.column-filter-row th {
+  position: sticky;
+  top: 33px;
+  z-index: 2;
+  padding: 5px 6px !important;
+  background: #f9fbfc !important;
+  box-shadow: inset 0 -1px 0 #dde5e9;
+}
+
+.column-filter-row input,
+.column-filter-row select {
+  width: 100%;
+  min-width: 74px;
+  min-height: 28px;
+  border: 1px solid #d3dee4;
+  border-radius: 7px;
+  background: #fff;
+  color: #26343c;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  outline: none;
+}
+
+.column-filter-row input::placeholder {
+  color: #98a5ad;
+}
+
+.column-filter-row input:focus,
+.column-filter-row select:focus {
+  border-color: #8fabb9;
+  box-shadow: 0 0 0 2px rgba(1, 46, 70, .07);
+}
+
+.technical-diagnosis {
+  overflow: hidden;
+}
+
+.technical-diagnosis-head {
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.technical-diagnosis-head h3 {
+  margin-top: 3px;
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.technical-diagnosis-head p {
+  max-width: 820px;
+}
+
+.technical-diagnosis-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.technical-diagnosis-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0 12px 10px;
+}
+
+.technical-diagnosis-kpis > div {
+  padding: 9px 10px;
+  border: 1px solid #dde6ea;
+  border-radius: 9px;
+  background: #f9fbfc;
+}
+
+.technical-diagnosis-kpis span {
+  display: block;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.technical-diagnosis-kpis strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.technical-search {
+  margin: 0 12px 10px;
+}
+
+.technical-diagnosis-table {
+  min-width: 1380px;
+}
+
+.technical-diagnosis-table th:nth-child(1) { width: 96px; }
+.technical-diagnosis-table th:nth-child(2) { width: 145px; }
+.technical-diagnosis-table th:nth-child(3) { width: 170px; }
+.technical-diagnosis-table th:nth-child(4),
+.technical-diagnosis-table th:nth-child(5) { width: 190px; }
+.technical-diagnosis-table th:nth-child(6) { width: 130px; }
+.technical-diagnosis-table th:nth-child(7) { min-width: 280px; }
+.technical-diagnosis-table th:nth-child(8) { width: 72px; }
+.technical-diagnosis-table th:nth-child(9) { width: 126px; }
+
+.technical-diagnosis-table td {
+  vertical-align: top;
+}
+
+.quick-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .035em;
+  white-space: nowrap;
+}
+
+.quick-kind-divergncia {
+  background: #fff0f0;
+  color: #a62222;
+}
+
+.quick-kind-ateno {
+  background: #fff7e9;
+  color: #995b00;
+}
+
+.quick-kind-duplicidade {
+  background: #eef5f8;
+  color: var(--primary);
+}
+
+.quick-duplicate-status {
+  display: inline-flex;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eef5f8;
+  color: var(--primary);
+  font-size: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.records-table,
+.field-summary-table,
+.missing-table,
+.issues-table,
+.dup-table {
+  scroll-margin-top: 8px;
+}
+
+.missing-toolbar {
+  grid-template-columns: minmax(260px, 1fr) auto auto 135px;
+}
+
+.generic-print-report {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .technical-diagnosis-kpis {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .missing-toolbar {
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+  }
+
+  .missing-toolbar .page-size-select {
+    grid-column: 3;
+  }
+}
+
+@media (max-width: 760px) {
+  .overview-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head-actions,
+  .technical-diagnosis-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .technical-diagnosis-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .missing-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .missing-toolbar .screen-search {
+    grid-column: 1 / -1;
+  }
+
+  .missing-toolbar .page-size-select {
+    grid-column: auto;
+  }
+
+  .column-filter-row th {
+    position: static;
+  }
+}
+
+/* Relatório genérico usado nas demais abas, respeitando os filtros visíveis. */
+@media print {
+  .generic-print-report,
+  .generic-print-report * {
+    visibility: visible !important;
+  }
+
+  .generic-print-report {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #17232b;
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    font-size: 8px;
+    line-height: 1.35;
+  }
+
+  .generic-print-head {
+    margin-bottom: 10px;
+    padding: 13px 15px;
+    border: 1px solid #d1d5db;
+    border-top: 4px solid #012e46;
+    border-radius: 9px;
+  }
+
+  .generic-print-brand {
+    color: #f38525;
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .generic-print-head h1 {
+    margin: 4px 0 2px;
+    color: #012e46;
+    font-size: 19px;
+    line-height: 1.1;
+  }
+
+  .generic-print-head > p {
+    margin: 0;
+    color: #5e6d76;
+    font-size: 8px;
+  }
+
+  .generic-print-summary {
+    display: grid;
+    grid-template-columns: .8fr .5fr 1.7fr;
+    gap: 6px;
+    margin-top: 9px;
+  }
+
+  .generic-print-summary > div {
+    padding: 6px 7px;
+    border: 1px solid #dce4e9;
+    border-radius: 6px;
+    background: #fafcfd;
+  }
+
+  .generic-print-summary span {
+    display: block;
+    color: #6b7280;
+    font-size: 6px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .generic-print-summary strong {
+    display: block;
+    margin-top: 2px;
+    color: #17232b;
+    font-size: 7px;
+    overflow-wrap: anywhere;
+  }
+
+  .generic-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+  }
+
+  .generic-print-table thead {
+    display: table-header-group;
+  }
+
+  .generic-print-table th {
+    padding: 5px 4px;
+    border: 1px solid #ccd6dc;
+    background: #f2f6f8;
+    color: #012e46;
+    font-size: 6.5px;
+    font-weight: 800;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .generic-print-table td {
+    padding: 5px 4px;
+    border: 1px solid #dce3e7;
+    color: #26323a;
+    font-size: 7px;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .generic-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

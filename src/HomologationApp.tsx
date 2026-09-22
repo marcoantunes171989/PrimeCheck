@@ -5,6 +5,8 @@ import ClientDrawer from './components/ClientDrawer'
 import { DuplicateCodeList, DuplicateGroupDetails } from './components/DuplicateRecordList'
 import StatusBadge from './components/StatusBadge'
 import IssuePrintReport, { type IssuePrintItem } from './components/IssuePrintReport'
+import DataPrintReport from './components/DataPrintReport'
+import TechnicalDiagnosisView from './components/TechnicalDiagnosisView'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
@@ -14,7 +16,7 @@ import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
-type Tab = 'overview' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
+type Tab = 'overview' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
 type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
 
@@ -108,6 +110,24 @@ function App({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'TODOS' | Severity>('TODOS')
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
+  const [clientColumnFilters, setClientColumnFilters] = useState({
+    code: '',
+    name: '',
+    found: 'TODOS',
+    status: 'TODOS',
+    divergent: '',
+    attention: '',
+    document: '',
+    validity: 'TODOS',
+  })
+  const [issueColumnFilters, setIssueColumnFilters] = useState({
+    code: '',
+    name: '',
+    origin: '',
+    target: '',
+    reason: '',
+  })
+  const [duplicateFieldFocus, setDuplicateFieldFocus] = useState<string | undefined>()
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
   const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<string>>(new Set())
@@ -190,6 +210,7 @@ function App({
   const keyLabel = keyFields.map(field => field.label).join(' + ') || 'chave do registro'
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'overview', label: 'Visão geral' },
+    { id: 'diagnosis', label: 'Diagnóstico rápido' },
     { id: 'clients', label: plural(profile) },
     { id: 'issues', label: 'Divergências' },
     { id: 'fields', label: 'Por campo' },
@@ -246,8 +267,25 @@ function App({
   const filteredClients = useMemo(() => {
     if (!report) return []
     const term = search.trim().toLocaleUpperCase('pt-BR')
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
     return report.clients.filter(client => {
       if (statusFilter !== 'TODOS' && client.status !== statusFilter) return false
+      if (clientColumnFilters.status !== 'TODOS' && client.status !== clientColumnFilters.status) return false
+      if (clientColumnFilters.found === 'SIM' && !client.found) return false
+      if (clientColumnFilters.found === 'NAO' && client.found) return false
+      if (!contains(client.key, clientColumnFilters.code)) return false
+      if (!contains(client.name, clientColumnFilters.name)) return false
+
+      if (!contains(client.divergentCount, clientColumnFilters.divergent)) return false
+      if (!contains(client.attentionCount, clientColumnFilters.attention)) return false
+
+      const document = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
+      if (!contains(document, clientColumnFilters.document)) return false
+      const validity = validateCpfCnpj(document).status
+      if (clientColumnFilters.validity !== 'TODOS' && validity !== clientColumnFilters.validity) return false
+
       if (!term) return true
       const fieldHit = client.fields.some(field =>
         `${field.fieldLabel} ${field.group} ${field.originValue} ${field.targetValue} ${field.reason}`
@@ -263,12 +301,15 @@ function App({
         || fieldHit
         || rawHit
     })
-  }, [report, search, statusFilter])
+  }, [report, search, statusFilter, clientColumnFilters])
 
   const issues = useMemo(() => {
     if (!report) return []
     const term = search.trim().toLocaleUpperCase('pt-BR')
     const restrictField = issueFieldFilter !== 'TODOS'
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
     return report.clients.flatMap(client => {
       if (restrictField && !client.found) return []
       return client.fields
@@ -277,11 +318,17 @@ function App({
     }).filter(item => {
       if (restrictField && item.field.fieldId !== issueFieldFilter) return false
       if (statusFilter !== 'TODOS' && item.field.status !== statusFilter) return false
+      if (!contains(item.client.key, issueColumnFilters.code)) return false
+      if (!contains(item.client.name, issueColumnFilters.name)) return false
+      if (!contains(item.field.originValue, issueColumnFilters.origin)) return false
+      if (!contains(item.field.targetValue, issueColumnFilters.target)) return false
+      if (!contains(item.field.reason, issueColumnFilters.reason)) return false
+
       if (!term) return true
       const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.group} ${item.field.originValue} ${item.field.targetValue} ${item.field.status} ${item.field.reason}`.toLocaleUpperCase('pt-BR')
       return text.includes(term)
     })
-  }, [report, search, statusFilter, issueFieldFilter])
+  }, [report, search, statusFilter, issueFieldFilter, issueColumnFilters])
 
   const issueFieldOptions = useMemo(() => {
     if (!report) return []
@@ -660,7 +707,7 @@ function App({
               {tabs.map(tab => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
             </nav>
 
-            {activeTab !== 'overview' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
+            {activeTab !== 'overview' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
               <div className={`filters${activeTab === 'issues' ? ' filters-issues' : ''}`}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Pesquisar código, ${resultProfile.recordLabel.toLowerCase()} ou qualquer valor…`} />
                 {activeTab === 'issues' && (
@@ -689,45 +736,170 @@ function App({
             )}
 
             {activeTab === 'overview' && <Overview report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
+            {activeTab === 'diagnosis' && (
+              <TechnicalDiagnosisView
+                report={report}
+                profile={resultProfile}
+                onOpenIssue={(client, field) => openRecord(client, field.fieldId)}
+                onOpenDuplicates={fieldId => {
+                  setDuplicateFieldFocus(fieldId)
+                  setActiveTab('duplicates')
+                }}
+              />
+            )}
             {activeTab === 'clients' && (
-              <div className="panel">
-                <div className="section-head compact"><div><h3>{resultProfile.label}</h3><p>{number(filteredClients.length)} registros no filtro atual.</p></div><button className="button ghost" onClick={() => exportClientsCsv(filteredClients, `primecheck_${resultProfile.id}.csv`, resultProfile.recordLabel)}>Exportar CSV filtrado</button></div>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Resultado" sortKey="status" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Divergências" sortKey="divergent" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        <SortableHeader label="Atenções" sortKey="attention" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                        {showDocument && <SortableHeader label="CPF/CNPJ origem" sortKey="document" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
-                        {showDocument && <SortableHeader label="Validade" sortKey="validity" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
-                        <th>Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pageSlice(sortedClients).map(client => {
-                        const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
-                        const validation = validateCpfCnpj(doc)
-                        return <tr key={client.key}>
-                          <td className="mono">{client.key}</td>
-                          <td><strong>{client.name || '—'}</strong></td>
-                          <td>{client.found ? 'Sim' : 'Não'}</td>
-                          <td><StatusBadge status={client.status} /></td>
-                          <td>{client.divergentCount}</td>
-                          <td>{client.attentionCount}</td>
-                          {showDocument && <td className="mono">{doc || '—'}</td>}
-                          {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
-                          <td><button type="button" className="analysis-action-button" onClick={() => openRecord(client)}>Abrir análise</button></td>
+              <>
+                <div className="panel">
+                  <div className="section-head compact">
+                    <div>
+                      <h3>{resultProfile.label}</h3>
+                      <p>{number(filteredClients.length)} registros no filtro atual.</p>
+                    </div>
+                    <div className="section-head-actions">
+                      <button
+                        type="button"
+                        className="button ghost compact-button"
+                        onClick={() => {
+                          setClientColumnFilters({
+                            code: '',
+                            name: '',
+                            found: 'TODOS',
+                            status: 'TODOS',
+                            divergent: '',
+                            attention: '',
+                            document: '',
+                            validity: 'TODOS',
+                          })
+                        }}
+                      >
+                        Limpar filtros
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary compact-button"
+                        disabled={!sortedClients.length}
+                        onClick={() => window.print()}
+                      >
+                        Imprimir filtro
+                      </button>
+                      <button
+                        className="button ghost compact-button"
+                        onClick={() => exportClientsCsv(filteredClients, `primecheck_${resultProfile.id}.csv`, resultProfile.recordLabel)}
+                      >
+                        Exportar CSV filtrado
+                      </button>
+                    </div>
+                  </div>
+                  <div className="table-wrap">
+                    <table className="records-table">
+                      <thead>
+                        <tr>
+                          <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Resultado" sortKey="status" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Divergências" sortKey="divergent" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Atenções" sortKey="attention" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          {showDocument && <SortableHeader label="CPF/CNPJ origem" sortKey="document" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                          {showDocument && <SortableHeader label="Validade" sortKey="validity" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                          <th>Ação</th>
                         </tr>
-                      })}
-                    </tbody>
-                  </table>
+                        <tr className="column-filter-row">
+                          <th><input value={clientColumnFilters.code} onChange={e => setClientColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Filtrar…" /></th>
+                          <th><input value={clientColumnFilters.name} onChange={e => setClientColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Filtrar…" /></th>
+                          <th>
+                            <select value={clientColumnFilters.found} onChange={e => setClientColumnFilters(current => ({ ...current, found: e.target.value }))}>
+                              <option value="TODOS">Todos</option>
+                              <option value="SIM">Sim</option>
+                              <option value="NAO">Não</option>
+                            </select>
+                          </th>
+                          <th>
+                            <select value={clientColumnFilters.status} onChange={e => setClientColumnFilters(current => ({ ...current, status: e.target.value }))}>
+                              <option value="TODOS">Todos</option>
+                              <option value="CONFORME">Conforme</option>
+                              <option value="DIVERGENTE">Divergente</option>
+                              <option value="ATENÇÃO">Atenção</option>
+                              <option value="NÃO IMPORTADO">Não importado</option>
+                            </select>
+                          </th>
+                          <th><input value={clientColumnFilters.divergent} onChange={e => setClientColumnFilters(current => ({ ...current, divergent: e.target.value }))} placeholder="Qtd." /></th>
+                          <th><input value={clientColumnFilters.attention} onChange={e => setClientColumnFilters(current => ({ ...current, attention: e.target.value }))} placeholder="Qtd." /></th>
+                          {showDocument && <th><input value={clientColumnFilters.document} onChange={e => setClientColumnFilters(current => ({ ...current, document: e.target.value }))} placeholder="Filtrar…" /></th>}
+                          {showDocument && (
+                            <th>
+                              <select value={clientColumnFilters.validity} onChange={e => setClientColumnFilters(current => ({ ...current, validity: e.target.value }))}>
+                                <option value="TODOS">Todos</option>
+                                <option value="VÁLIDO">Válido</option>
+                                <option value="INVÁLIDO">Inválido</option>
+                                <option value="AUSENTE">Ausente</option>
+                              </select>
+                            </th>
+                          )}
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageSlice(sortedClients).map(client => {
+                          const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
+                          const validation = validateCpfCnpj(doc)
+                          return <tr key={client.key}>
+                            <td className="mono">{client.key}</td>
+                            <td><strong>{client.name || '—'}</strong></td>
+                            <td>{client.found ? 'Sim' : 'Não'}</td>
+                            <td><StatusBadge status={client.status} /></td>
+                            <td>{client.divergentCount}</td>
+                            <td>{client.attentionCount}</td>
+                            {showDocument && <td className="mono">{doc || '—'}</td>}
+                            {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
+                            <td><button type="button" className="analysis-action-button" onClick={() => openRecord(client)}>Abrir análise</button></td>
+                          </tr>
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Pagination page={page} pages={pageCount(sortedClients)} onChange={setPage} />
                 </div>
-                <Pagination page={page} pages={pageCount(sortedClients)} onChange={setPage} />
-              </div>
+
+                <DataPrintReport
+                  title={`Relatório de ${resultProfile.label}`}
+                  subtitle="Registros conforme filtros aplicados na tela"
+                  filterDescription={[
+                    search.trim() ? 'Pesquisa: ' + search.trim() : '',
+                    clientColumnFilters.code ? 'Código: ' + clientColumnFilters.code : '',
+                    clientColumnFilters.name ? resultProfile.recordLabel + ': ' + clientColumnFilters.name : '',
+                    clientColumnFilters.found !== 'TODOS' ? 'Encontrado: ' + clientColumnFilters.found : '',
+                    clientColumnFilters.status !== 'TODOS' ? 'Resultado: ' + clientColumnFilters.status : '',
+                    clientColumnFilters.document ? 'CPF/CNPJ: ' + clientColumnFilters.document : '',
+                    clientColumnFilters.validity !== 'TODOS' ? 'Validade: ' + clientColumnFilters.validity : '',
+                  ].filter(Boolean).join(' · ')}
+                  columns={[
+                    { key: 'codigo', label: 'Código' },
+                    { key: 'registro', label: resultProfile.recordLabel },
+                    { key: 'encontrado', label: 'Encontrado' },
+                    { key: 'resultado', label: 'Resultado' },
+                    { key: 'divergencias', label: 'Divergências' },
+                    { key: 'atencoes', label: 'Atenções' },
+                    ...(showDocument ? [
+                      { key: 'documento', label: 'CPF/CNPJ origem' },
+                      { key: 'validade', label: 'Validade' },
+                    ] : []),
+                  ]}
+                  rows={sortedClients.map(client => {
+                    const doc = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
+                    return {
+                      codigo: client.key,
+                      registro: client.name || '—',
+                      encontrado: client.found ? 'Sim' : 'Não',
+                      resultado: client.status,
+                      divergencias: client.divergentCount,
+                      atencoes: client.attentionCount,
+                      documento: doc || '—',
+                      validade: showDocument ? validateCpfCnpj(doc).status : '',
+                    }
+                  })}
+                />
+              </>
             )}
 
             {activeTab === 'issues' && (
@@ -766,6 +938,18 @@ function App({
                       <span className="issue-selection-count">
                         {number(selectedIssues.length)} selecionada{selectedIssues.length === 1 ? '' : 's'}
                       </span>
+                      <button
+                        type="button"
+                        className="button ghost compact-button"
+                        onClick={() => {
+                          setSearch('')
+                          setIssueFieldFilter('TODOS')
+                          setStatusFilter('TODOS')
+                          setIssueColumnFilters({ code: '', name: '', origin: '', target: '', reason: '' })
+                        }}
+                      >
+                        Limpar filtros
+                      </button>
                       <button
                         type="button"
                         className="button ghost compact-button"
@@ -825,6 +1009,30 @@ function App({
                               <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
                               <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
                               <th>Ação</th>
+                            </tr>
+                            <tr className="column-filter-row">
+                              <th />
+                              <th><input value={issueColumnFilters.code} onChange={e => setIssueColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                              <th><input value={issueColumnFilters.name} onChange={e => setIssueColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                              <th>
+                                <select value={issueFieldFilter} onChange={e => setIssueFieldFilter(e.target.value)}>
+                                  <option value="TODOS">Todos os campos</option>
+                                  {issueFieldOptions.map(field => (
+                                    <option key={field.fieldId} value={field.fieldId}>{field.fieldLabel}</option>
+                                  ))}
+                                </select>
+                              </th>
+                              <th><input value={issueColumnFilters.origin} onChange={e => setIssueColumnFilters(current => ({ ...current, origin: e.target.value }))} placeholder="Origem…" /></th>
+                              <th><input value={issueColumnFilters.target} onChange={e => setIssueColumnFilters(current => ({ ...current, target: e.target.value }))} placeholder="Destino…" /></th>
+                              <th>
+                                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
+                                  <option value="TODOS">Todos</option>
+                                  <option value="DIVERGENTE">Divergente</option>
+                                  <option value="ATENÇÃO">Atenção</option>
+                                </select>
+                              </th>
+                              <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
+                              <th />
                             </tr>
                           </thead>
                           <tbody>
@@ -911,7 +1119,13 @@ function App({
             )}
 
             {activeTab === 'fields' && <FieldSummaryView report={report} onAnalyzeField={openFieldAnalysis} />}
-            {activeTab === 'duplicates' && <DuplicatesView report={report} profile={resultProfile} />}
+            {activeTab === 'duplicates' && (
+              <DuplicatesView
+                report={report}
+                profile={resultProfile}
+                initialFieldId={duplicateFieldFocus}
+              />
+            )}
             {activeTab === 'missing' && <MissingView report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
           </section>
         )}
@@ -1002,16 +1216,41 @@ function Overview({
     .sort((a, b) => (b.divergent * 2 + b.attention) - (a.divergent * 2 + a.attention))
     .slice(0, 8)
 
+  const printRows = [
+    ...worstFields.map(field => ({
+      tipo: 'Campo',
+      referencia: field.fieldLabel,
+      grupo: field.group,
+      resumo: `${field.divergent} divergências · ${field.attention} atenções · ${field.conformityPercent === null ? '—' : field.conformityPercent.toFixed(2).replace('.', ',') + '%'} conformidade`,
+    })),
+    ...critical.map(client => ({
+      tipo: profile.recordLabel,
+      referencia: client.key,
+      grupo: client.name || '—',
+      resumo: `${client.divergentCount} divergências · ${client.attentionCount} atenções`,
+    })),
+  ]
+
   return (
     <>
-      <div className="screen-search">
-        <span aria-hidden="true">⌕</span>
-        <input
-          value={search}
-          onChange={event => setSearch(event.target.value)}
-          placeholder="Pesquisar no resumo por campo, código ou registro…"
-          aria-label="Pesquisar no resumo"
-        />
+      <div className="overview-toolbar">
+        <div className="screen-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Pesquisar no resumo por campo, código ou registro…"
+            aria-label="Pesquisar no resumo"
+          />
+        </div>
+        <button
+          type="button"
+          className="button secondary compact-button"
+          disabled={!printRows.length}
+          onClick={() => window.print()}
+        >
+          Imprimir resumo
+        </button>
       </div>
       <div className="overview-grid">
         <section className="panel">
@@ -1051,6 +1290,19 @@ function Overview({
           </section>
         )}
       </div>
+
+      <DataPrintReport
+        title="Visão geral da homologação"
+        subtitle={profile.label + ' · campos e registros prioritários'}
+        filterDescription={search.trim() ? 'Pesquisa: ' + search.trim() : 'Resumo sem filtro adicional'}
+        columns={[
+          { key: 'tipo', label: 'Tipo' },
+          { key: 'referencia', label: 'Referência' },
+          { key: 'grupo', label: 'Grupo / registro' },
+          { key: 'resumo', label: 'Resumo técnico' },
+        ]}
+        rows={printRows}
+      />
     </>
   )
 }
@@ -1099,12 +1351,32 @@ function FieldSummaryView({
 }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [filters, setFilters] = useState({
+    group: '',
+    field: '',
+    conform: '',
+    divergent: '',
+    attention: '',
+    notValidatable: '',
+    conformity: '',
+  })
   const term = search.trim().toLocaleUpperCase('pt-BR')
+  const contains = (value: unknown, filter: string) =>
+    !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
 
   const fields = useMemo(() => {
     const filtered = report.fieldSummary.filter(field => {
+      if (!contains(field.group, filters.group)) return false
+      if (!contains(field.fieldLabel, filters.field)) return false
+      if (!contains(field.conform, filters.conform)) return false
+      if (!contains(field.divergent, filters.divergent)) return false
+      if (!contains(field.attention, filters.attention)) return false
+      if (!contains(field.notValidatable, filters.notValidatable)) return false
+      if (!contains(field.conformityPercent === null ? '' : field.conformityPercent.toFixed(2), filters.conformity)) return false
       if (!term) return true
-      return (field.fieldLabel + ' ' + field.group).toLocaleUpperCase('pt-BR').includes(term)
+      return (field.fieldLabel + ' ' + field.group + ' ' + field.conform + ' ' + field.divergent + ' ' + field.attention + ' ' + field.notValidatable + ' ' + (field.conformityPercent ?? ''))
+        .toLocaleUpperCase('pt-BR')
+        .includes(term)
     })
     return sortedBy(filtered, sort, (field, key) => {
       if (key === 'group') return field.group
@@ -1116,110 +1388,167 @@ function FieldSummaryView({
       if (key === 'conformity') return field.conformityPercent ?? -1
       return ''
     })
-  }, [report.fieldSummary, search, sort])
+  }, [report.fieldSummary, search, sort, filters])
+
+  const clearFilters = () => {
+    setSearch('')
+    setFilters({
+      group: '',
+      field: '',
+      conform: '',
+      divergent: '',
+      attention: '',
+      notValidatable: '',
+      conformity: '',
+    })
+  }
 
   return (
-    <div className="panel">
-      <div className="section-head compact">
-        <div>
-          <h3>Comparação por campo</h3>
-          <p>Pesquise, ordene e clique nas ocorrências para analisar divergências e atenções.</p>
+    <>
+      <div className="panel">
+        <div className="section-head compact">
+          <div>
+            <h3>Comparação por campo</h3>
+            <p>Pesquise, combine filtros, ordene e clique nas ocorrências para analisar divergências e atenções.</p>
+          </div>
+          <div className="section-head-actions">
+            <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
+            <button type="button" className="button secondary compact-button" disabled={!fields.length} onClick={() => window.print()}>
+              Imprimir filtro
+            </button>
+          </div>
+        </div>
+
+        <div className="screen-search inline-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Pesquisar em todos os campos e indicadores…"
+            aria-label="Pesquisar comparação por campo"
+          />
+        </div>
+
+        <div className="table-wrap">
+          <table className="field-summary-table">
+            <thead>
+              <tr>
+                <SortableHeader label="Grupo" sortKey="group" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Conformes" sortKey="conform" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Divergentes" sortKey="divergent" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Atenções" sortKey="attention" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Não validáveis" sortKey="notValidatable" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="% conformidade" sortKey="conformity" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              </tr>
+              <tr className="column-filter-row">
+                <th><input value={filters.group} onChange={e => setFilters(current => ({ ...current, group: e.target.value }))} placeholder="Grupo…" /></th>
+                <th><input value={filters.field} onChange={e => setFilters(current => ({ ...current, field: e.target.value }))} placeholder="Campo…" /></th>
+                <th><input value={filters.conform} onChange={e => setFilters(current => ({ ...current, conform: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.divergent} onChange={e => setFilters(current => ({ ...current, divergent: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.attention} onChange={e => setFilters(current => ({ ...current, attention: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.notValidatable} onChange={e => setFilters(current => ({ ...current, notValidatable: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.conformity} onChange={e => setFilters(current => ({ ...current, conformity: e.target.value }))} placeholder="%…" /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {fields.map(field => {
+                const reviewCount = field.divergent + field.attention
+                const conformity = field.conformityPercent ?? 0
+                return (
+                  <tr key={field.fieldId}>
+                    <td className="muted-cell">{field.group}</td>
+                    <td>
+                      {reviewCount > 0 ? (
+                        <button
+                          type="button"
+                          className="field-analysis-link"
+                          onClick={() => onAnalyzeField(field.fieldId, 'TODOS')}
+                          title={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
+                          aria-label={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
+                        >
+                          {field.fieldLabel}
+                        </button>
+                      ) : (
+                        <span>{field.fieldLabel}</span>
+                      )}
+                    </td>
+                    <td>{number(field.conform)}</td>
+                    <td className="text-error">
+                      {field.divergent > 0 ? (
+                        <button
+                          type="button"
+                          className="issue-count-link issue-count-link-divergent"
+                          onClick={() => onAnalyzeField(field.fieldId, 'DIVERGENTE')}
+                        >
+                          {number(field.divergent)}
+                        </button>
+                      ) : number(field.divergent)}
+                    </td>
+                    <td className="text-warning">
+                      {field.attention > 0 ? (
+                        <button
+                          type="button"
+                          className="issue-count-link issue-count-link-attention"
+                          onClick={() => onAnalyzeField(field.fieldId, 'ATENÇÃO')}
+                        >
+                          {number(field.attention)}
+                        </button>
+                      ) : number(field.attention)}
+                    </td>
+                    <td>{number(field.notValidatable)}</td>
+                    <td>
+                      {field.conformityPercent === null ? (
+                        '—'
+                      ) : (
+                        <div className="field-progress">
+                          <div className="field-progress-track">
+                            <i style={{ width: String(conformity) + '%' }} />
+                          </div>
+                          <span>{conformity.toFixed(2).replace('.', ',')}%</span>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {!fields.length && <div className="empty-state">Nenhum campo encontrado para a combinação de filtros.</div>}
         </div>
       </div>
 
-      <div className="screen-search inline-search">
-        <span aria-hidden="true">⌕</span>
-        <input
-          value={search}
-          onChange={event => setSearch(event.target.value)}
-          placeholder="Pesquisar grupo ou campo…"
-          aria-label="Pesquisar comparação por campo"
-        />
-      </div>
-
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <SortableHeader label="Grupo" sortKey="group" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Conformes" sortKey="conform" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Divergentes" sortKey="divergent" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Atenções" sortKey="attention" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Não validáveis" sortKey="notValidatable" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="% conformidade" sortKey="conformity" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-            </tr>
-          </thead>
-          <tbody>
-            {fields.map(field => {
-              const reviewCount = field.divergent + field.attention
-              const conformity = field.conformityPercent ?? 0
-              return (
-                <tr key={field.fieldId}>
-                  <td className="muted-cell">{field.group}</td>
-                  <td>
-                    {reviewCount > 0 ? (
-                      <button
-                        type="button"
-                        className="field-analysis-link"
-                        onClick={() => onAnalyzeField(field.fieldId, 'TODOS')}
-                        title={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
-                        aria-label={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
-                      >
-                        {field.fieldLabel}
-                      </button>
-                    ) : (
-                      <span>{field.fieldLabel}</span>
-                    )}
-                  </td>
-                  <td>{number(field.conform)}</td>
-                  <td className="text-error">
-                    {field.divergent > 0 ? (
-                      <button
-                        type="button"
-                        className="issue-count-link issue-count-link-divergent"
-                        onClick={() => onAnalyzeField(field.fieldId, 'DIVERGENTE')}
-                        title={'Ver ' + number(field.divergent) + ' divergências de ' + field.fieldLabel}
-                        aria-label={'Ver ' + number(field.divergent) + ' divergências de ' + field.fieldLabel}
-                      >
-                        {number(field.divergent)}
-                      </button>
-                    ) : number(field.divergent)}
-                  </td>
-                  <td className="text-warning">
-                    {field.attention > 0 ? (
-                      <button
-                        type="button"
-                        className="issue-count-link issue-count-link-attention"
-                        onClick={() => onAnalyzeField(field.fieldId, 'ATENÇÃO')}
-                        title={'Ver ' + number(field.attention) + ' atenções de ' + field.fieldLabel}
-                        aria-label={'Ver ' + number(field.attention) + ' atenções de ' + field.fieldLabel}
-                      >
-                        {number(field.attention)}
-                      </button>
-                    ) : number(field.attention)}
-                  </td>
-                  <td>{number(field.notValidatable)}</td>
-                  <td>
-                    {field.conformityPercent === null ? (
-                      '—'
-                    ) : (
-                      <div className="field-progress">
-                        <div className="field-progress-track">
-                          <i style={{ width: String(conformity) + '%' }} />
-                        </div>
-                        <span>{conformity.toFixed(2).replace('.', ',')}%</span>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {!fields.length && <div className="empty-state">Nenhum campo encontrado para a pesquisa.</div>}
-      </div>
-    </div>
+      <DataPrintReport
+        title="Comparação por campo"
+        subtitle="Resumo dos campos conforme filtros aplicados"
+        filterDescription={[
+          search.trim() ? 'Pesquisa: ' + search.trim() : '',
+          filters.group ? 'Grupo: ' + filters.group : '',
+          filters.field ? 'Campo: ' + filters.field : '',
+          filters.divergent ? 'Divergências: ' + filters.divergent : '',
+          filters.attention ? 'Atenções: ' + filters.attention : '',
+          filters.conformity ? 'Conformidade: ' + filters.conformity : '',
+        ].filter(Boolean).join(' · ')}
+        columns={[
+          { key: 'grupo', label: 'Grupo' },
+          { key: 'campo', label: 'Campo' },
+          { key: 'conformes', label: 'Conformes' },
+          { key: 'divergentes', label: 'Divergentes' },
+          { key: 'atencoes', label: 'Atenções' },
+          { key: 'naoValidaveis', label: 'Não validáveis' },
+          { key: 'conformidade', label: '% conformidade' },
+        ]}
+        rows={fields.map(field => ({
+          grupo: field.group,
+          campo: field.fieldLabel,
+          conformes: field.conform,
+          divergentes: field.divergent,
+          atencoes: field.attention,
+          naoValidaveis: field.notValidatable,
+          conformidade: field.conformityPercent === null ? '—' : field.conformityPercent.toFixed(2).replace('.', ',') + '%',
+        }))}
+      />
+    </>
   )
 }
 
@@ -1333,12 +1662,26 @@ function DuplicatePrintReport({
   )
 }
 
-function DuplicatesView({ report, profile }: { report: ComparisonReport; profile: EntityProfile }) {
+function DuplicatesView({
+  report,
+  profile,
+  initialFieldId,
+}: {
+  report: ComparisonReport
+  profile: EntityProfile
+  initialFieldId?: string
+}) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [fieldFilter, setFieldFilter] = useState('TODOS')
   const [sideFilter, setSideFilter] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
+  const [duplicateColumnFilters, setDuplicateColumnFilters] = useState({
+    category: '',
+    value: '',
+    count: '',
+    codes: '',
+  })
   const [sort, setSort] = useState<SortState>({ key: 'count', direction: 'desc' })
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
@@ -1354,27 +1697,38 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
   }, [report.duplicates])
 
   const term = search.trim().toLocaleUpperCase('pt-BR')
-  const filtered = useMemo(() => report.duplicates.filter(dup => {
-    if (fieldFilter !== 'TODOS' && dup.fieldId !== fieldFilter) return false
-    if (sideFilter !== 'TODOS' && dup.side !== sideFilter) return false
-    if (!term) return true
-    const records = dup.records.flatMap(record => [
-      record.key,
-      record.name,
-      record.rawValue,
-      ...record.extras.flatMap(extra => [extra.id, extra.label, extra.value]),
-    ]).join(' ')
-    const text = [
-      dup.side,
-      dup.fieldLabel,
-      dup.fieldGroup,
-      dup.category,
-      dup.normalizedValue,
-      dup.count,
-      records,
-    ].join(' ').toLocaleUpperCase('pt-BR')
-    return text.includes(term)
-  }), [report.duplicates, search, fieldFilter, sideFilter])
+  const filtered = useMemo(() => {
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
+    return report.duplicates.filter(dup => {
+      if (fieldFilter !== 'TODOS' && dup.fieldId !== fieldFilter) return false
+      if (sideFilter !== 'TODOS' && dup.side !== sideFilter) return false
+      if (!contains(dup.category, duplicateColumnFilters.category)) return false
+      if (!contains(dup.normalizedValue, duplicateColumnFilters.value)) return false
+      if (!contains(dup.count, duplicateColumnFilters.count)) return false
+      const codes = dup.records.map(record => record.key).filter(Boolean).join(' ')
+      if (!contains(codes, duplicateColumnFilters.codes)) return false
+
+      if (!term) return true
+      const records = dup.records.flatMap(record => [
+        record.key,
+        record.name,
+        record.rawValue,
+        ...record.extras.flatMap(extra => [extra.id, extra.label, extra.value]),
+      ]).join(' ')
+      const text = [
+        dup.side,
+        dup.fieldLabel,
+        dup.fieldGroup,
+        dup.category,
+        dup.normalizedValue,
+        dup.count,
+        records,
+      ].join(' ').toLocaleUpperCase('pt-BR')
+      return text.includes(term)
+    })
+  }, [report.duplicates, search, fieldFilter, sideFilter, duplicateColumnFilters])
 
   const sorted = useMemo(() => sortedBy(filtered, sort, (dup, key) => {
     if (key === 'side') return dup.side
@@ -1387,7 +1741,13 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     return ''
   }), [filtered, sort])
 
-  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, sort.key, sort.direction])
+  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
+
+  useEffect(() => {
+    if (!initialFieldId) return
+    setFieldFilter(initialFieldId)
+    setPage(1)
+  }, [initialFieldId])
 
   useEffect(() => {
     const handleAfterPrint = () => setPrintGroupId(null)
@@ -1442,6 +1802,10 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     fieldFilter === 'TODOS'
       ? 'Todos os campos'
       : fieldOptions.find(([fieldId]) => fieldId === fieldFilter)?.[1] || fieldFilter,
+    duplicateColumnFilters.category ? 'Tipo: ' + duplicateColumnFilters.category : '',
+    duplicateColumnFilters.value ? 'Valor: ' + duplicateColumnFilters.value : '',
+    duplicateColumnFilters.count ? 'Quantidade: ' + duplicateColumnFilters.count : '',
+    duplicateColumnFilters.codes ? 'Códigos: ' + duplicateColumnFilters.codes : '',
     term ? 'Pesquisa: ' + search.trim() : '',
   ].filter(Boolean).join(' · ')
 
@@ -1462,14 +1826,28 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
               {' '}{duplicateHint}
             </p>
           </div>
-          <button
-            type="button"
-            className="button primary dup-print-button"
-            onClick={() => requestPrint()}
-            disabled={sorted.length === 0}
-          >
-            Imprimir duplicidades
-          </button>
+          <div className="section-head-actions">
+            <button
+              type="button"
+              className="button ghost compact-button"
+              onClick={() => {
+                setSearch('')
+                setSideFilter('TODOS')
+                setFieldFilter('TODOS')
+                setDuplicateColumnFilters({ category: '', value: '', count: '', codes: '' })
+              }}
+            >
+              Limpar filtros
+            </button>
+            <button
+              type="button"
+              className="button primary dup-print-button"
+              onClick={() => requestPrint()}
+              disabled={sorted.length === 0}
+            >
+              Imprimir duplicidades
+            </button>
+          </div>
         </div>
 
         <div className="dup-analysis-note">
@@ -1529,6 +1907,28 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
                     <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <th>Ações</th>
+                  </tr>
+                  <tr className="column-filter-row">
+                    <th>
+                      <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
+                        <option value="TODOS">Todos</option>
+                        <option value="ORIGEM">Origem</option>
+                        <option value="DESTINO">Destino</option>
+                      </select>
+                    </th>
+                    <th>
+                      <select value={fieldFilter} onChange={event => setFieldFilter(event.target.value)}>
+                        <option value="TODOS">Todos os campos</option>
+                        {fieldOptions.map(([fieldId, fieldLabel]) => (
+                          <option key={fieldId} value={fieldId}>{fieldLabel}</option>
+                        ))}
+                      </select>
+                    </th>
+                    <th><input value={duplicateColumnFilters.category} onChange={event => setDuplicateColumnFilters(current => ({ ...current, category: event.target.value }))} placeholder="Tipo…" /></th>
+                    <th><input value={duplicateColumnFilters.value} onChange={event => setDuplicateColumnFilters(current => ({ ...current, value: event.target.value }))} placeholder="Valor…" /></th>
+                    <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
+                    <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
@@ -1646,18 +2046,38 @@ function MissingView({
   const [search, setSearch] = useState('')
   const [originSort, setOriginSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [targetSort, setTargetSort] = useState<SortState>({ key: 'code', direction: 'asc' })
+  const [originFilters, setOriginFilters] = useState({
+    code: '',
+    name: '',
+    inactive: 'TODOS',
+    status: 'TODOS',
+  })
+  const [targetFilters, setTargetFilters] = useState({
+    code: '',
+    name: '',
+  })
 
   const term = search.trim().toLocaleUpperCase('pt-BR')
+  const contains = (value: unknown, filter: string) =>
+    !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
   const missing = useMemo(() => report.clients.filter(client => !client.found).filter(client => {
+    if (!contains(client.key, originFilters.code)) return false
+    if (!contains(client.name, originFilters.name)) return false
+    if (originFilters.inactive === 'SIM' && !client.originInactive) return false
+    if (originFilters.inactive === 'NAO' && client.originInactive) return false
+    if (originFilters.status !== 'TODOS' && client.status !== originFilters.status) return false
     if (!term) return true
     const raw = Object.values(client.originRow).join(' ')
-    return (client.key + ' ' + client.name + ' ' + raw).toLocaleUpperCase('pt-BR').includes(term)
-  }), [report.clients, search])
+    return (client.key + ' ' + client.name + ' ' + client.status + ' ' + raw).toLocaleUpperCase('pt-BR').includes(term)
+  }), [report.clients, search, originFilters])
 
   const targetOnly = useMemo(() => report.targetOnly.filter(client => {
+    if (!contains(client.key, targetFilters.code)) return false
+    if (!contains(client.name, targetFilters.name)) return false
     if (!term) return true
     return (client.key + ' ' + client.name + ' ' + Object.values(client.row).join(' ')).toLocaleUpperCase('pt-BR').includes(term)
-  }), [report.targetOnly, search])
+  }), [report.targetOnly, search, targetFilters])
 
   const sortedMissing = useMemo(() => sortedBy(missing, originSort, (client, key) => {
     if (key === 'code') return client.key
@@ -1681,91 +2101,174 @@ function MissingView({
   useEffect(() => {
     setOriginPage(1)
     setTargetPage(1)
-  }, [pageSize, search, originSort.key, originSort.direction, targetSort.key, targetSort.direction])
+  }, [
+    pageSize,
+    search,
+    originSort.key,
+    originSort.direction,
+    targetSort.key,
+    targetSort.direction,
+    originFilters,
+    targetFilters,
+  ])
+
+  const clearFilters = () => {
+    setSearch('')
+    setOriginFilters({ code: '', name: '', inactive: 'TODOS', status: 'TODOS' })
+    setTargetFilters({ code: '', name: '' })
+  }
+
+  const printRows = [
+    ...sortedMissing.map(client => ({
+      tipo: 'Origem não localizada',
+      codigo: client.key,
+      registro: client.name || '—',
+      detalhe: client.originInactive ? 'Origem inativa: Sim' : 'Origem inativa: Não',
+      resultado: client.status,
+    })),
+    ...sortedTargetOnly.map(client => ({
+      tipo: 'Somente no destino',
+      codigo: client.key,
+      registro: client.name || '—',
+      detalhe: 'Registro presente apenas no destino',
+      resultado: 'DESTINO',
+    })),
+  ]
 
   return (
-    <div className="missing-view">
-      <div className="table-toolbar searchable-toolbar">
-        <div className="screen-search inline-search">
-          <span aria-hidden="true">⌕</span>
-          <input
-            value={search}
-            onChange={event => setSearch(event.target.value)}
-            placeholder="Pesquisar código, nome ou qualquer campo importado…"
-            aria-label="Pesquisar registros não importados"
-          />
+    <>
+      <div className="missing-view">
+        <div className="table-toolbar searchable-toolbar missing-toolbar">
+          <div className="screen-search inline-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              placeholder="Pesquisar em todos os dados não localizados…"
+              aria-label="Pesquisar registros não importados"
+            />
+          </div>
+          <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
+          <button type="button" className="button secondary compact-button" disabled={!printRows.length} onClick={() => window.print()}>
+            Imprimir filtro
+          </button>
+          <PageSizeSelect value={pageSize} onChange={setPageSize} />
         </div>
-        <PageSizeSelect value={pageSize} onChange={setPageSize} />
+
+        <div className="two-panels">
+          <section className="panel">
+            <div className="section-head compact">
+              <div>
+                <h3>Origem não localizada no destino</h3>
+                <p>{number(sortedMissing.length)} registros.</p>
+              </div>
+            </div>
+            <div className="table-wrap">
+              <table className="missing-table">
+                <thead>
+                  <tr>
+                    <SortableHeader label="Código" sortKey="code" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <SortableHeader label={profile.recordLabel} sortKey="name" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Origem inativa" sortKey="inactive" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Resultado" sortKey="status" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <th>Ação</th>
+                  </tr>
+                  <tr className="column-filter-row">
+                    <th><input value={originFilters.code} onChange={e => setOriginFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                    <th><input value={originFilters.name} onChange={e => setOriginFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                    <th>
+                      <select value={originFilters.inactive} onChange={e => setOriginFilters(current => ({ ...current, inactive: e.target.value }))}>
+                        <option value="TODOS">Todos</option>
+                        <option value="SIM">Sim</option>
+                        <option value="NAO">Não</option>
+                      </select>
+                    </th>
+                    <th>
+                      <select value={originFilters.status} onChange={e => setOriginFilters(current => ({ ...current, status: e.target.value }))}>
+                        <option value="TODOS">Todos</option>
+                        <option value="DIVERGENTE">Divergente</option>
+                        <option value="ATENÇÃO">Atenção</option>
+                        <option value="NÃO IMPORTADO">Não importado</option>
+                      </select>
+                    </th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {originItems.map(client => (
+                    <tr key={client.key}>
+                      <td className="mono">{client.key}</td>
+                      <td>{client.name || '—'}</td>
+                      <td>{client.originInactive ? 'Sim' : 'Não'}</td>
+                      <td><StatusBadge status={client.status} /></td>
+                      <td>
+                        <button type="button" className="analysis-action-button" onClick={() => onOpenClient(client)}>Abrir análise</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
+            </div>
+            <Pagination page={originPage} pages={originPages} onChange={setOriginPage} />
+          </section>
+
+          <section className="panel">
+            <div className="section-head compact">
+              <div>
+                <h3>Somente no destino</h3>
+                <p>{number(sortedTargetOnly.length)} registros.</p>
+              </div>
+            </div>
+            <div className="table-wrap">
+              <table className="missing-table">
+                <thead>
+                  <tr>
+                    <SortableHeader label="Código" sortKey="code" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                    <SortableHeader label={profile.recordLabel} sortKey="name" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                  </tr>
+                  <tr className="column-filter-row">
+                    <th><input value={targetFilters.code} onChange={e => setTargetFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                    <th><input value={targetFilters.name} onChange={e => setTargetFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {targetItems.map(client => (
+                    <tr key={client.key}>
+                      <td className="mono">{client.key}</td>
+                      <td>{client.name || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
+            </div>
+            <Pagination page={targetPage} pages={targetPages} onChange={setTargetPage} />
+          </section>
+        </div>
       </div>
 
-      <div className="two-panels">
-        <section className="panel">
-          <div className="section-head compact">
-            <div>
-              <h3>Origem não localizada no destino</h3>
-              <p>{number(sortedMissing.length)} registros.</p>
-            </div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <SortableHeader label="Código" sortKey="code" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <SortableHeader label={profile.recordLabel} sortKey="name" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Origem inativa" sortKey="inactive" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Resultado" sortKey="status" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {originItems.map(client => (
-                  <tr key={client.key}>
-                    <td className="mono">{client.key}</td>
-                    <td>{client.name || '—'}</td>
-                    <td>{client.originInactive ? 'Sim' : 'Não'}</td>
-                    <td><StatusBadge status={client.status} /></td>
-                    <td>
-                      <button type="button" className="link-button" onClick={() => onOpenClient(client)}>Analisar</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
-          </div>
-          <Pagination page={originPage} pages={originPages} onChange={setOriginPage} />
-        </section>
-
-        <section className="panel">
-          <div className="section-head compact">
-            <div>
-              <h3>Somente no destino</h3>
-              <p>{number(sortedTargetOnly.length)} registros.</p>
-            </div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <SortableHeader label="Código" sortKey="code" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
-                  <SortableHeader label={profile.recordLabel} sortKey="name" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
-                </tr>
-              </thead>
-              <tbody>
-                {targetItems.map(client => (
-                  <tr key={client.key}>
-                    <td className="mono">{client.key}</td>
-                    <td>{client.name || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
-          </div>
-          <Pagination page={targetPage} pages={targetPages} onChange={setTargetPage} />
-        </section>
-      </div>
-    </div>
+      <DataPrintReport
+        title="Registros não localizados"
+        subtitle={profile.label + ' · origem não localizada e registros somente no destino'}
+        filterDescription={[
+          search.trim() ? 'Pesquisa: ' + search.trim() : '',
+          originFilters.code ? 'Código origem: ' + originFilters.code : '',
+          originFilters.name ? profile.recordLabel + ' origem: ' + originFilters.name : '',
+          originFilters.status !== 'TODOS' ? 'Resultado: ' + originFilters.status : '',
+          targetFilters.code ? 'Código destino: ' + targetFilters.code : '',
+          targetFilters.name ? profile.recordLabel + ' destino: ' + targetFilters.name : '',
+        ].filter(Boolean).join(' · ')}
+        columns={[
+          { key: 'tipo', label: 'Tipo' },
+          { key: 'codigo', label: 'Código' },
+          { key: 'registro', label: profile.recordLabel },
+          { key: 'detalhe', label: 'Detalhe' },
+          { key: 'resultado', label: 'Resultado' },
+        ]}
+        rows={printRows}
+      />
+    </>
   )
 }
 
