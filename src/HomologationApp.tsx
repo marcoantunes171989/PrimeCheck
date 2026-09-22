@@ -1511,7 +1511,15 @@ function DuplicatePrintReport({
   )
 }
 
-function DuplicatesView({ report, profile }: { report: ComparisonReport; profile: EntityProfile }) {
+function DuplicatesView({
+  report,
+  profile,
+  initialFieldId,
+}: {
+  report: ComparisonReport
+  profile: EntityProfile
+  initialFieldId?: string
+}) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
@@ -1566,6 +1574,12 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
   }), [filtered, sort])
 
   useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, sort.key, sort.direction])
+
+  useEffect(() => {
+    if (!initialFieldId) return
+    setFieldFilter(initialFieldId)
+    setPage(1)
+  }, [initialFieldId])
 
   useEffect(() => {
     const handleAfterPrint = () => setPrintGroupId(null)
