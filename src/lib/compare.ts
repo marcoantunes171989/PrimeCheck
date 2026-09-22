@@ -308,16 +308,23 @@ const duplicateScan = (
   side: 'ORIGEM' | 'DESTINO',
   mapping: FieldMapping[],
   profile: EntityProfile,
-  keyField: FieldDefinition,
+  keyFields: FieldDefinition[],
   nameField: FieldDefinition | undefined,
 ) => {
   const result: DuplicateItem[] = []
   const mapIndex = mappingByField(mapping)
-  const keyMap = mapIndex.get(keyField.id)
   const nameMap = nameField ? mapIndex.get(nameField.id) : undefined
-  const keyHeader = side === 'ORIGEM' ? keyMap?.originHeader : keyMap?.targetHeader
   const nameHeader = side === 'ORIGEM' ? nameMap?.originHeader : nameMap?.targetHeader
   const fieldById = new Map(profile.fields.map(field => [field.id, field]))
+
+  const recordKey = (row: Record<string, CellValue>) => keyFields
+    .map(keyField => {
+      const keyMap = mapIndex.get(keyField.id)
+      const header = side === 'ORIGEM' ? keyMap?.originHeader : keyMap?.targetHeader
+      return header ? normalizeForField(row[header], keyField) : ''
+    })
+    .filter(Boolean)
+    .join(' / ')
 
   for (const fieldId of profile.duplicateFieldIds) {
     const field = fieldById.get(fieldId)
@@ -335,7 +342,11 @@ const duplicateScan = (
       groups.set(normalized, arr)
     })
 
-    const skipExtraIds = new Set([fieldId, keyField.id, nameField?.id].filter(Boolean) as string[])
+    const skipExtraIds = new Set([
+      fieldId,
+      ...keyFields.map(item => item.id),
+      nameField?.id,
+    ].filter(Boolean) as string[])
     const extraCandidates = [...profile.fields]
       .filter(item => !skipExtraIds.has(item.id))
       .sort((a, b) => extraFieldPriority(a) - extraFieldPriority(b) || a.label.localeCompare(b.label, 'pt-BR'))
@@ -351,7 +362,7 @@ const duplicateScan = (
         normalizedValue: value,
         count: records.length,
         records: records.map(row => ({
-          key: keyHeader ? normalizeForField(row[keyHeader], keyField) : '',
+          key: recordKey(row),
           name: nameHeader ? asText(row[nameHeader]) : '',
           rawValue: asText(row[header]),
           extras: collectRecordExtras(row, extraCandidates, mapIndex, side),
@@ -417,11 +428,34 @@ export const compareDatasets = (
   profile: EntityProfile,
 ): ComparisonReport => {
   const mapIndex = mappingByField(mapping)
-  const keyField = profile.fields.find(field => field.requiredForMatch)
-  const keyMap = keyField ? mapIndex.get(keyField.id) : undefined
-  if (!keyField || !keyMap?.originHeader || !keyMap?.targetHeader) {
-    throw new Error('Mapeie o Código interno nos arquivos de origem e destino antes de analisar.')
+  const keyFields = profile.fields.filter(field => field.requiredForMatch)
+  const keyMappings = keyFields.map(field => ({ field, map: mapIndex.get(field.id) }))
+  const invalidKey = keyMappings.find(item => !item.map?.originHeader || !item.map?.targetHeader)
+  if (!keyFields.length || invalidKey) {
+    const required = keyFields.map(field => field.label).join(' + ') || 'chave do registro'
+    throw new Error(`Mapeie ${required} nos arquivos de origem e destino antes de analisar.`)
   }
+
+  const compositeKey = (
+    row: Record<string, CellValue>,
+    side: 'ORIGEM' | 'DESTINO',
+  ) => keyMappings
+    .map(({ field, map }) => {
+      const header = side === 'ORIGEM' ? map!.originHeader : map!.targetHeader
+      return normalizeForField(row[header], field)
+    })
+    .join('¦')
+
+  const displayKey = (
+    row: Record<string, CellValue>,
+    side: 'ORIGEM' | 'DESTINO',
+  ) => keyMappings
+    .map(({ field, map }) => {
+      const header = side === 'ORIGEM' ? map!.originHeader : map!.targetHeader
+      return normalizeForField(row[header], field)
+    })
+    .filter(Boolean)
+    .join(' / ')
 
   const nameField = profile.fields.find(field => field.id === profile.nameFieldId)
   const nameMap = nameField ? mapIndex.get(nameField.id) : undefined
@@ -429,15 +463,16 @@ export const compareDatasets = (
 
   const targetByKey = new Map<string, Record<string, CellValue>>()
   target.rows.forEach(row => {
-    const key = normalizeForField(row[keyMap.targetHeader], keyField)
+    const key = compositeKey(row, 'DESTINO')
     if (key && !targetByKey.has(key)) targetByKey.set(key, row)
   })
 
   const originKeys = new Set<string>()
   const clients: ClientComparison[] = origin.rows.map((originRow, index) => {
-    const key = normalizeForField(originRow[keyMap.originHeader], keyField) || `SEM_CHAVE_${index + 1}`
-    originKeys.add(key)
-    const targetRow = targetByKey.get(key)
+    const matchKey = compositeKey(originRow, 'ORIGEM')
+    const key = displayKey(originRow, 'ORIGEM') || `SEM_CHAVE_${index + 1}`
+    if (matchKey) originKeys.add(matchKey)
+    const targetRow = matchKey ? targetByKey.get(matchKey) : undefined
     const inactive = detectInactive(originRow, originStatusHeader)
     const name = nameMap?.originHeader ? asText(originRow[nameMap.originHeader]) : ''
 
@@ -473,14 +508,18 @@ export const compareDatasets = (
   })
 
   const targetOnly = target.rows.flatMap(row => {
-    const key = normalizeForField(row[keyMap.targetHeader], keyField)
-    if (!key || originKeys.has(key)) return []
-    return [{ key, name: nameMap?.targetHeader ? asText(row[nameMap.targetHeader]) : '', row }]
+    const matchKey = compositeKey(row, 'DESTINO')
+    if (!matchKey || originKeys.has(matchKey)) return []
+    return [{
+      key: displayKey(row, 'DESTINO'),
+      name: nameMap?.targetHeader ? asText(row[nameMap.targetHeader]) : '',
+      row,
+    }]
   })
 
   const duplicates = [
-    ...duplicateScan(origin, 'ORIGEM', mapping, profile, keyField, nameField),
-    ...duplicateScan(target, 'DESTINO', mapping, profile, keyField, nameField),
+    ...duplicateScan(origin, 'ORIGEM', mapping, profile, keyFields, nameField),
+    ...duplicateScan(target, 'DESTINO', mapping, profile, keyFields, nameField),
   ]
   const fieldSummary = summarizeFields(clients.filter(c => c.found), profile.fields)
   const validFieldResults = clients.filter(c => c.found).flatMap(c => c.fields).filter(f => f.status !== 'NÃO VALIDÁVEL')
