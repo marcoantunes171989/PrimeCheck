@@ -9,7 +9,7 @@ import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceMod
 import type { ImportedFile } from './types'
 import { clearWorkspaceFiles, loadWorkspaceFiles, saveWorkspaceFiles } from './lib/workspaceStorage'
 
-type ModuleId = 'importacao' | 'homologacao' | 'cnpj' | 'ie' | `data:${string}`
+type ModuleId = 'importacao' | 'homologacao' | 'cnpj' | 'ie' | `data:${string}` | `dashboard:${string}`
 
 const staticModuleTitle: Record<'importacao' | 'homologacao' | 'cnpj' | 'ie', string> = {
   importacao: 'Importação e organização',
@@ -89,8 +89,8 @@ export default function App() {
 
   const changeModule = (next: ModuleId) => {
     setModule(next)
-    if (next.startsWith('data:')) {
-      const moduleId = next.slice(5)
+    if (next.startsWith('data:') || next.startsWith('dashboard:')) {
+      const moduleId = next.slice(next.indexOf(':') + 1)
       setVisitedWorkspaceModules(current => {
         if (current.has(moduleId)) return current
         const updated = new Set(current)
@@ -106,14 +106,18 @@ export default function App() {
   )
 
   const enabledWorkspaceModules = workspaceMatches.map(match => match.module.id)
-  const activeWorkspaceModuleId = module.startsWith('data:') ? module.slice(5) : ''
+  const activeWorkspaceModuleId = module.startsWith('data:') || module.startsWith('dashboard:')
+    ? module.slice(module.indexOf(':') + 1)
+    : ''
   const activeWorkspaceModule = activeWorkspaceModuleId
     ? getWorkspaceModule(activeWorkspaceModuleId)
     : undefined
 
-  const moduleTitle = module.startsWith('data:')
-    ? activeWorkspaceModule?.label ?? 'Dados importados'
-    : staticModuleTitle[module as keyof typeof staticModuleTitle]
+  const moduleTitle = module.startsWith('dashboard:')
+    ? 'Dashboard · ' + (activeWorkspaceModule?.label ?? 'Dados importados')
+    : module.startsWith('data:')
+      ? activeWorkspaceModule?.label ?? 'Dados importados'
+      : staticModuleTitle[module as keyof typeof staticModuleTitle]
 
   const openImportedModules = () => {
     const first = workspaceMatches[0]?.module.id
@@ -160,7 +164,7 @@ export default function App() {
         {[...visitedWorkspaceModules].map(moduleId => {
           const workspaceModule = getWorkspaceModule(moduleId)
           if (!workspaceModule) return null
-          const active = module === `data:${moduleId}`
+          const active = module === `data:${moduleId}` || module === `dashboard:${moduleId}`
           return (
             <div
               key={moduleId}
@@ -172,6 +176,7 @@ export default function App() {
                 module={workspaceModule}
                 files={workspaceFiles}
                 onBackToImport={() => changeModule('importacao')}
+                dashboardMode={module === `dashboard:${moduleId}`}
               />
             </div>
           )

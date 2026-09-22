@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import DataPrintReport from './DataPrintReport'
 import StatusBadge from './StatusBadge'
 import type {
@@ -30,6 +30,8 @@ type QuickItem = {
   duplicate?: DuplicateItem
 }
 
+const PAGE_SIZE = 20
+
 const normalize = (value: unknown) =>
   String(value ?? '').trim().toLocaleUpperCase('pt-BR')
 
@@ -38,6 +40,13 @@ const includes = (value: unknown, filter: string) =>
 
 const issuePriority = (status: Severity) =>
   status === 'DIVERGENTE' ? 0 : status === 'ATENÇÃO' ? 1 : 9
+
+const toggleSet = (current: Set<string>, id: string) => {
+  const next = new Set(current)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  return next
+}
 
 export default function TechnicalDiagnosisView({
   report,
@@ -58,6 +67,10 @@ export default function TechnicalDiagnosisView({
   const [targetFilter, setTargetFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [reasonFilter, setReasonFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set())
+  const [printSelected, setPrintSelected] = useState(false)
 
   const items = useMemo<QuickItem[]>(() => {
     const issues = report.fieldSummary
@@ -179,6 +192,24 @@ export default function TechnicalDiagnosisView({
     reasonFilter,
   ])
 
+  useEffect(() => setPage(1), [
+    search,
+    kindFilter,
+    fieldFilter,
+    codeFilter,
+    originFilter,
+    targetFilter,
+    statusFilter,
+    reasonFilter,
+  ])
+
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, pages)
+  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageIds = pageItems.map(item => item.id)
+  const selectedItems = filtered.filter(item => selected.has(item.id))
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selected.has(id))
+
   const filterDescription = [
     kindFilter === 'TODOS' ? 'Todos os tipos' : kindFilter,
     fieldFilter === 'TODOS'
@@ -190,6 +221,7 @@ export default function TechnicalDiagnosisView({
     targetFilter.trim() ? 'Destino: ' + targetFilter.trim() : '',
     statusFilter.trim() ? 'Status: ' + statusFilter.trim() : '',
     reasonFilter.trim() ? 'Motivo: ' + reasonFilter.trim() : '',
+    printSelected ? 'Somente registros selecionados' : '',
   ].filter(Boolean).join(' · ')
 
   const clearFilters = () => {
@@ -203,7 +235,22 @@ export default function TechnicalDiagnosisView({
     setReasonFilter('')
   }
 
-  const printRows = filtered.map(item => ({
+  const togglePage = () => {
+    setSelected(current => {
+      const next = new Set(current)
+      if (allPageSelected) pageIds.forEach(id => next.delete(id))
+      else pageIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const requestPrint = (onlySelected: boolean) => {
+    setPrintSelected(onlySelected)
+    window.setTimeout(() => window.print(), 80)
+  }
+
+  const sourceRows = printSelected ? selectedItems : filtered
+  const printRows = sourceRows.map(item => ({
     tipo: item.kind,
     campo: item.fieldLabel,
     codigo: item.code,
@@ -213,7 +260,18 @@ export default function TechnicalDiagnosisView({
     status: item.status,
     motivo: item.reason,
     ocorrencias: item.occurrences,
+    analisado: reviewed.has(item.id) ? 'Sim' : 'Não',
   }))
+
+  const openItem = (item: QuickItem) => {
+    setReviewed(current => {
+      const next = new Set(current)
+      next.add(item.id)
+      return next
+    })
+    if (item.client && item.field) onOpenIssue(item.client, item.field)
+    else onOpenDuplicates(item.fieldId)
+  }
 
   return (
     <>
@@ -224,20 +282,32 @@ export default function TechnicalDiagnosisView({
             <h3>Uma amostra técnica de cada problema encontrado</h3>
             <p>
               Mostra um exemplo representativo por campo com divergência/atenção e um exemplo por campo com duplicidade.
-              Use as telas detalhadas para analisar todas as ocorrências.
+              Paginação padronizada em {PAGE_SIZE} registros para uma análise rápida e progressiva.
             </p>
           </div>
           <div className="technical-diagnosis-actions">
+            <span className="selection-summary">{selectedItems.length.toLocaleString('pt-BR')} selecionados</span>
             <button type="button" className="button ghost compact-button" onClick={clearFilters}>
               Limpar filtros
+            </button>
+            <button type="button" className="button ghost compact-button" disabled={!pageItems.length} onClick={togglePage}>
+              {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
+            </button>
+            <button
+              type="button"
+              className="button secondary compact-button"
+              disabled={!selectedItems.length}
+              onClick={() => requestPrint(true)}
+            >
+              Imprimir selecionados
             </button>
             <button
               type="button"
               className="button primary compact-button"
               disabled={!filtered.length}
-              onClick={() => window.print()}
+              onClick={() => requestPrint(false)}
             >
-              Imprimir diagnóstico
+              Imprimir filtro
             </button>
           </div>
         </div>
@@ -271,6 +341,7 @@ export default function TechnicalDiagnosisView({
           <table className="technical-diagnosis-table">
             <thead>
               <tr>
+                <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePage} aria-label="Selecionar página" /></th>
                 <th>Tipo</th>
                 <th>Campo</th>
                 <th>Código / registro</th>
@@ -279,9 +350,11 @@ export default function TechnicalDiagnosisView({
                 <th>Status</th>
                 <th>Motivo / resumo</th>
                 <th>Qtd.</th>
+                <th>Análise</th>
                 <th>Ação</th>
               </tr>
               <tr className="column-filter-row">
+                <th />
                 <th>
                   <select value={kindFilter} onChange={event => setKindFilter(event.target.value as typeof kindFilter)}>
                     <option value="TODOS">Todos</option>
@@ -303,11 +376,15 @@ export default function TechnicalDiagnosisView({
                 <th><input value={reasonFilter} onChange={event => setReasonFilter(event.target.value)} placeholder="Filtrar…" /></th>
                 <th />
                 <th />
+                <th />
               </tr>
             </thead>
             <tbody>
-              {filtered.map(item => (
-                <tr key={item.id}>
+              {pageItems.map(item => (
+                <tr key={item.id} className={reviewed.has(item.id) ? 'row-reviewed' : ''}>
+                  <td className="selection-column">
+                    <input type="checkbox" checked={selected.has(item.id)} onChange={() => setSelected(current => toggleSet(current, item.id))} />
+                  </td>
                   <td><span className={'quick-kind quick-kind-' + item.kind.toLocaleLowerCase('pt-BR').replace(/[^a-z]/g, '')}>{item.kind}</span></td>
                   <td>
                     <strong>{item.fieldLabel}</strong>
@@ -327,29 +404,37 @@ export default function TechnicalDiagnosisView({
                   <td className="reason-cell">{item.reason}</td>
                   <td><strong>{item.occurrences.toLocaleString('pt-BR')}</strong></td>
                   <td>
-                    {item.client && item.field ? (
-                      <button
-                        type="button"
-                        className="analysis-action-button"
-                        onClick={() => onOpenIssue(item.client!, item.field!)}
-                      >
-                        Abrir ocorrência
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="analysis-action-button"
-                        onClick={() => onOpenDuplicates(item.fieldId)}
-                      >
-                        Ver duplicidades
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className={'review-chip ' + (reviewed.has(item.id) ? 'done' : '')}
+                      onClick={() => setReviewed(current => toggleSet(current, item.id))}
+                    >
+                      {reviewed.has(item.id) ? '✓ Analisado' : 'Marcar analisado'}
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button" className="analysis-action-button" onClick={() => openItem(item)}>
+                      {item.client && item.field ? 'Abrir ocorrência' : 'Ver duplicidades'}
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!filtered.length && <div className="empty-state">Nenhum diagnóstico encontrado para a combinação de filtros.</div>}
+          {!pageItems.length && <div className="empty-state">Nenhum diagnóstico encontrado para a combinação de filtros.</div>}
+        </div>
+
+        <div className="workspace-pagination dashboard-pagination">
+          <span>
+            {filtered.length
+              ? `${((safePage - 1) * PAGE_SIZE + 1).toLocaleString('pt-BR')}–${Math.min(safePage * PAGE_SIZE, filtered.length).toLocaleString('pt-BR')} de ${filtered.length.toLocaleString('pt-BR')}`
+              : '0 registros'}
+          </span>
+          <div>
+            <button type="button" disabled={safePage <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>←</button>
+            <b>{safePage}/{pages}</b>
+            <button type="button" disabled={safePage >= pages} onClick={() => setPage(value => Math.min(pages, value + 1))}>→</button>
+          </div>
         </div>
       </section>
 
@@ -367,6 +452,7 @@ export default function TechnicalDiagnosisView({
           { key: 'status', label: 'Status' },
           { key: 'motivo', label: 'Motivo / resumo' },
           { key: 'ocorrencias', label: 'Qtd.' },
+          { key: 'analisado', label: 'Analisado' },
         ]}
         rows={printRows}
       />

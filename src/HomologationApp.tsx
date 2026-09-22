@@ -7,6 +7,7 @@ import StatusBadge from './components/StatusBadge'
 import IssuePrintReport, { type IssuePrintItem } from './components/IssuePrintReport'
 import DataPrintReport from './components/DataPrintReport'
 import TechnicalDiagnosisView from './components/TechnicalDiagnosisView'
+import ManagementDashboardView from './components/ManagementDashboardView'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
@@ -16,7 +17,7 @@ import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
-type Tab = 'overview' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
+type Tab = 'overview' | 'dashboard' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
 type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
 
@@ -54,6 +55,13 @@ const nextSort = (current: SortState, key: string): SortState =>
     ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
     : { key, direction: 'asc' }
 
+const toggleStringSet = (current: Set<string>, id: string) => {
+  const next = new Set(current)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  return next
+}
+
 function SortableHeader({
   label,
   sortKey,
@@ -88,6 +96,7 @@ type HomologationAppProps = {
   embedded?: boolean
   originLabel?: string
   targetLabel?: string
+  dashboardMode?: boolean
 }
 
 function App({
@@ -97,6 +106,7 @@ function App({
   embedded = false,
   originLabel = 'Origem',
   targetLabel = 'Destino',
+  dashboardMode = false,
 }: HomologationAppProps = {}) {
   const [originFiles, setOriginFiles] = useState<ImportedFile[]>(presetOriginFiles ?? [])
   const [targetFiles, setTargetFiles] = useState<ImportedFile[]>(presetTargetFiles ?? [])
@@ -130,14 +140,18 @@ function App({
   const [duplicateFieldFocus, setDuplicateFieldFocus] = useState<string | undefined>()
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [selectedClientKeys, setSelectedClientKeys] = useState<Set<string>>(new Set())
+  const [reviewedClientKeys, setReviewedClientKeys] = useState<Set<string>>(new Set())
+  const [clientPrintSelected, setClientPrintSelected] = useState(false)
   const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<string>>(new Set())
+  const [reviewedIssueKeys, setReviewedIssueKeys] = useState<Set<string>>(new Set())
   const [issuePrintItems, setIssuePrintItems] = useState<IssuePrintItem[]>([])
   const [focusedFieldId, setFocusedFieldId] = useState<string | undefined>()
   const [selectedOccurrenceKey, setSelectedOccurrenceKey] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 20
 
   const presetOriginKey = presetOriginFiles?.map(file => file.id).join('|') ?? ''
   const presetTargetKey = presetTargetFiles?.map(file => file.id).join('|') ?? ''
@@ -159,6 +173,14 @@ function App({
   useEffect(() => {
     if (profileOverride) setEntityMode(profileOverride.id)
   }, [profileOverride?.id])
+
+  useEffect(() => {
+    if (dashboardMode) {
+      setActiveTab('dashboard')
+    } else {
+      setActiveTab(current => current === 'dashboard' ? 'overview' : current)
+    }
+  }, [dashboardMode])
 
   const detectionHeaders = useMemo(
     () => [...new Set([...origin.headers, ...target.headers])],
@@ -197,7 +219,10 @@ function App({
   }, [])
 
   useEffect(() => {
+    setSelectedClientKeys(new Set())
+    setReviewedClientKeys(new Set())
     setSelectedIssueKeys(new Set())
+    setReviewedIssueKeys(new Set())
   }, [report?.generatedAt])
 
   const coverage = useMemo(() => mappingCoverage(mapping), [mapping])
@@ -210,6 +235,7 @@ function App({
   const keyLabel = keyFields.map(field => field.label).join(' + ') || 'chave do registro'
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'overview', label: 'Visão geral' },
+    { id: 'dashboard', label: 'Dashboard' },
     { id: 'diagnosis', label: 'Diagnóstico rápido' },
     { id: 'clients', label: plural(profile) },
     { id: 'issues', label: 'Divergências' },
@@ -230,7 +256,7 @@ function App({
       try {
         const next = compareDatasets(origin, target, mapping, profile)
         setReport(next)
-        setActiveTab('overview')
+        setActiveTab(dashboardMode ? 'dashboard' : 'overview')
         setIssueFieldFilter('TODOS')
         setStatusFilter('TODOS')
         setSearch('')
@@ -455,6 +481,26 @@ function App({
         onNext: () => goToOccurrence(occurrenceIndex + 1),
       }
     : undefined
+
+  const currentClientPage = pageSlice(sortedClients)
+  const currentClientKeys = currentClientPage.map(client => client.key)
+  const selectedClients = sortedClients.filter(client => selectedClientKeys.has(client.key))
+  const allCurrentClientsSelected = currentClientKeys.length > 0
+    && currentClientKeys.every(key => selectedClientKeys.has(key))
+
+  const toggleCurrentClientPage = () => {
+    setSelectedClientKeys(current => {
+      const next = new Set(current)
+      if (allCurrentClientsSelected) currentClientKeys.forEach(key => next.delete(key))
+      else currentClientKeys.forEach(key => next.add(key))
+      return next
+    })
+  }
+
+  const requestClientPrint = (onlySelected: boolean) => {
+    setClientPrintSelected(onlySelected)
+    window.setTimeout(() => window.print(), 80)
+  }
 
   const currentIssuePage = pageSlice(sortedIssues)
   const currentIssueKeys = currentIssuePage.map(item => occurrenceKeyOf(item.client.key, item.field.fieldId))
@@ -707,7 +753,7 @@ function App({
               {tabs.map(tab => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
             </nav>
 
-            {activeTab !== 'overview' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
+            {activeTab !== 'overview' && activeTab !== 'dashboard' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
               <div className={`filters${activeTab === 'issues' ? ' filters-issues' : ''}`}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Pesquisar código, ${resultProfile.recordLabel.toLowerCase()} ou qualquer valor…`} />
                 {activeTab === 'issues' && (
@@ -731,11 +777,18 @@ function App({
                   <option value="CONFORME">Conforme</option>
                   <option value="NÃO IMPORTADO">Não importado</option>
                 </select>
-                <PageSizeSelect value={pageSize} onChange={setPageSize} />
+                <span className="page-size-fixed">20 por página</span>
               </div>
             )}
 
             {activeTab === 'overview' && <Overview report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
+            {activeTab === 'dashboard' && (
+              <ManagementDashboardView
+                report={report}
+                profile={resultProfile}
+                onAnalyzeField={fieldId => openFieldAnalysis(fieldId, 'TODOS')}
+              />
+            )}
             {activeTab === 'diagnosis' && (
               <TechnicalDiagnosisView
                 report={report}
@@ -753,9 +806,10 @@ function App({
                   <div className="section-head compact">
                     <div>
                       <h3>{resultProfile.label}</h3>
-                      <p>{number(filteredClients.length)} registros no filtro atual.</p>
+                      <p>{number(filteredClients.length)} registros no filtro atual · paginação padrão de 20.</p>
                     </div>
                     <div className="section-head-actions">
+                      <span className="selection-summary">{number(selectedClients.length)} selecionados</span>
                       <button
                         type="button"
                         className="button ghost compact-button"
@@ -776,9 +830,25 @@ function App({
                       </button>
                       <button
                         type="button"
+                        className="button ghost compact-button"
+                        disabled={!currentClientPage.length}
+                        onClick={toggleCurrentClientPage}
+                      >
+                        {allCurrentClientsSelected ? 'Desmarcar página' : 'Selecionar página'}
+                      </button>
+                      <button
+                        type="button"
                         className="button secondary compact-button"
+                        disabled={!selectedClients.length}
+                        onClick={() => requestClientPrint(true)}
+                      >
+                        Imprimir selecionados
+                      </button>
+                      <button
+                        type="button"
+                        className="button primary compact-button"
                         disabled={!sortedClients.length}
-                        onClick={() => window.print()}
+                        onClick={() => requestClientPrint(false)}
                       >
                         Imprimir filtro
                       </button>
@@ -794,6 +864,14 @@ function App({
                     <table className="records-table">
                       <thead>
                         <tr>
+                          <th className="selection-column">
+                            <input
+                              type="checkbox"
+                              checked={allCurrentClientsSelected}
+                              onChange={toggleCurrentClientPage}
+                              aria-label="Selecionar página"
+                            />
+                          </th>
                           <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
@@ -802,9 +880,11 @@ function App({
                           <SortableHeader label="Atenções" sortKey="attention" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           {showDocument && <SortableHeader label="CPF/CNPJ origem" sortKey="document" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
                           {showDocument && <SortableHeader label="Validade" sortKey="validity" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                          <th>Análise</th>
                           <th>Ação</th>
                         </tr>
                         <tr className="column-filter-row">
+                          <th />
                           <th><input value={clientColumnFilters.code} onChange={e => setClientColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Filtrar…" /></th>
                           <th><input value={clientColumnFilters.name} onChange={e => setClientColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Filtrar…" /></th>
                           <th>
@@ -837,13 +917,22 @@ function App({
                             </th>
                           )}
                           <th />
+                          <th />
                         </tr>
                       </thead>
                       <tbody>
-                        {pageSlice(sortedClients).map(client => {
+                        {currentClientPage.map(client => {
                           const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
                           const validation = validateCpfCnpj(doc)
-                          return <tr key={client.key}>
+                          const reviewed = reviewedClientKeys.has(client.key)
+                          return <tr key={client.key} className={reviewed ? 'row-reviewed' : ''}>
+                            <td className="selection-column">
+                              <input
+                                type="checkbox"
+                                checked={selectedClientKeys.has(client.key)}
+                                onChange={() => setSelectedClientKeys(current => toggleStringSet(current, client.key))}
+                              />
+                            </td>
                             <td className="mono">{client.key}</td>
                             <td><strong>{client.name || '—'}</strong></td>
                             <td>{client.found ? 'Sim' : 'Não'}</td>
@@ -852,7 +941,27 @@ function App({
                             <td>{client.attentionCount}</td>
                             {showDocument && <td className="mono">{doc || '—'}</td>}
                             {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
-                            <td><button type="button" className="analysis-action-button" onClick={() => openRecord(client)}>Abrir análise</button></td>
+                            <td>
+                              <button
+                                type="button"
+                                className={'review-chip ' + (reviewed ? 'done' : '')}
+                                onClick={() => setReviewedClientKeys(current => toggleStringSet(current, client.key))}
+                              >
+                                {reviewed ? '✓ Analisado' : 'Marcar analisado'}
+                              </button>
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="analysis-action-button"
+                                onClick={() => {
+                                  setReviewedClientKeys(current => new Set(current).add(client.key))
+                                  openRecord(client)
+                                }}
+                              >
+                                Abrir análise
+                              </button>
+                            </td>
                           </tr>
                         })}
                       </tbody>
@@ -863,7 +972,7 @@ function App({
 
                 <DataPrintReport
                   title={`Relatório de ${resultProfile.label}`}
-                  subtitle="Registros conforme filtros aplicados na tela"
+                  subtitle="Registros conforme filtros e seleção aplicados na tela"
                   filterDescription={[
                     search.trim() ? 'Pesquisa: ' + search.trim() : '',
                     clientColumnFilters.code ? 'Código: ' + clientColumnFilters.code : '',
@@ -872,6 +981,7 @@ function App({
                     clientColumnFilters.status !== 'TODOS' ? 'Resultado: ' + clientColumnFilters.status : '',
                     clientColumnFilters.document ? 'CPF/CNPJ: ' + clientColumnFilters.document : '',
                     clientColumnFilters.validity !== 'TODOS' ? 'Validade: ' + clientColumnFilters.validity : '',
+                    clientPrintSelected ? 'Somente registros selecionados' : 'Resultado filtrado',
                   ].filter(Boolean).join(' · ')}
                   columns={[
                     { key: 'codigo', label: 'Código' },
@@ -884,8 +994,9 @@ function App({
                       { key: 'documento', label: 'CPF/CNPJ origem' },
                       { key: 'validade', label: 'Validade' },
                     ] : []),
+                    { key: 'analisado', label: 'Analisado' },
                   ]}
-                  rows={sortedClients.map(client => {
+                  rows={(clientPrintSelected ? selectedClients : sortedClients).map(client => {
                     const doc = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
                     return {
                       codigo: client.key,
@@ -896,6 +1007,7 @@ function App({
                       atencoes: client.attentionCount,
                       documento: doc || '—',
                       validade: showDocument ? validateCpfCnpj(doc).status : '',
+                      analisado: reviewedClientKeys.has(client.key) ? 'Sim' : 'Não',
                     }
                   })}
                 />
@@ -1008,6 +1120,7 @@ function App({
                               <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
                               <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
                               <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                              <th>Análise</th>
                               <th>Ação</th>
                             </tr>
                             <tr className="column-filter-row">
@@ -1033,6 +1146,7 @@ function App({
                               </th>
                               <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
                               <th />
+                              <th />
                             </tr>
                           </thead>
                           <tbody>
@@ -1044,7 +1158,10 @@ function App({
                               return (
                                 <tr
                                   key={`${item.client.key}-${item.field.fieldId}-${idx}`}
-                                  className={selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : ''}
+                                  className={[
+                                    selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : '',
+                                    reviewedIssueKeys.has(occurrenceKey) ? 'row-reviewed' : '',
+                                  ].filter(Boolean).join(' ')}
                                 >
                                   <td className="issue-select-col">
                                     <input
@@ -1059,7 +1176,10 @@ function App({
                                     <button
                                       type="button"
                                       className="link-button left"
-                                      onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
+                                      onClick={() => {
+                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                      }}
                                     >
                                       {item.client.name || '—'}
                                     </button>
@@ -1092,8 +1212,20 @@ function App({
                                   <td>
                                     <button
                                       type="button"
+                                      className={'review-chip ' + (reviewedIssueKeys.has(occurrenceKey) ? 'done' : '')}
+                                      onClick={() => setReviewedIssueKeys(current => toggleStringSet(current, occurrenceKey))}
+                                    >
+                                      {reviewedIssueKeys.has(occurrenceKey) ? '✓ Analisado' : 'Marcar analisado'}
+                                    </button>
+                                  </td>
+                                  <td>
+                                    <button
+                                      type="button"
                                       className="analysis-action-button"
-                                      onClick={() => openRecord(item.client, item.field.fieldId, occurrenceKey)}
+                                      onClick={() => {
+                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                      }}
                                     >
                                       Abrir análise
                                     </button>
@@ -1349,8 +1481,13 @@ function FieldSummaryView({
   report: ComparisonReport
   onAnalyzeField: (fieldId: string, status: 'TODOS' | 'DIVERGENTE' | 'ATENÇÃO') => void
 }) {
+  const PAGE_SIZE = 20
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set())
+  const [printSelected, setPrintSelected] = useState(false)
   const [filters, setFilters] = useState({
     group: '',
     field: '',
@@ -1390,6 +1527,15 @@ function FieldSummaryView({
     })
   }, [report.fieldSummary, search, sort, filters])
 
+  useEffect(() => setPage(1), [search, filters, sort.key, sort.direction])
+
+  const pages = Math.max(1, Math.ceil(fields.length / PAGE_SIZE))
+  const safePage = Math.min(page, pages)
+  const pageFields = fields.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageIds = pageFields.map(field => field.fieldId)
+  const selectedFields = fields.filter(field => selected.has(field.fieldId))
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selected.has(id))
+
   const clearFilters = () => {
     setSearch('')
     setFilters({
@@ -1403,17 +1549,40 @@ function FieldSummaryView({
     })
   }
 
+  const togglePage = () => {
+    setSelected(current => {
+      const next = new Set(current)
+      if (allPageSelected) pageIds.forEach(id => next.delete(id))
+      else pageIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const requestPrint = (onlySelected: boolean) => {
+    setPrintSelected(onlySelected)
+    window.setTimeout(() => window.print(), 80)
+  }
+
+  const rowsForPrint = printSelected ? selectedFields : fields
+
   return (
     <>
       <div className="panel">
         <div className="section-head compact">
           <div>
             <h3>Comparação por campo</h3>
-            <p>Pesquise, combine filtros, ordene e clique nas ocorrências para analisar divergências e atenções.</p>
+            <p>Pesquise, combine filtros e acompanhe a análise em páginas de {PAGE_SIZE} campos.</p>
           </div>
           <div className="section-head-actions">
+            <span className="selection-summary">{selectedFields.length.toLocaleString('pt-BR')} selecionados</span>
             <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
-            <button type="button" className="button secondary compact-button" disabled={!fields.length} onClick={() => window.print()}>
+            <button type="button" className="button ghost compact-button" disabled={!pageFields.length} onClick={togglePage}>
+              {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
+            </button>
+            <button type="button" className="button secondary compact-button" disabled={!selectedFields.length} onClick={() => requestPrint(true)}>
+              Imprimir selecionados
+            </button>
+            <button type="button" className="button primary compact-button" disabled={!fields.length} onClick={() => requestPrint(false)}>
               Imprimir filtro
             </button>
           </div>
@@ -1433,6 +1602,7 @@ function FieldSummaryView({
           <table className="field-summary-table">
             <thead>
               <tr>
+                <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePage} aria-label="Selecionar página" /></th>
                 <SortableHeader label="Grupo" sortKey="group" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="Conformes" sortKey="conform" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
@@ -1440,8 +1610,10 @@ function FieldSummaryView({
                 <SortableHeader label="Atenções" sortKey="attention" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="Não validáveis" sortKey="notValidatable" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="% conformidade" sortKey="conformity" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <th>Análise</th>
               </tr>
               <tr className="column-filter-row">
+                <th />
                 <th><input value={filters.group} onChange={e => setFilters(current => ({ ...current, group: e.target.value }))} placeholder="Grupo…" /></th>
                 <th><input value={filters.field} onChange={e => setFilters(current => ({ ...current, field: e.target.value }))} placeholder="Campo…" /></th>
                 <th><input value={filters.conform} onChange={e => setFilters(current => ({ ...current, conform: e.target.value }))} placeholder="Qtd." /></th>
@@ -1449,23 +1621,33 @@ function FieldSummaryView({
                 <th><input value={filters.attention} onChange={e => setFilters(current => ({ ...current, attention: e.target.value }))} placeholder="Qtd." /></th>
                 <th><input value={filters.notValidatable} onChange={e => setFilters(current => ({ ...current, notValidatable: e.target.value }))} placeholder="Qtd." /></th>
                 <th><input value={filters.conformity} onChange={e => setFilters(current => ({ ...current, conformity: e.target.value }))} placeholder="%…" /></th>
+                <th />
               </tr>
             </thead>
             <tbody>
-              {fields.map(field => {
+              {pageFields.map(field => {
                 const reviewCount = field.divergent + field.attention
                 const conformity = field.conformityPercent ?? 0
+                const isReviewed = reviewed.has(field.fieldId)
                 return (
-                  <tr key={field.fieldId}>
+                  <tr key={field.fieldId} className={isReviewed ? 'row-reviewed' : ''}>
+                    <td className="selection-column">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(field.fieldId)}
+                        onChange={() => setSelected(current => toggleStringSet(current, field.fieldId))}
+                      />
+                    </td>
                     <td className="muted-cell">{field.group}</td>
                     <td>
                       {reviewCount > 0 ? (
                         <button
                           type="button"
                           className="field-analysis-link"
-                          onClick={() => onAnalyzeField(field.fieldId, 'TODOS')}
-                          title={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
-                          aria-label={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
+                          onClick={() => {
+                            setReviewed(current => new Set(current).add(field.fieldId))
+                            onAnalyzeField(field.fieldId, 'TODOS')
+                          }}
                         >
                           {field.fieldLabel}
                         </button>
@@ -1479,7 +1661,10 @@ function FieldSummaryView({
                         <button
                           type="button"
                           className="issue-count-link issue-count-link-divergent"
-                          onClick={() => onAnalyzeField(field.fieldId, 'DIVERGENTE')}
+                          onClick={() => {
+                            setReviewed(current => new Set(current).add(field.fieldId))
+                            onAnalyzeField(field.fieldId, 'DIVERGENTE')
+                          }}
                         >
                           {number(field.divergent)}
                         </button>
@@ -1490,7 +1675,10 @@ function FieldSummaryView({
                         <button
                           type="button"
                           className="issue-count-link issue-count-link-attention"
-                          onClick={() => onAnalyzeField(field.fieldId, 'ATENÇÃO')}
+                          onClick={() => {
+                            setReviewed(current => new Set(current).add(field.fieldId))
+                            onAnalyzeField(field.fieldId, 'ATENÇÃO')
+                          }}
                         >
                           {number(field.attention)}
                         </button>
@@ -1509,18 +1697,40 @@ function FieldSummaryView({
                         </div>
                       )}
                     </td>
+                    <td>
+                      <button
+                        type="button"
+                        className={'review-chip ' + (isReviewed ? 'done' : '')}
+                        onClick={() => setReviewed(current => toggleStringSet(current, field.fieldId))}
+                      >
+                        {isReviewed ? '✓ Analisado' : 'Marcar analisado'}
+                      </button>
+                    </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-          {!fields.length && <div className="empty-state">Nenhum campo encontrado para a combinação de filtros.</div>}
+          {!pageFields.length && <div className="empty-state">Nenhum campo encontrado para a combinação de filtros.</div>}
+        </div>
+
+        <div className="workspace-pagination dashboard-pagination">
+          <span>
+            {fields.length
+              ? `${((safePage - 1) * PAGE_SIZE + 1).toLocaleString('pt-BR')}–${Math.min(safePage * PAGE_SIZE, fields.length).toLocaleString('pt-BR')} de ${fields.length.toLocaleString('pt-BR')}`
+              : '0 registros'}
+          </span>
+          <div>
+            <button type="button" disabled={safePage <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>←</button>
+            <b>{safePage}/{pages}</b>
+            <button type="button" disabled={safePage >= pages} onClick={() => setPage(value => Math.min(pages, value + 1))}>→</button>
+          </div>
         </div>
       </div>
 
       <DataPrintReport
         title="Comparação por campo"
-        subtitle="Resumo dos campos conforme filtros aplicados"
+        subtitle="Resumo dos campos conforme filtros e seleção aplicados"
         filterDescription={[
           search.trim() ? 'Pesquisa: ' + search.trim() : '',
           filters.group ? 'Grupo: ' + filters.group : '',
@@ -1528,6 +1738,7 @@ function FieldSummaryView({
           filters.divergent ? 'Divergências: ' + filters.divergent : '',
           filters.attention ? 'Atenções: ' + filters.attention : '',
           filters.conformity ? 'Conformidade: ' + filters.conformity : '',
+          printSelected ? 'Somente campos selecionados' : 'Resultado filtrado',
         ].filter(Boolean).join(' · ')}
         columns={[
           { key: 'grupo', label: 'Grupo' },
@@ -1537,8 +1748,9 @@ function FieldSummaryView({
           { key: 'atencoes', label: 'Atenções' },
           { key: 'naoValidaveis', label: 'Não validáveis' },
           { key: 'conformidade', label: '% conformidade' },
+          { key: 'analisado', label: 'Analisado' },
         ]}
-        rows={fields.map(field => ({
+        rows={rowsForPrint.map(field => ({
           grupo: field.group,
           campo: field.fieldLabel,
           conformes: field.conform,
@@ -1546,6 +1758,7 @@ function FieldSummaryView({
           atencoes: field.attention,
           naoValidaveis: field.notValidatable,
           conformidade: field.conformityPercent === null ? '—' : field.conformityPercent.toFixed(2).replace('.', ',') + '%',
+          analisado: reviewed.has(field.fieldId) ? 'Sim' : 'Não',
         }))}
       />
     </>
@@ -1671,8 +1884,8 @@ function DuplicatesView({
   profile: EntityProfile
   initialFieldId?: string
 }) {
+  const pageSize = 20
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [fieldFilter, setFieldFilter] = useState('TODOS')
   const [sideFilter, setSideFilter] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
@@ -1686,7 +1899,10 @@ function DuplicatesView({
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
+  const [reviewedGroups, setReviewedGroups] = useState<Set<string>>(new Set())
   const [printGroupId, setPrintGroupId] = useState<string | null>(null)
+  const [printSelected, setPrintSelected] = useState(false)
 
   const fieldOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -1695,6 +1911,9 @@ function DuplicatesView({
     }
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
   }, [report.duplicates])
+
+  const rowIdOf = (dup: ComparisonReport['duplicates'][number]) =>
+    [dup.side, dup.fieldId, dup.normalizedValue].join('::')
 
   const term = search.trim().toLocaleUpperCase('pt-BR')
   const filtered = useMemo(() => {
@@ -1741,7 +1960,7 @@ function DuplicatesView({
     return ''
   }), [filtered, sort])
 
-  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
+  useEffect(() => setPage(1), [search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
 
   useEffect(() => {
     if (!initialFieldId) return
@@ -1750,7 +1969,10 @@ function DuplicatesView({
   }, [initialFieldId])
 
   useEffect(() => {
-    const handleAfterPrint = () => setPrintGroupId(null)
+    const handleAfterPrint = () => {
+      setPrintGroupId(null)
+      setPrintSelected(false)
+    }
     window.addEventListener('afterprint', handleAfterPrint)
     return () => window.removeEventListener('afterprint', handleAfterPrint)
   }, [])
@@ -1758,13 +1980,13 @@ function DuplicatesView({
   const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const safePage = Math.min(page, pages)
   const pageItems = sorted.slice((safePage - 1) * pageSize, safePage * pageSize)
+  const pageIds = pageItems.map(rowIdOf)
+  const selectedItems = sorted.filter(item => selectedGroups.has(rowIdOf(item)))
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedGroups.has(id))
   const duplicateHint = profile.showDocumentValidity
     ? 'grupos duplicados em CPF/CNPJ ou IE.'
     : 'grupos duplicados nos campos de unicidade do perfil.'
   const monoKinds = new Set(['document', 'ie', 'code', 'phone'])
-
-  const rowIdOf = (dup: ComparisonReport['duplicates'][number]) =>
-    [dup.side, dup.fieldId, dup.normalizedValue].join('::')
 
   const toggleSet = (current: Set<string>, id: string) => {
     const next = new Set(current)
@@ -1774,6 +1996,7 @@ function DuplicatesView({
   }
 
   const toggleGroup = (rowId: string) => {
+    setReviewedGroups(current => new Set(current).add(rowId))
     setOpenGroups(current => {
       const next = toggleSet(current, rowId)
       if (!next.has(rowId)) {
@@ -1787,15 +2010,26 @@ function DuplicatesView({
     })
   }
 
+  const togglePageSelection = () => {
+    setSelectedGroups(current => {
+      const next = new Set(current)
+      if (allPageSelected) pageIds.forEach(id => next.delete(id))
+      else pageIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
   const nameLabel = profile.fields.find(field => field.id === profile.nameFieldId)?.label ?? profile.recordLabel
 
   const printItems = printGroupId
     ? sorted.filter(item => rowIdOf(item) === printGroupId)
-    : [...sorted].sort((left, right) =>
-        left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
-        || left.side.localeCompare(right.side, 'pt-BR')
-        || left.normalizedValue.localeCompare(right.normalizedValue, 'pt-BR', { numeric: true, sensitivity: 'base' }),
-      )
+    : printSelected
+      ? selectedItems
+      : [...sorted].sort((left, right) =>
+          left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
+          || left.side.localeCompare(right.side, 'pt-BR')
+          || left.normalizedValue.localeCompare(right.normalizedValue, 'pt-BR', { numeric: true, sensitivity: 'base' }),
+        )
 
   const filterDescription = [
     sideFilter === 'TODOS' ? 'Origem e destino' : sideFilter === 'ORIGEM' ? 'Somente origem' : 'Somente destino',
@@ -1807,10 +2041,12 @@ function DuplicatesView({
     duplicateColumnFilters.count ? 'Quantidade: ' + duplicateColumnFilters.count : '',
     duplicateColumnFilters.codes ? 'Códigos: ' + duplicateColumnFilters.codes : '',
     term ? 'Pesquisa: ' + search.trim() : '',
+    printSelected ? 'Somente grupos selecionados' : '',
   ].filter(Boolean).join(' · ')
 
-  const requestPrint = (groupId?: string) => {
+  const requestPrint = (groupId?: string, selectedOnly = false) => {
     setPrintGroupId(groupId || null)
+    setPrintSelected(selectedOnly)
     window.setTimeout(() => window.print(), 80)
   }
 
@@ -1823,10 +2059,11 @@ function DuplicatesView({
             <p>
               {number(filtered.length)} {filtered.length === 1 ? 'grupo' : 'grupos'} no filtro atual
               {filtered.length !== report.duplicates.length ? ' · ' + number(report.duplicates.length) + ' no total' : ''}.
-              {' '}{duplicateHint}
+              {' '}{duplicateHint} Paginação padrão de {pageSize}.
             </p>
           </div>
           <div className="section-head-actions">
+            <span className="selection-summary">{number(selectedItems.length)} selecionados</span>
             <button
               type="button"
               className="button ghost compact-button"
@@ -1839,13 +2076,24 @@ function DuplicatesView({
             >
               Limpar filtros
             </button>
+            <button type="button" className="button ghost compact-button" disabled={!pageItems.length} onClick={togglePageSelection}>
+              {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
+            </button>
+            <button
+              type="button"
+              className="button secondary compact-button"
+              onClick={() => requestPrint(undefined, true)}
+              disabled={!selectedItems.length}
+            >
+              Imprimir selecionados
+            </button>
             <button
               type="button"
               className="button primary dup-print-button"
               onClick={() => requestPrint()}
               disabled={sorted.length === 0}
             >
-              Imprimir duplicidades
+              Imprimir filtro
             </button>
           </div>
         </div>
@@ -1854,7 +2102,7 @@ function DuplicatesView({
           <strong>Como analisar</strong>
           <span>
             Revise os registros do mesmo grupo e confirme qual cadastro deve prevalecer.
-            Sem um critério de prioridade definido, não há base segura para determinar automaticamente o registro principal.
+            Ao abrir um grupo ele é marcado como analisado para facilitar a sequência da revisão.
           </span>
         </div>
 
@@ -1889,7 +2137,7 @@ function DuplicatesView({
               <option key={fieldId} value={fieldId}>{fieldLabel}</option>
             ))}
           </select>
-          <PageSizeSelect value={pageSize} onChange={setPageSize} />
+          <span className="page-size-fixed">20 por página</span>
         </div>
 
         {filtered.length === 0 ? (
@@ -1900,15 +2148,18 @@ function DuplicatesView({
               <table className="dup-table">
                 <thead>
                   <tr>
+                    <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
                     <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <th>Análise</th>
                     <th>Ações</th>
                   </tr>
                   <tr className="column-filter-row">
+                    <th />
                     <th>
                       <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
                         <option value="TODOS">Todos</option>
@@ -1929,6 +2180,7 @@ function DuplicatesView({
                     <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
                     <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
                     <th />
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
@@ -1937,9 +2189,21 @@ function DuplicatesView({
                     const field = profile.fields.find(item => item.id === dup.fieldId)
                     const monoValue = field ? monoKinds.has(field.kind) : true
                     const open = openGroups.has(rowId)
+                    const reviewed = reviewedGroups.has(rowId)
                     return (
                       <Fragment key={rowId + '-' + index}>
-                        <tr className={'dup-group-row' + (open ? ' is-open' : '')}>
+                        <tr className={[
+                          'dup-group-row',
+                          open ? 'is-open' : '',
+                          reviewed ? 'row-reviewed' : '',
+                        ].filter(Boolean).join(' ')}>
+                          <td className="selection-column">
+                            <input
+                              type="checkbox"
+                              checked={selectedGroups.has(rowId)}
+                              onChange={() => setSelectedGroups(current => toggleSet(current, rowId))}
+                            />
+                          </td>
                           <td>
                             <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
                           </td>
@@ -1971,6 +2235,15 @@ function DuplicatesView({
                             />
                           </td>
                           <td>
+                            <button
+                              type="button"
+                              className={'review-chip ' + (reviewed ? 'done' : '')}
+                              onClick={() => setReviewedGroups(current => toggleSet(current, rowId))}
+                            >
+                              {reviewed ? '✓ Analisado' : 'Marcar analisado'}
+                            </button>
+                          </td>
+                          <td>
                             <div className="dup-actions">
                               <button
                                 type="button"
@@ -1993,7 +2266,7 @@ function DuplicatesView({
                         </tr>
                         {open && (
                           <tr className="dup-expand-row">
-                            <td colSpan={7}>
+                            <td colSpan={9}>
                               <DuplicateGroupDetails
                                 groupId={rowId}
                                 fieldId={dup.fieldId}
@@ -2040,12 +2313,15 @@ function MissingView({
   profile: EntityProfile
   onOpenClient: (client: ClientComparison) => void
 }) {
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 20
   const [originPage, setOriginPage] = useState(1)
   const [targetPage, setTargetPage] = useState(1)
   const [search, setSearch] = useState('')
   const [originSort, setOriginSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [targetSort, setTargetSort] = useState<SortState>({ key: 'code', direction: 'asc' })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set())
+  const [printSelected, setPrintSelected] = useState(false)
   const [originFilters, setOriginFilters] = useState({
     code: '',
     name: '',
@@ -2098,11 +2374,22 @@ function MissingView({
   const originItems = sortedMissing.slice((originPage - 1) * pageSize, originPage * pageSize)
   const targetItems = sortedTargetOnly.slice((targetPage - 1) * pageSize, targetPage * pageSize)
 
+  const originId = (key: string) => 'ORIGEM::' + key
+  const targetId = (key: string) => 'DESTINO::' + key
+  const visibleIds = [
+    ...originItems.map(client => originId(client.key)),
+    ...targetItems.map(client => targetId(client.key)),
+  ]
+  const selectedCount = [...selected].filter(id =>
+    sortedMissing.some(client => originId(client.key) === id)
+    || sortedTargetOnly.some(client => targetId(client.key) === id),
+  ).length
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selected.has(id))
+
   useEffect(() => {
     setOriginPage(1)
     setTargetPage(1)
   }, [
-    pageSize,
     search,
     originSort.key,
     originSort.direction,
@@ -2118,20 +2405,43 @@ function MissingView({
     setTargetFilters({ code: '', name: '' })
   }
 
+  const toggleVisible = () => {
+    setSelected(current => {
+      const next = new Set(current)
+      if (allVisibleSelected) visibleIds.forEach(id => next.delete(id))
+      else visibleIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const requestPrint = (onlySelected: boolean) => {
+    setPrintSelected(onlySelected)
+    window.setTimeout(() => window.print(), 80)
+  }
+
+  const sourceMissing = printSelected
+    ? sortedMissing.filter(client => selected.has(originId(client.key)))
+    : sortedMissing
+  const sourceTarget = printSelected
+    ? sortedTargetOnly.filter(client => selected.has(targetId(client.key)))
+    : sortedTargetOnly
+
   const printRows = [
-    ...sortedMissing.map(client => ({
+    ...sourceMissing.map(client => ({
       tipo: 'Origem não localizada',
       codigo: client.key,
       registro: client.name || '—',
       detalhe: client.originInactive ? 'Origem inativa: Sim' : 'Origem inativa: Não',
       resultado: client.status,
+      analisado: reviewed.has(originId(client.key)) ? 'Sim' : 'Não',
     })),
-    ...sortedTargetOnly.map(client => ({
+    ...sourceTarget.map(client => ({
       tipo: 'Somente no destino',
       codigo: client.key,
       registro: client.name || '—',
       detalhe: 'Registro presente apenas no destino',
       resultado: 'DESTINO',
+      analisado: reviewed.has(targetId(client.key)) ? 'Sim' : 'Não',
     })),
   ]
 
@@ -2148,11 +2458,18 @@ function MissingView({
               aria-label="Pesquisar registros não importados"
             />
           </div>
+          <span className="selection-summary">{selectedCount.toLocaleString('pt-BR')} selecionados</span>
           <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
-          <button type="button" className="button secondary compact-button" disabled={!printRows.length} onClick={() => window.print()}>
+          <button type="button" className="button ghost compact-button" disabled={!visibleIds.length} onClick={toggleVisible}>
+            {allVisibleSelected ? 'Desmarcar páginas' : 'Selecionar páginas'}
+          </button>
+          <button type="button" className="button secondary compact-button" disabled={!selectedCount} onClick={() => requestPrint(true)}>
+            Imprimir selecionados
+          </button>
+          <button type="button" className="button primary compact-button" disabled={!sortedMissing.length && !sortedTargetOnly.length} onClick={() => requestPrint(false)}>
             Imprimir filtro
           </button>
-          <PageSizeSelect value={pageSize} onChange={setPageSize} />
+          <span className="page-size-fixed">20 por página</span>
         </div>
 
         <div className="two-panels">
@@ -2167,13 +2484,16 @@ function MissingView({
               <table className="missing-table">
                 <thead>
                   <tr>
+                    <th className="selection-column" />
                     <SortableHeader label="Código" sortKey="code" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
                     <SortableHeader label={profile.recordLabel} sortKey="name" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
                     <SortableHeader label="Origem inativa" sortKey="inactive" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
                     <SortableHeader label="Resultado" sortKey="status" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <th>Análise</th>
                     <th>Ação</th>
                   </tr>
                   <tr className="column-filter-row">
+                    <th />
                     <th><input value={originFilters.code} onChange={e => setOriginFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
                     <th><input value={originFilters.name} onChange={e => setOriginFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
                     <th>
@@ -2192,20 +2512,42 @@ function MissingView({
                       </select>
                     </th>
                     <th />
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {originItems.map(client => (
-                    <tr key={client.key}>
-                      <td className="mono">{client.key}</td>
-                      <td>{client.name || '—'}</td>
-                      <td>{client.originInactive ? 'Sim' : 'Não'}</td>
-                      <td><StatusBadge status={client.status} /></td>
-                      <td>
-                        <button type="button" className="analysis-action-button" onClick={() => onOpenClient(client)}>Abrir análise</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {originItems.map(client => {
+                    const id = originId(client.key)
+                    const isReviewed = reviewed.has(id)
+                    return (
+                      <tr key={client.key} className={isReviewed ? 'row-reviewed' : ''}>
+                        <td className="selection-column">
+                          <input type="checkbox" checked={selected.has(id)} onChange={() => setSelected(current => toggleStringSet(current, id))} />
+                        </td>
+                        <td className="mono">{client.key}</td>
+                        <td>{client.name || '—'}</td>
+                        <td>{client.originInactive ? 'Sim' : 'Não'}</td>
+                        <td><StatusBadge status={client.status} /></td>
+                        <td>
+                          <button type="button" className={'review-chip ' + (isReviewed ? 'done' : '')} onClick={() => setReviewed(current => toggleStringSet(current, id))}>
+                            {isReviewed ? '✓ Analisado' : 'Marcar analisado'}
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="analysis-action-button"
+                            onClick={() => {
+                              setReviewed(current => new Set(current).add(id))
+                              onOpenClient(client)
+                            }}
+                          >
+                            Abrir análise
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
               {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
@@ -2224,21 +2566,37 @@ function MissingView({
               <table className="missing-table">
                 <thead>
                   <tr>
+                    <th className="selection-column" />
                     <SortableHeader label="Código" sortKey="code" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
                     <SortableHeader label={profile.recordLabel} sortKey="name" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                    <th>Análise</th>
                   </tr>
                   <tr className="column-filter-row">
+                    <th />
                     <th><input value={targetFilters.code} onChange={e => setTargetFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
                     <th><input value={targetFilters.name} onChange={e => setTargetFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {targetItems.map(client => (
-                    <tr key={client.key}>
-                      <td className="mono">{client.key}</td>
-                      <td>{client.name || '—'}</td>
-                    </tr>
-                  ))}
+                  {targetItems.map(client => {
+                    const id = targetId(client.key)
+                    const isReviewed = reviewed.has(id)
+                    return (
+                      <tr key={client.key} className={isReviewed ? 'row-reviewed' : ''}>
+                        <td className="selection-column">
+                          <input type="checkbox" checked={selected.has(id)} onChange={() => setSelected(current => toggleStringSet(current, id))} />
+                        </td>
+                        <td className="mono">{client.key}</td>
+                        <td>{client.name || '—'}</td>
+                        <td>
+                          <button type="button" className={'review-chip ' + (isReviewed ? 'done' : '')} onClick={() => setReviewed(current => toggleStringSet(current, id))}>
+                            {isReviewed ? '✓ Analisado' : 'Marcar analisado'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
               {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
@@ -2258,6 +2616,7 @@ function MissingView({
           originFilters.status !== 'TODOS' ? 'Resultado: ' + originFilters.status : '',
           targetFilters.code ? 'Código destino: ' + targetFilters.code : '',
           targetFilters.name ? profile.recordLabel + ' destino: ' + targetFilters.name : '',
+          printSelected ? 'Somente registros selecionados' : 'Resultado filtrado',
         ].filter(Boolean).join(' · ')}
         columns={[
           { key: 'tipo', label: 'Tipo' },
@@ -2265,6 +2624,7 @@ function MissingView({
           { key: 'registro', label: profile.recordLabel },
           { key: 'detalhe', label: 'Detalhe' },
           { key: 'resultado', label: 'Resultado' },
+          { key: 'analisado', label: 'Analisado' },
         ]}
         rows={printRows}
       />
