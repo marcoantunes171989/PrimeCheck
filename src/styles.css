@@ -7295,3 +7295,244 @@ table {
     display: none !important;
   }
 }
+
+
+/* =========================================================
+   Duplicidades — modo Analítico / Sintético
+   ========================================================= */
+
+.duplicates-head-actions {
+  align-items: center;
+}
+
+.dup-report-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #d7e1e6;
+  border-radius: 9px;
+  background: #f5f8fa;
+}
+
+.dup-report-mode label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  color: #60717b;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+  transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.dup-report-mode label:hover {
+  color: var(--primary);
+  background: #edf3f6;
+}
+
+.dup-report-mode label.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(1, 46, 70, .08);
+}
+
+.dup-report-mode label.active::after {
+  content: "";
+  position: absolute;
+  inset: auto 9px 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.dup-report-mode input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dup-report-mode label:has(input:focus-visible) {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dup-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.dup-summary-strip > div {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid #dbe4e9;
+  border-radius: 10px;
+  background: #f8fafb;
+}
+
+.dup-summary-strip span {
+  display: block;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.dup-summary-strip strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--primary);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.dup-synthetic-table {
+  min-width: 720px;
+}
+
+.dup-synthetic-table th:nth-child(4),
+.dup-synthetic-table th:nth-child(5),
+.dup-synthetic-table td:nth-child(4),
+.dup-synthetic-table td:nth-child(5) {
+  width: 150px;
+  text-align: right;
+}
+
+.dup-synthetic-number {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .duplicates-head-actions {
+    width: 100%;
+  }
+
+  .dup-report-mode {
+    order: -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .dup-report-mode {
+    width: 100%;
+  }
+
+  .dup-report-mode label {
+    flex: 1 1 50%;
+  }
+
+  .dup-summary-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .dup-print-synthetic-page {
+    width: 100%;
+  }
+
+  .dup-print-synthetic-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+
+  .dup-print-synthetic-kpis > div {
+    padding: 10px 11px;
+    border: 1px solid #dbe3e8;
+    border-radius: 8px;
+    background: #f7fafc;
+  }
+
+  .dup-print-synthetic-kpis span {
+    display: block;
+    color: #6b7280;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .dup-print-synthetic-kpis strong {
+    display: block;
+    margin-top: 3px;
+    color: #012e46;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .dup-print-synthetic-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .dup-print-synthetic-table thead {
+    display: table-header-group;
+  }
+
+  .dup-print-synthetic-table th,
+  .dup-print-synthetic-table td {
+    padding: 7px 8px;
+    border: 1px solid #dfe6ea;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .dup-print-synthetic-table th {
+    background: #f2f6f8;
+    color: #012e46;
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+
+  .dup-print-synthetic-table td {
+    color: #26343c;
+    font-size: 8px;
+  }
+
+  .dup-print-synthetic-table th:nth-child(1),
+  .dup-print-synthetic-table td:nth-child(1) {
+    width: 12%;
+  }
+
+  .dup-print-synthetic-table th:nth-child(2),
+  .dup-print-synthetic-table td:nth-child(2) {
+    width: 26%;
+  }
+
+  .dup-print-synthetic-table th:nth-child(3),
+  .dup-print-synthetic-table td:nth-child(3) {
+    width: 28%;
+  }
+
+  .dup-print-synthetic-table th:nth-child(4),
+  .dup-print-synthetic-table td:nth-child(4),
+  .dup-print-synthetic-table th:nth-child(5),
+  .dup-print-synthetic-table td:nth-child(5) {
+    width: 17%;
+    text-align: right;
+  }
+
+  .dup-print-synthetic-table tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
