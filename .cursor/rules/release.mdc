@@ -1,0 +1,28 @@
+---
+description: Política obrigatória de release do PrimeCheck
+alwaysApply: true
+---
+
+# PrimeCheck — regra de release
+
+- Nunca considerar Preview Deployment como produção publicada.
+- A branch de produção é sempre \`main\`.
+- Desenvolvimento deve ocorrer em branch de feature/fix.
+- Antes de qualquer liberação: executar build e typecheck e validar o Preview da Vercel.
+- Não interpretar "ok", "pode continuar" ou "pode prosseguir" como autorização para produção.
+- Só promover quando houver instrução inequívoca do usuário, como "liberado", "aprovado para produção", "pode publicar" ou "pode promover".
+
+## Fluxo obrigatório
+
+branch → PR → Preview Vercel → validação humana → merge em main → Vercel Production → Ready → smoke test
+
+## Após a liberação
+
+Confirmar e registrar:
+- PR mesclado;
+- commit atual da main;
+- status do deployment de produção;
+- URL oficial;
+- resultado do smoke test.
+
+Nunca alterar a Production Branch da Vercel para uma branch de desenvolvimento.

@@ -6,6 +6,8 @@ import { validateCpfCnpj } from '../lib/normalizers'
 
 type Props = {
   client: ClientComparison | null
+  recordLabel?: string
+  showDocumentValidity?: boolean
   onClose: () => void
   onApplyManualAdjustment: (
     clientKey: string,
@@ -17,6 +19,8 @@ type Props = {
 
 export default function ClientDrawer({
   client,
+  recordLabel = 'Registro',
+  showDocumentValidity = false,
   onClose,
   onApplyManualAdjustment,
   onRevertManualAdjustment,
@@ -67,7 +71,7 @@ export default function ClientDrawer({
         <div className="drawer-head">
           <div>
             <span className="eyebrow">ANÁLISE INDIVIDUAL</span>
-            <h2>{client.name || 'Cliente sem descrição'}</h2>
+            <h2>{client.name || `${recordLabel} sem descrição`}</h2>
             <p>Código {client.key}</p>
           </div>
           <button type="button" className="icon-button large" onClick={onClose}>×</button>
@@ -80,13 +84,15 @@ export default function ClientDrawer({
           <div><strong>{client.found ? 'Sim' : 'Não'}</strong><span>encontrado</span></div>
         </div>
 
-        <div className="document-callout">
-          <div>
-            <span>Validade CPF/CNPJ na origem</span>
-            <strong>{docValidation.status}</strong>
+        {showDocumentValidity && (
+          <div className="document-callout">
+            <div>
+              <span>Validade CPF/CNPJ na origem</span>
+              <strong>{docValidation.status}</strong>
+            </div>
+            <p>{docValidation.detail}</p>
           </div>
-          <p>{docValidation.detail}</p>
-        </div>
+        )}
 
         <div className="manual-maintenance-info">
           <strong>Manutenção manual da homologação</strong>

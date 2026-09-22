@@ -1,4 +1,3 @@
-import { CHECKLIST_FIELDS } from '../config/checklist'
 import type {
   CellValue,
   ClientComparison,
@@ -6,11 +5,13 @@ import type {
   ComparisonReport,
   Dataset,
   DuplicateItem,
+  EntityProfile,
   FieldDefinition,
   FieldMapping,
   FieldSummary,
   Severity,
 } from '../types'
+import { getEntityProfile } from '../config/entities'
 import {
   asText,
   hasReplacementCharacter,
@@ -28,7 +29,6 @@ import {
 import { detectStatusHeader } from './mapping'
 
 const mappingByField = (mapping: FieldMapping[]) => new Map(mapping.map(item => [item.fieldId, item]))
-const fieldById = new Map(CHECKLIST_FIELDS.map(field => [field.id, field]))
 
 const getMappedValue = (row: Record<string, CellValue> | undefined, header: string) => row && header ? row[header] : ''
 
@@ -76,6 +76,14 @@ const LOOSE_TEXT_FIELDS = new Set([
   'contato',
   'observacao',
   'condicaoPagamento',
+  'descricaoReduzida',
+  'email',
+  'marca',
+  'departamento',
+  'secao',
+  'grupo',
+  'subgrupo',
+  'fornecedor',
 ])
 
 const TRUNCATION_FIELDS = new Set([
@@ -87,6 +95,7 @@ const TRUNCATION_FIELDS = new Set([
   'observacao',
   'bairro',
   'cidade',
+  'descricaoReduzida',
 ])
 
 const comparableText = (field: FieldDefinition, value: CellValue) => {
@@ -293,15 +302,23 @@ const createFieldResult = (
   }
 }
 
-const duplicateScan = (dataset: Dataset, side: 'ORIGEM' | 'DESTINO', mapping: FieldMapping[], keyField: FieldDefinition, nameField: FieldDefinition | undefined) => {
+const duplicateScan = (
+  dataset: Dataset,
+  side: 'ORIGEM' | 'DESTINO',
+  mapping: FieldMapping[],
+  profile: EntityProfile,
+  keyField: FieldDefinition,
+  nameField: FieldDefinition | undefined,
+) => {
   const result: DuplicateItem[] = []
   const mapIndex = mappingByField(mapping)
   const keyMap = mapIndex.get(keyField.id)
   const nameMap = nameField ? mapIndex.get(nameField.id) : undefined
   const keyHeader = side === 'ORIGEM' ? keyMap?.originHeader : keyMap?.targetHeader
   const nameHeader = side === 'ORIGEM' ? nameMap?.originHeader : nameMap?.targetHeader
+  const fieldById = new Map(profile.fields.map(field => [field.id, field]))
 
-  for (const fieldId of ['cpfCnpj','ie']) {
+  for (const fieldId of profile.duplicateFieldIds) {
     const field = fieldById.get(fieldId)
     const map = mapIndex.get(fieldId)
     if (!field || !map) continue
@@ -335,7 +352,7 @@ const duplicateScan = (dataset: Dataset, side: 'ORIGEM' | 'DESTINO', mapping: Fi
   return result
 }
 
-const summarizeFields = (clients: ClientComparison[]): FieldSummary[] => CHECKLIST_FIELDS.map(field => {
+const summarizeFields = (clients: ClientComparison[], fields: FieldDefinition[]): FieldSummary[] => fields.map(field => {
   const results = clients.flatMap(client => client.fields).filter(result => result.fieldId === field.id)
   const conform = results.filter(r => r.status === 'CONFORME').length
   const divergent = results.filter(r => r.status === 'DIVERGENTE').length
@@ -354,15 +371,22 @@ const summarizeFields = (clients: ClientComparison[]): FieldSummary[] => CHECKLI
   }
 })
 
-export const compareDatasets = (origin: Dataset, target: Dataset, mapping: FieldMapping[]): ComparisonReport => {
+export const compareDatasets = (
+  origin: Dataset,
+  target: Dataset,
+  mapping: FieldMapping[],
+  profile: EntityProfile,
+): ComparisonReport => {
   const mapIndex = mappingByField(mapping)
-  const keyField = CHECKLIST_FIELDS.find(f => f.requiredForMatch)!
-  const keyMap = mapIndex.get(keyField.id)
-  if (!keyMap?.originHeader || !keyMap?.targetHeader) throw new Error('Mapeie o Código interno nos arquivos de origem e destino antes de analisar.')
+  const keyField = profile.fields.find(field => field.requiredForMatch)
+  const keyMap = keyField ? mapIndex.get(keyField.id) : undefined
+  if (!keyField || !keyMap?.originHeader || !keyMap?.targetHeader) {
+    throw new Error('Mapeie o Código interno nos arquivos de origem e destino antes de analisar.')
+  }
 
-  const nameField = CHECKLIST_FIELDS.find(f => f.id === 'nome')
+  const nameField = profile.fields.find(field => field.id === profile.nameFieldId)
   const nameMap = nameField ? mapIndex.get(nameField.id) : undefined
-  const originStatusHeader = detectStatusHeader(origin)
+  const originStatusHeader = detectStatusHeader(origin, profile.statusAliases)
 
   const targetByKey = new Map<string, Record<string, CellValue>>()
   target.rows.forEach(row => {
@@ -388,7 +412,7 @@ export const compareDatasets = (origin: Dataset, target: Dataset, mapping: Field
         status: inactive ? 'NÃO IMPORTADO' : 'DIVERGENTE',
         divergentCount: inactive ? 0 : 1,
         attentionCount: inactive ? 1 : 0,
-        fields: CHECKLIST_FIELDS.map(field => ({
+        fields: profile.fields.map(field => ({
           fieldId: field.id,
           fieldLabel: field.label,
           group: field.group,
@@ -402,7 +426,7 @@ export const compareDatasets = (origin: Dataset, target: Dataset, mapping: Field
       }
     }
 
-    const fields = CHECKLIST_FIELDS.map(field => createFieldResult(field, mapIndex.get(field.id), originRow, targetRow, mapIndex))
+    const fields = profile.fields.map(field => createFieldResult(field, mapIndex.get(field.id), originRow, targetRow, mapIndex))
     const divergentCount = fields.filter(f => f.status === 'DIVERGENTE').length
     const attentionCount = fields.filter(f => f.status === 'ATENÇÃO').length
     const status: Severity = divergentCount ? 'DIVERGENTE' : attentionCount ? 'ATENÇÃO' : 'CONFORME'
@@ -416,14 +440,15 @@ export const compareDatasets = (origin: Dataset, target: Dataset, mapping: Field
   })
 
   const duplicates = [
-    ...duplicateScan(origin, 'ORIGEM', mapping, keyField, nameField),
-    ...duplicateScan(target, 'DESTINO', mapping, keyField, nameField),
+    ...duplicateScan(origin, 'ORIGEM', mapping, profile, keyField, nameField),
+    ...duplicateScan(target, 'DESTINO', mapping, profile, keyField, nameField),
   ]
-  const fieldSummary = summarizeFields(clients.filter(c => c.found))
+  const fieldSummary = summarizeFields(clients.filter(c => c.found), profile.fields)
   const validFieldResults = clients.filter(c => c.found).flatMap(c => c.fields).filter(f => f.status !== 'NÃO VALIDÁVEL')
 
   return {
     generatedAt: new Date().toISOString(),
+    profileId: profile.id,
     mapping,
     clients,
     duplicates,
@@ -446,7 +471,8 @@ export const compareDatasets = (origin: Dataset, target: Dataset, mapping: Field
 
 
 const rebuildReport = (report: ComparisonReport, clients: ClientComparison[]): ComparisonReport => {
-  const fieldSummary = summarizeFields(clients.filter(client => client.found))
+  const fields = getEntityProfile(report.profileId).fields
+  const fieldSummary = summarizeFields(clients.filter(client => client.found), fields)
   const validFieldResults = clients
     .filter(client => client.found)
     .flatMap(client => client.fields)
@@ -493,7 +519,7 @@ export const applyManualFieldAdjustment = (
   fieldId: string,
   input: ManualAdjustmentInput,
 ): ComparisonReport => {
-  const definition = fieldById.get(fieldId)
+  const definition = getEntityProfile(report.profileId).fields.find(field => field.id === fieldId)
   if (!definition) throw new Error('Campo de homologação não encontrado.')
 
   const clients = report.clients.map(client => {
@@ -545,7 +571,7 @@ export const revertManualFieldAdjustment = (
   clientKey: string,
   fieldId: string,
 ): ComparisonReport => {
-  const definition = fieldById.get(fieldId)
+  const definition = getEntityProfile(report.profileId).fields.find(field => field.id === fieldId)
   if (!definition) throw new Error('Campo de homologação não encontrado.')
 
   const clients = report.clients.map(client => {

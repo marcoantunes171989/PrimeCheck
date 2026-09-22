@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { getEntityProfile } from '../config/entities'
 import type { ClientComparison, ComparisonReport } from '../types'
 
 const downloadBlob = (blob: Blob, filename: string) => {
@@ -17,8 +18,12 @@ const csvEscape = (value: unknown) => {
   return `"${str.replace(/"/g, '""')}"`
 }
 
-export const exportClientsCsv = (clients: ClientComparison[], filename = 'primecheck_clientes.csv') => {
-  const header = ['Código','Cliente','Encontrado','Resultado','Divergências','Atenções']
+export const exportClientsCsv = (
+  clients: ClientComparison[],
+  filename = 'primecheck_registros.csv',
+  recordLabel = 'Registro',
+) => {
+  const header = ['Código', recordLabel, 'Encontrado', 'Resultado', 'Divergências', 'Atenções']
   const lines = [header.map(csvEscape).join(';')]
   clients.forEach(client => lines.push([
     client.key,
@@ -33,18 +38,21 @@ export const exportClientsCsv = (clients: ClientComparison[], filename = 'primec
 
 export const exportReportExcel = (report: ComparisonReport) => {
   const wb = XLSX.utils.book_new()
+  const profile = getEntityProfile(report.profileId)
+  const recordLabel = profile.recordLabel
 
   const summary = [
     ['PrimeCheck - Homologação de Conversão'],
+    ['Perfil', profile.label],
     ['Gerado em', new Date(report.generatedAt).toLocaleString('pt-BR')],
     [],
     ['Indicador','Quantidade'],
     ['Registros origem', report.summary.originTotal],
     ['Registros destino', report.summary.targetTotal],
     ['Encontrados', report.summary.foundTotal],
-    ['Clientes conformes', report.summary.conformClients],
-    ['Clientes divergentes', report.summary.divergentClients],
-    ['Clientes em atenção', report.summary.attentionClients],
+    [`${profile.label} conformes`, report.summary.conformClients],
+    [`${profile.label} divergentes`, report.summary.divergentClients],
+    [`${profile.label} em atenção`, report.summary.attentionClients],
     ['Não importados', report.summary.notImportedClients],
     ['Somente no destino', report.summary.targetOnlyClients],
     ['Testes válidos', report.summary.validTests],
@@ -54,20 +62,20 @@ export const exportReportExcel = (report: ComparisonReport) => {
 
   const clientRows = report.clients.map(c => ({
     Codigo: c.key,
-    Cliente: c.name,
+    [recordLabel]: c.name,
     Encontrado: c.found ? 'SIM' : 'NÃO',
     Resultado: c.status,
     Divergencias: c.divergentCount,
     Atencoes: c.attentionCount,
     Inativo_Origem: c.originInactive ? 'SIM' : 'NÃO',
   }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientRows), 'Clientes')
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientRows), 'Registros')
 
   const issueRows = report.clients.flatMap(c => c.fields
     .filter(f => f.status !== 'CONFORME')
     .map(f => ({
       Codigo: c.key,
-      Cliente: c.name,
+      Registro: c.name,
       Grupo: f.group,
       Campo: f.fieldLabel,
       Origem: f.originValue,
@@ -86,7 +94,7 @@ export const exportReportExcel = (report: ComparisonReport) => {
     .filter(f => Boolean(f.manualAdjustment))
     .map(f => ({
       Codigo: c.key,
-      Cliente: c.name,
+      Registro: c.name,
       Grupo: f.group,
       Campo: f.fieldLabel,
       Origem: f.originValue,
@@ -114,19 +122,19 @@ export const exportReportExcel = (report: ComparisonReport) => {
     Valor: d.normalizedValue,
     Quantidade: d.count,
     Codigo: r.key,
-    Cliente: r.name,
+    Registro: r.name,
   })))
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(duplicateRows), 'Duplicidades')
 
   const absentRows = report.clients.filter(c => !c.found).map(c => ({
     Codigo: c.key,
-    Cliente: c.name,
+    Registro: c.name,
     Resultado: c.status,
     Inativo_Origem: c.originInactive ? 'SIM' : 'NÃO',
   }))
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(absentRows), 'Nao_Importados')
 
-  const targetOnlyRows = report.targetOnly.map(item => ({ Codigo: item.key, Cliente: item.name }))
+  const targetOnlyRows = report.targetOnly.map(item => ({ Codigo: item.key, Registro: item.name }))
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(targetOnlyRows), 'Somente_Destino')
 
   XLSX.writeFile(wb, `PrimeCheck_Homologacao_${new Date().toISOString().slice(0,10)}.xlsx`)

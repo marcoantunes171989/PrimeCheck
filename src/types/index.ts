@@ -26,6 +26,37 @@ export interface FieldDefinition {
   aliases: string[]
   kind: 'text' | 'code' | 'document' | 'ie' | 'phone' | 'date' | 'money' | 'personType' | 'boolean' | 'sex' | 'state'
   requiredForMatch?: boolean
+  required?: boolean
+  priority?: number
+  validation?: string
+  normalizer?: string
+}
+
+export interface EntityAmbiguityGuard {
+  token: string
+  fieldIds: string[]
+}
+
+export interface EntityProfile {
+  id: string
+  label: string
+  description: string
+  aliases: string[]
+  fields: FieldDefinition[]
+  statusAliases: string[]
+  nameFieldId: string
+  recordLabel: string
+  showDocumentValidity?: boolean
+  duplicateFieldIds: string[]
+  ambiguousBareTokens: EntityAmbiguityGuard[]
+}
+
+export interface EntityDetection {
+  profileId: string
+  confidence: number
+  scores: Array<{ profileId: string; label: string; confidence: number }>
+  lowConfidence: boolean
+  reason: string
 }
 
 export interface FieldMapping {
@@ -101,6 +132,7 @@ export interface ComparisonSummary {
 
 export interface ComparisonReport {
   generatedAt: string
+  profileId: string
   mapping: FieldMapping[]
   clients: ClientComparison[]
   duplicates: DuplicateItem[]
