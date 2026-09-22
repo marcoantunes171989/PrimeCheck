@@ -151,7 +151,7 @@ function App({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 20
 
   const presetOriginKey = presetOriginFiles?.map(file => file.id).join('|') ?? ''
   const presetTargetKey = presetTargetFiles?.map(file => file.id).join('|') ?? ''
@@ -777,7 +777,7 @@ function App({
                   <option value="CONFORME">Conforme</option>
                   <option value="NÃO IMPORTADO">Não importado</option>
                 </select>
-                <PageSizeSelect value={pageSize} onChange={setPageSize} />
+                <span className="page-size-fixed">20 por página</span>
               </div>
             )}
 
@@ -1885,7 +1885,7 @@ function DuplicatesView({
   initialFieldId?: string
 }) {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 20
   const [search, setSearch] = useState('')
   const [fieldFilter, setFieldFilter] = useState('TODOS')
   const [sideFilter, setSideFilter] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
@@ -2102,7 +2102,7 @@ function DuplicatesView({
               <option key={fieldId} value={fieldId}>{fieldLabel}</option>
             ))}
           </select>
-          <PageSizeSelect value={pageSize} onChange={setPageSize} />
+          <span className="page-size-fixed">20 por página</span>
         </div>
 
         {filtered.length === 0 ? (
@@ -2253,7 +2253,7 @@ function MissingView({
   profile: EntityProfile
   onOpenClient: (client: ClientComparison) => void
 }) {
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 20
   const [originPage, setOriginPage] = useState(1)
   const [targetPage, setTargetPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -2365,7 +2365,7 @@ function MissingView({
           <button type="button" className="button secondary compact-button" disabled={!printRows.length} onClick={() => window.print()}>
             Imprimir filtro
           </button>
-          <PageSizeSelect value={pageSize} onChange={setPageSize} />
+          <span className="page-size-fixed">20 por página</span>
         </div>
 
         <div className="two-panels">
