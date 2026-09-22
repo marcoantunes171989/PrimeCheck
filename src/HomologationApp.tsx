@@ -854,6 +854,17 @@ function App({
                   <option value="CONFORME">Conforme</option>
                   <option value="NÃO IMPORTADO">Não importado</option>
                 </select>
+                {activeTab === 'issues' && (
+                  <select
+                    value={issueDuplicateFilter}
+                    onChange={e => setIssueDuplicateFilter(e.target.value as typeof issueDuplicateFilter)}
+                    aria-label="Filtrar por duplicidade na origem"
+                  >
+                    <option value="TODOS">Todos · duplicidade</option>
+                    <option value="DUPLICADOS">Somente duplicados</option>
+                    <option value="NAO_DUPLICADOS">Sem duplicidade</option>
+                  </select>
+                )}
                 <span className="page-size-fixed">20 por página</span>
               </div>
             )}
