@@ -5,6 +5,8 @@ import ClientDrawer from './components/ClientDrawer'
 import { DuplicateCodeList, DuplicateGroupDetails } from './components/DuplicateRecordList'
 import StatusBadge from './components/StatusBadge'
 import IssuePrintReport, { type IssuePrintItem } from './components/IssuePrintReport'
+import DataPrintReport from './components/DataPrintReport'
+import TechnicalDiagnosisView from './components/TechnicalDiagnosisView'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
@@ -14,7 +16,7 @@ import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
-type Tab = 'overview' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
+type Tab = 'overview' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
 type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
 
@@ -108,6 +110,21 @@ function App({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'TODOS' | Severity>('TODOS')
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
+  const [clientColumnFilters, setClientColumnFilters] = useState({
+    code: '',
+    name: '',
+    found: 'TODOS',
+    status: 'TODOS',
+    document: '',
+  })
+  const [issueColumnFilters, setIssueColumnFilters] = useState({
+    code: '',
+    name: '',
+    origin: '',
+    target: '',
+    reason: '',
+  })
+  const [duplicateFieldFocus, setDuplicateFieldFocus] = useState<string | undefined>()
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
   const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<string>>(new Set())
@@ -190,6 +207,7 @@ function App({
   const keyLabel = keyFields.map(field => field.label).join(' + ') || 'chave do registro'
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'overview', label: 'Visão geral' },
+    { id: 'diagnosis', label: 'Diagnóstico rápido' },
     { id: 'clients', label: plural(profile) },
     { id: 'issues', label: 'Divergências' },
     { id: 'fields', label: 'Por campo' },
