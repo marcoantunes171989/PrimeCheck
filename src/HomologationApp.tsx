@@ -1001,14 +1001,129 @@ function FieldSummaryView({
   )
 }
 
+function DuplicatePrintReport({
+  items,
+  profile,
+  filterDescription,
+}: {
+  items: ComparisonReport['duplicates']
+  profile: EntityProfile
+  filterDescription: string
+}) {
+  const totalRecords = items.reduce((sum, item) => sum + item.count, 0)
+  const title = profile.id === 'product'
+    ? 'Produtos duplicados'
+    : profile.id === 'supplier'
+      ? 'Fornecedores duplicados'
+      : profile.id === 'client'
+        ? 'Clientes duplicados'
+        : profile.label + ' duplicados'
+
+  const nameLabel = profile.id === 'product'
+    ? 'Descrição'
+    : profile.id === 'supplier'
+      ? 'Razão social / Nome'
+      : 'Nome / Razão social'
+
+  return (
+    <section className="dup-print-report" aria-hidden="true">
+      <header className="dup-print-head">
+        <span className="dup-print-brand">PrimeCheck · Conversão e Homologação</span>
+        <h1>Relatório de {title}</h1>
+        <p>Análise agrupada para identificação e decisão sobre cadastros com informações duplicadas.</p>
+
+        <div className="dup-print-summary">
+          <div><span>Perfil analisado</span><strong>{profile.label}</strong></div>
+          <div><span>Grupos duplicados</span><strong>{number(items.length)}</strong></div>
+          <div><span>Registros envolvidos</span><strong>{number(totalRecords)}</strong></div>
+        </div>
+        <small>Filtro aplicado: {filterDescription}</small>
+      </header>
+
+      <div className="dup-print-guidance">
+        <strong>Orientação para análise</strong>
+        <p>
+          Estes registros possuem valores duplicados e devem ser revisados antes da importação/conversão.
+          Quando não existe um parâmetro confiável para definir qual cadastro deve ser o principal,
+          o processo não possui uma regra segura de prioridade: um dos registros pode ser utilizado como
+          referência e os demais podem receber tratamento genérico. Valide os códigos, {nameLabel.toLowerCase()},
+          nome fantasia/apelido, CPF/CNPJ e demais dados cadastrais antes de decidir qual registro deve prevalecer.
+        </p>
+      </div>
+
+      {items.map((dup, groupIndex) => (
+        <article
+          className="dup-print-group"
+          key={dup.side + '-' + dup.fieldId + '-' + dup.normalizedValue + '-' + groupIndex}
+        >
+          <div className="dup-print-group-head">
+            <div>
+              <span>Grupo {groupIndex + 1}</span>
+              <h2>{dup.fieldLabel} duplicado</h2>
+              <p>{dup.fieldGroup || dup.category}</p>
+            </div>
+            <div>
+              <b>{dup.side}</b>
+              <b>{number(dup.count)} registros</b>
+            </div>
+          </div>
+
+          <div className="dup-print-group-summary">
+            <div><span>Campo duplicado</span><strong>{dup.fieldLabel}</strong></div>
+            <div><span>Valor duplicado</span><strong className="mono">{dup.normalizedValue || '—'}</strong></div>
+            <div><span>Códigos envolvidos</span><strong>{dup.records.map(record => record.key || '—').join(', ')}</strong></div>
+          </div>
+
+          <div className="dup-print-records">
+            {dup.records.map((record, recordIndex) => {
+              const duplicateValue = record.rawValue.trim() || dup.normalizedValue
+              return (
+                <div className="dup-print-record" key={record.key + '-' + recordIndex}>
+                  <div className="dup-print-record-head">
+                    <span>Registro {recordIndex + 1}</span>
+                    <b>Código {record.key || '—'}</b>
+                  </div>
+
+                  <div className="dup-print-data main">
+                    <span>{nameLabel}</span>
+                    <strong>{record.name || 'Não informado'}</strong>
+                  </div>
+
+                  <div className="dup-print-data duplicated">
+                    <span>{dup.fieldLabel} duplicado</span>
+                    <strong>{duplicateValue || '—'}</strong>
+                  </div>
+
+                  {record.extras.map(extra => (
+                    <div className="dup-print-data" key={record.key + '-' + extra.label}>
+                      <span>{extra.label}</span>
+                      <strong>{extra.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        </article>
+      ))}
+
+      <footer className="dup-print-footer">
+        Gerado pelo PrimeCheck em {new Date().toLocaleString('pt-BR')} · Relatório de apoio à validação da conversão.
+      </footer>
+    </section>
+  )
+}
+
 function DuplicatesView({ report, profile }: { report: ComparisonReport; profile: EntityProfile }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [fieldFilter, setFieldFilter] = useState('TODOS')
+  const [sideFilter, setSideFilter] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
   const [sort, setSort] = useState<SortState>({ key: 'count', direction: 'desc' })
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
+  const [printGroupId, setPrintGroupId] = useState<string | null>(null)
 
   const fieldOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -1021,6 +1136,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
   const term = search.trim().toLocaleUpperCase('pt-BR')
   const filtered = useMemo(() => report.duplicates.filter(dup => {
     if (fieldFilter !== 'TODOS' && dup.fieldId !== fieldFilter) return false
+    if (sideFilter !== 'TODOS' && dup.side !== sideFilter) return false
     if (!term) return true
     const records = dup.records.flatMap(record => [
       record.key,
@@ -1038,7 +1154,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
       records,
     ].join(' ').toLocaleUpperCase('pt-BR')
     return text.includes(term)
-  }), [report.duplicates, search, fieldFilter])
+  }), [report.duplicates, search, fieldFilter, sideFilter])
 
   const sorted = useMemo(() => sortedBy(filtered, sort, (dup, key) => {
     if (key === 'side') return dup.side
@@ -1051,7 +1167,13 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     return ''
   }), [filtered, sort])
 
-  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sort.key, sort.direction])
+  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, sort.key, sort.direction])
+
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintGroupId(null)
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [])
 
   const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const safePage = Math.min(page, pages)
@@ -1061,6 +1183,9 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     : 'grupos duplicados nos campos de unicidade do perfil.'
   const monoKinds = new Set(['document', 'ie', 'code', 'phone'])
 
+  const rowIdOf = (dup: ComparisonReport['duplicates'][number]) =>
+    [dup.side, dup.fieldId, dup.normalizedValue].join('::')
+
   const toggleSet = (current: Set<string>, id: string) => {
     const next = new Set(current)
     if (next.has(id)) next.delete(id)
@@ -1068,118 +1193,170 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     return next
   }
 
+  const printItems = printGroupId
+    ? sorted.filter(item => rowIdOf(item) === printGroupId)
+    : sorted
+
+  const filterDescription = [
+    sideFilter === 'TODOS' ? 'Origem e destino' : sideFilter === 'ORIGEM' ? 'Somente origem' : 'Somente destino',
+    fieldFilter === 'TODOS'
+      ? 'Todos os campos'
+      : fieldOptions.find(([fieldId]) => fieldId === fieldFilter)?.[1] || fieldFilter,
+    term ? 'Pesquisa: ' + search.trim() : '',
+  ].filter(Boolean).join(' · ')
+
+  const requestPrint = (groupId?: string) => {
+    setPrintGroupId(groupId || null)
+    window.setTimeout(() => window.print(), 80)
+  }
+
   return (
-    <div className="panel">
-      <div className="section-head compact">
-        <div>
-          <h3>Duplicidades</h3>
-          <p>
-            {number(filtered.length)} {filtered.length === 1 ? 'grupo' : 'grupos'} no filtro atual
-            {filtered.length !== report.duplicates.length ? ` · ${number(report.duplicates.length)} no total` : ''}.
-            {' '}{duplicateHint}
-          </p>
-        </div>
-      </div>
-
-      <div className="table-toolbar searchable-toolbar duplicates-toolbar">
-        <div className="screen-search inline-search">
-          <span aria-hidden="true">⌕</span>
-          <input
-            value={search}
-            onChange={event => setSearch(event.target.value)}
-            placeholder="Pesquisar campo, valor, código, nome, lado ou tipo…"
-            aria-label="Pesquisar duplicidades"
-          />
-        </div>
-        <select
-          className="dup-field-filter"
-          value={fieldFilter}
-          onChange={event => setFieldFilter(event.target.value)}
-          aria-label="Filtrar por campo duplicado"
-        >
-          <option value="TODOS">Todos os campos</option>
-          {fieldOptions.map(([fieldId, fieldLabel]) => (
-            <option key={fieldId} value={fieldId}>{fieldLabel}</option>
-          ))}
-        </select>
-        <PageSizeSelect value={pageSize} onChange={setPageSize} />
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="empty-state">{term || fieldFilter !== 'TODOS' ? 'Nenhuma duplicidade encontrada para a pesquisa.' : 'Nenhuma duplicidade identificada nos campos mapeados.'}</div>
-      ) : (
-        <>
-          <div className="table-wrap">
-            <table className="dup-table">
-              <thead>
-                <tr>
-                  <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Registros detalhados" sortKey="records" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((dup, index) => {
-                  const rowId = `${dup.side}::${dup.fieldId}::${dup.normalizedValue}`
-                  const field = profile.fields.find(item => item.id === dup.fieldId)
-                  const monoValue = field ? monoKinds.has(field.kind) : true
-                  return (
-                    <tr key={rowId + '-' + index}>
-                      <td>
-                        <span className={`dup-side dup-side-${dup.side.toLowerCase()}`}>{dup.side}</span>
-                      </td>
-                      <td>
-                        <div className="dup-field">
-                          <strong>{dup.fieldLabel}</strong>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="dup-category">{dup.category}</span>
-                      </td>
-                      <td>
-                        <div className="dup-value">
-                          <span>Valor duplicado</span>
-                          <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="dup-count">
-                          <strong>{number(dup.count)}</strong>
-                          <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
-                        </span>
-                      </td>
-                      <td>
-                        <DuplicateCodeList
-                          codes={dup.records.map(record => record.key)}
-                          expanded={expandedCodes.has(rowId)}
-                          onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
-                        />
-                      </td>
-                      <td>
-                        <DuplicateRecordList
-                          groupId={rowId}
-                          fieldLabel={dup.fieldLabel}
-                          normalizedValue={dup.normalizedValue}
-                          records={dup.records}
-                          expanded={expandedRecords.has(rowId)}
-                          onToggle={() => setExpandedRecords(current => toggleSet(current, rowId))}
-                          monoValue={monoValue}
-                        />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+    <>
+      <div className="panel">
+        <div className="section-head compact duplicates-head">
+          <div>
+            <h3>Duplicidades</h3>
+            <p>
+              {number(filtered.length)} {filtered.length === 1 ? 'grupo' : 'grupos'} no filtro atual
+              {filtered.length !== report.duplicates.length ? ' · ' + number(report.duplicates.length) + ' no total' : ''}.
+              {' '}{duplicateHint}
+            </p>
           </div>
-          <Pagination page={safePage} pages={pages} onChange={setPage} />
-        </>
-      )}
-    </div>
+          <button
+            type="button"
+            className="button primary dup-print-button"
+            onClick={() => requestPrint()}
+            disabled={sorted.length === 0}
+          >
+            Imprimir duplicidades
+          </button>
+        </div>
+
+        <div className="dup-analysis-note">
+          <strong>Como analisar</strong>
+          <span>
+            Revise os registros do mesmo grupo e confirme qual cadastro deve prevalecer.
+            Sem um critério de prioridade definido, não há base segura para determinar automaticamente o registro principal.
+          </span>
+        </div>
+
+        <div className="table-toolbar searchable-toolbar duplicates-toolbar">
+          <div className="screen-search inline-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              placeholder="Pesquisar campo, valor, código, nome, lado ou tipo…"
+              aria-label="Pesquisar duplicidades"
+            />
+          </div>
+          <select
+            className="dup-field-filter"
+            value={sideFilter}
+            onChange={event => setSideFilter(event.target.value as typeof sideFilter)}
+            aria-label="Selecionar origem ou destino"
+          >
+            <option value="TODOS">Origem e destino</option>
+            <option value="ORIGEM">Somente origem</option>
+            <option value="DESTINO">Somente destino</option>
+          </select>
+          <select
+            className="dup-field-filter"
+            value={fieldFilter}
+            onChange={event => setFieldFilter(event.target.value)}
+            aria-label="Filtrar por campo duplicado"
+          >
+            <option value="TODOS">Todos os campos</option>
+            {fieldOptions.map(([fieldId, fieldLabel]) => (
+              <option key={fieldId} value={fieldId}>{fieldLabel}</option>
+            ))}
+          </select>
+          <PageSizeSelect value={pageSize} onChange={setPageSize} />
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="empty-state">{term || fieldFilter !== 'TODOS' || sideFilter !== 'TODOS' ? 'Nenhuma duplicidade encontrada para a pesquisa.' : 'Nenhuma duplicidade identificada nos campos mapeados.'}</div>
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table className="dup-table">
+                <thead>
+                  <tr>
+                    <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Registros detalhados" sortKey="records" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((dup, index) => {
+                    const rowId = rowIdOf(dup)
+                    const field = profile.fields.find(item => item.id === dup.fieldId)
+                    const monoValue = field ? monoKinds.has(field.kind) : true
+                    return (
+                      <tr key={rowId + '-' + index}>
+                        <td>
+                          <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
+                        </td>
+                        <td>
+                          <div className="dup-field">
+                            <strong>{dup.fieldLabel}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="dup-category">{dup.category}</span>
+                        </td>
+                        <td>
+                          <div className="dup-value">
+                            <span>Valor duplicado</span>
+                            <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="dup-count">
+                            <strong>{number(dup.count)}</strong>
+                            <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
+                          </span>
+                        </td>
+                        <td>
+                          <DuplicateCodeList
+                            codes={dup.records.map(record => record.key)}
+                            expanded={expandedCodes.has(rowId)}
+                            onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
+                          />
+                        </td>
+                        <td>
+                          <DuplicateRecordList
+                            groupId={rowId}
+                            fieldLabel={dup.fieldLabel}
+                            normalizedValue={dup.normalizedValue}
+                            records={dup.records}
+                            expanded={expandedRecords.has(rowId)}
+                            onToggle={() => setExpandedRecords(current => toggleSet(current, rowId))}
+                            onPrint={() => requestPrint(rowId)}
+                            monoValue={monoValue}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={safePage} pages={pages} onChange={setPage} />
+          </>
+        )}
+      </div>
+
+      <DuplicatePrintReport
+        items={printItems}
+        profile={profile}
+        filterDescription={filterDescription}
+      />
+    </>
   )
 }
 
