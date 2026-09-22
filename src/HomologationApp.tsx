@@ -941,6 +941,18 @@ function App({
                       <button
                         type="button"
                         className="button ghost compact-button"
+                        onClick={() => {
+                          setSearch('')
+                          setIssueFieldFilter('TODOS')
+                          setStatusFilter('TODOS')
+                          setIssueColumnFilters({ code: '', name: '', origin: '', target: '', reason: '' })
+                        }}
+                      >
+                        Limpar filtros
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost compact-button"
                         onClick={toggleCurrentIssuePage}
                         disabled={!currentIssuePage.length}
                       >
