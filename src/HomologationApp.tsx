@@ -76,12 +76,28 @@ function SortableHeader({
   )
 }
 
-function App() {
-  const [originFiles, setOriginFiles] = useState<ImportedFile[]>([])
-  const [targetFiles, setTargetFiles] = useState<ImportedFile[]>([])
+type HomologationAppProps = {
+  presetOriginFiles?: ImportedFile[]
+  presetTargetFiles?: ImportedFile[]
+  profileOverride?: EntityProfile
+  embedded?: boolean
+  originLabel?: string
+  targetLabel?: string
+}
+
+function App({
+  presetOriginFiles,
+  presetTargetFiles,
+  profileOverride,
+  embedded = false,
+  originLabel = 'Origem',
+  targetLabel = 'Destino',
+}: HomologationAppProps = {}) {
+  const [originFiles, setOriginFiles] = useState<ImportedFile[]>(presetOriginFiles ?? [])
+  const [targetFiles, setTargetFiles] = useState<ImportedFile[]>(presetTargetFiles ?? [])
   const origin = useMemo(() => buildDataset(originFiles), [originFiles])
   const target = useMemo(() => buildDataset(targetFiles), [targetFiles])
-  const [entityMode, setEntityMode] = useState<EntityMode>('auto')
+  const [entityMode, setEntityMode] = useState<EntityMode>(profileOverride?.id ?? 'auto')
   const [mapping, setMapping] = useState<FieldMapping[]>([])
   const [report, setReport] = useState<ComparisonReport | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -98,6 +114,27 @@ function App() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
+  const presetOriginKey = presetOriginFiles?.map(file => file.id).join('|') ?? ''
+  const presetTargetKey = presetTargetFiles?.map(file => file.id).join('|') ?? ''
+
+  useEffect(() => {
+    if (!presetOriginFiles) return
+    setOriginFiles(presetOriginFiles)
+    setReport(null)
+    setSelectedClient(null)
+  }, [presetOriginKey])
+
+  useEffect(() => {
+    if (!presetTargetFiles) return
+    setTargetFiles(presetTargetFiles)
+    setReport(null)
+    setSelectedClient(null)
+  }, [presetTargetKey])
+
+  useEffect(() => {
+    if (profileOverride) setEntityMode(profileOverride.id)
+  }, [profileOverride?.id])
+
   const detectionHeaders = useMemo(
     () => [...new Set([...origin.headers, ...target.headers])],
     [origin.headers, target.headers],
@@ -111,10 +148,10 @@ function App() {
     [detectionHeaders, detectionNames],
   )
   const profile = useMemo(
-    () => getEntityProfile(entityMode === 'auto' ? detection.profileId : entityMode),
-    [detection.profileId, entityMode],
+    () => profileOverride ?? getEntityProfile(entityMode === 'auto' ? detection.profileId : entityMode),
+    [detection.profileId, entityMode, profileOverride],
   )
-  const conservativeMapping = entityMode === 'auto' && detection.lowConfidence
+  const conservativeMapping = !profileOverride && entityMode === 'auto' && detection.lowConfidence
 
   useEffect(() => {
     if (origin.headers.length && target.headers.length) {
@@ -129,8 +166,13 @@ function App() {
   useEffect(() => setPage(1), [search, statusFilter, issueFieldFilter, activeTab, pageSize])
 
   const coverage = useMemo(() => mappingCoverage(mapping), [mapping])
-  const keyMapping = mapping.find(m => m.fieldId === 'codigoInterno')
-  const ready = origin.rows.length > 0 && target.rows.length > 0 && Boolean(keyMapping?.originHeader && keyMapping?.targetHeader)
+  const keyFields = profile.fields.filter(field => field.requiredForMatch)
+  const keyMappings = keyFields.map(field => mapping.find(item => item.fieldId === field.id))
+  const ready = origin.rows.length > 0
+    && target.rows.length > 0
+    && keyFields.length > 0
+    && keyMappings.every(item => Boolean(item?.originHeader && item?.targetHeader))
+  const keyLabel = keyFields.map(field => field.label).join(' + ') || 'chave do registro'
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'overview', label: 'Visão geral' },
     { id: 'clients', label: plural(profile) },
@@ -361,8 +403,8 @@ function App() {
       : 'homologation-setup-mode empty-files'
 
   return (
-    <div className={'app-shell homologation-shell ' + homologationModeClass}>
-      <header className="topbar">
+    <div className={'app-shell homologation-shell ' + homologationModeClass + (embedded ? ' embedded-homologation' : '')}>
+      {!embedded && <header className="topbar">
         <div className="module-topbar-title">
           <strong>Homologação</strong>
           <span>Importação, vínculo e comparação de dados</span>
@@ -371,10 +413,10 @@ function App() {
           <div className="privacy-pill"><span>●</span> Processamento local no navegador</div>
           {(originFiles.length > 0 || targetFiles.length > 0) && <button className="button ghost" onClick={clearAll}>Limpar análise</button>}
         </div>
-      </header>
+      </header>}
 
-      <main className="main-content">
-        <section className="hero">
+      <main className={'main-content' + (embedded ? ' embedded-main-content' : '')}>
+        {!embedded && <section className="hero">
           <div>
             <span className="eyebrow">PRIMECHECK DATA VALIDATION</span>
             <h1>Compare. Valide. Homologue.</h1>
@@ -387,16 +429,16 @@ function App() {
             <i>→</i>
             <span className={report ? 'done' : ''}>3. Validar</span>
           </div>
-        </section>
+        </section>}
 
         {!report && (
           <>
-            <div className="privacy-banner">
+            {!embedded && <div className="privacy-banner">
               <strong>Seus dados não são enviados para banco de dados.</strong>
               <span>Os arquivos ficam somente na memória da aba enquanto a análise estiver aberta.</span>
-            </div>
+            </div>}
 
-            <section className="entity-type-card">
+            {!embedded && <section className="entity-type-card">
               <div className="entity-type-copy">
                 <span className="eyebrow">TIPO DE DADOS</span>
                 <h2>O que esses arquivos representam?</h2>
@@ -433,9 +475,9 @@ function App() {
                   )}
                 </div>
               )}
-            </section>
+            </section>}
 
-            <section className="import-grid">
+            {!embedded && <section className="import-grid">
               <FileDropZone
                 title="Arquivos de origem"
                 subtitle="Sistema legado, exportação original ou base de referência."
@@ -450,9 +492,34 @@ function App() {
                 onChange={setTargetFiles}
                 tone="target"
               />
-            </section>
+            </section>}
 
-            {(origin.rows.length > 0 || target.rows.length > 0) && (
+            {embedded && (
+              <section className="embedded-comparison-summary">
+                <div>
+                  <span>Perfil</span>
+                  <strong>{profile.label}</strong>
+                  <small>Comparação preserva as mesmas regras de mapeamento, divergências, duplicidades e validação por campo.</small>
+                </div>
+                <div>
+                  <span>{originLabel}</span>
+                  <strong>{number(origin.rows.length)} registros</strong>
+                  <small>{origin.headers.length} colunas identificadas</small>
+                </div>
+                <div>
+                  <span>{targetLabel}</span>
+                  <strong>{number(target.rows.length)} registros</strong>
+                  <small>{target.headers.length} colunas identificadas</small>
+                </div>
+                <div>
+                  <span>Chave de comparação</span>
+                  <strong>{keyLabel}</strong>
+                  <small>{coverage.both} campos já vinculados nos dois lados</small>
+                </div>
+              </section>
+            )}
+
+            {!embedded && (origin.rows.length > 0 || target.rows.length > 0) && (
               <section className="dataset-summary">
                 <div><span>Origem</span><strong>{number(origin.rows.length)}</strong><small>{origin.headers.length} colunas identificadas</small></div>
                 <div><span>Destino</span><strong>{number(target.rows.length)}</strong><small>{target.headers.length} colunas identificadas</small></div>
@@ -475,7 +542,7 @@ function App() {
 
             <div className="run-bar">
               <div>
-                <strong>{ready ? `Pronto para homologar ${profile.label.toLowerCase()}.` : 'Importe os dois lados e confirme a chave Código interno.'}</strong>
+                <strong>{ready ? `Pronto para homologar ${profile.label.toLowerCase()}.` : `Confirme o vínculo da chave ${keyLabel} nos dois arquivos.`}</strong>
                 <span>{coverage.both} campos serão comparados automaticamente. Origem e destino não precisam ter a mesma quantidade de colunas.</span>
               </div>
               <button className="button primary large" disabled={!ready || busy} onClick={runComparison}>
