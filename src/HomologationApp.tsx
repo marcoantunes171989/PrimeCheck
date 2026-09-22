@@ -1884,8 +1884,8 @@ function DuplicatesView({
   profile: EntityProfile
   initialFieldId?: string
 }) {
-  const [page, setPage] = useState(1)
   const pageSize = 20
+  const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [fieldFilter, setFieldFilter] = useState('TODOS')
   const [sideFilter, setSideFilter] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
@@ -1899,7 +1899,10 @@ function DuplicatesView({
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
+  const [reviewedGroups, setReviewedGroups] = useState<Set<string>>(new Set())
   const [printGroupId, setPrintGroupId] = useState<string | null>(null)
+  const [printSelected, setPrintSelected] = useState(false)
 
   const fieldOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -1908,6 +1911,9 @@ function DuplicatesView({
     }
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
   }, [report.duplicates])
+
+  const rowIdOf = (dup: ComparisonReport['duplicates'][number]) =>
+    [dup.side, dup.fieldId, dup.normalizedValue].join('::')
 
   const term = search.trim().toLocaleUpperCase('pt-BR')
   const filtered = useMemo(() => {
@@ -1954,7 +1960,7 @@ function DuplicatesView({
     return ''
   }), [filtered, sort])
 
-  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
+  useEffect(() => setPage(1), [search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
 
   useEffect(() => {
     if (!initialFieldId) return
@@ -1963,7 +1969,10 @@ function DuplicatesView({
   }, [initialFieldId])
 
   useEffect(() => {
-    const handleAfterPrint = () => setPrintGroupId(null)
+    const handleAfterPrint = () => {
+      setPrintGroupId(null)
+      setPrintSelected(false)
+    }
     window.addEventListener('afterprint', handleAfterPrint)
     return () => window.removeEventListener('afterprint', handleAfterPrint)
   }, [])
@@ -1971,13 +1980,13 @@ function DuplicatesView({
   const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const safePage = Math.min(page, pages)
   const pageItems = sorted.slice((safePage - 1) * pageSize, safePage * pageSize)
+  const pageIds = pageItems.map(rowIdOf)
+  const selectedItems = sorted.filter(item => selectedGroups.has(rowIdOf(item)))
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedGroups.has(id))
   const duplicateHint = profile.showDocumentValidity
     ? 'grupos duplicados em CPF/CNPJ ou IE.'
     : 'grupos duplicados nos campos de unicidade do perfil.'
   const monoKinds = new Set(['document', 'ie', 'code', 'phone'])
-
-  const rowIdOf = (dup: ComparisonReport['duplicates'][number]) =>
-    [dup.side, dup.fieldId, dup.normalizedValue].join('::')
 
   const toggleSet = (current: Set<string>, id: string) => {
     const next = new Set(current)
@@ -1987,6 +1996,7 @@ function DuplicatesView({
   }
 
   const toggleGroup = (rowId: string) => {
+    setReviewedGroups(current => new Set(current).add(rowId))
     setOpenGroups(current => {
       const next = toggleSet(current, rowId)
       if (!next.has(rowId)) {
@@ -2000,15 +2010,26 @@ function DuplicatesView({
     })
   }
 
+  const togglePageSelection = () => {
+    setSelectedGroups(current => {
+      const next = new Set(current)
+      if (allPageSelected) pageIds.forEach(id => next.delete(id))
+      else pageIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
   const nameLabel = profile.fields.find(field => field.id === profile.nameFieldId)?.label ?? profile.recordLabel
 
   const printItems = printGroupId
     ? sorted.filter(item => rowIdOf(item) === printGroupId)
-    : [...sorted].sort((left, right) =>
-        left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
-        || left.side.localeCompare(right.side, 'pt-BR')
-        || left.normalizedValue.localeCompare(right.normalizedValue, 'pt-BR', { numeric: true, sensitivity: 'base' }),
-      )
+    : printSelected
+      ? selectedItems
+      : [...sorted].sort((left, right) =>
+          left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
+          || left.side.localeCompare(right.side, 'pt-BR')
+          || left.normalizedValue.localeCompare(right.normalizedValue, 'pt-BR', { numeric: true, sensitivity: 'base' }),
+        )
 
   const filterDescription = [
     sideFilter === 'TODOS' ? 'Origem e destino' : sideFilter === 'ORIGEM' ? 'Somente origem' : 'Somente destino',
@@ -2020,10 +2041,12 @@ function DuplicatesView({
     duplicateColumnFilters.count ? 'Quantidade: ' + duplicateColumnFilters.count : '',
     duplicateColumnFilters.codes ? 'Códigos: ' + duplicateColumnFilters.codes : '',
     term ? 'Pesquisa: ' + search.trim() : '',
+    printSelected ? 'Somente grupos selecionados' : '',
   ].filter(Boolean).join(' · ')
 
-  const requestPrint = (groupId?: string) => {
+  const requestPrint = (groupId?: string, selectedOnly = false) => {
     setPrintGroupId(groupId || null)
+    setPrintSelected(selectedOnly)
     window.setTimeout(() => window.print(), 80)
   }
 
@@ -2036,10 +2059,11 @@ function DuplicatesView({
             <p>
               {number(filtered.length)} {filtered.length === 1 ? 'grupo' : 'grupos'} no filtro atual
               {filtered.length !== report.duplicates.length ? ' · ' + number(report.duplicates.length) + ' no total' : ''}.
-              {' '}{duplicateHint}
+              {' '}{duplicateHint} Paginação padrão de {pageSize}.
             </p>
           </div>
           <div className="section-head-actions">
+            <span className="selection-summary">{number(selectedItems.length)} selecionados</span>
             <button
               type="button"
               className="button ghost compact-button"
@@ -2052,13 +2076,24 @@ function DuplicatesView({
             >
               Limpar filtros
             </button>
+            <button type="button" className="button ghost compact-button" disabled={!pageItems.length} onClick={togglePageSelection}>
+              {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
+            </button>
+            <button
+              type="button"
+              className="button secondary compact-button"
+              onClick={() => requestPrint(undefined, true)}
+              disabled={!selectedItems.length}
+            >
+              Imprimir selecionados
+            </button>
             <button
               type="button"
               className="button primary dup-print-button"
               onClick={() => requestPrint()}
               disabled={sorted.length === 0}
             >
-              Imprimir duplicidades
+              Imprimir filtro
             </button>
           </div>
         </div>
@@ -2067,7 +2102,7 @@ function DuplicatesView({
           <strong>Como analisar</strong>
           <span>
             Revise os registros do mesmo grupo e confirme qual cadastro deve prevalecer.
-            Sem um critério de prioridade definido, não há base segura para determinar automaticamente o registro principal.
+            Ao abrir um grupo ele é marcado como analisado para facilitar a sequência da revisão.
           </span>
         </div>
 
@@ -2113,15 +2148,18 @@ function DuplicatesView({
               <table className="dup-table">
                 <thead>
                   <tr>
+                    <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
                     <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                    <th>Análise</th>
                     <th>Ações</th>
                   </tr>
                   <tr className="column-filter-row">
+                    <th />
                     <th>
                       <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
                         <option value="TODOS">Todos</option>
@@ -2142,6 +2180,7 @@ function DuplicatesView({
                     <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
                     <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
                     <th />
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
@@ -2150,9 +2189,21 @@ function DuplicatesView({
                     const field = profile.fields.find(item => item.id === dup.fieldId)
                     const monoValue = field ? monoKinds.has(field.kind) : true
                     const open = openGroups.has(rowId)
+                    const reviewed = reviewedGroups.has(rowId)
                     return (
                       <Fragment key={rowId + '-' + index}>
-                        <tr className={'dup-group-row' + (open ? ' is-open' : '')}>
+                        <tr className={[
+                          'dup-group-row',
+                          open ? 'is-open' : '',
+                          reviewed ? 'row-reviewed' : '',
+                        ].filter(Boolean).join(' ')}>
+                          <td className="selection-column">
+                            <input
+                              type="checkbox"
+                              checked={selectedGroups.has(rowId)}
+                              onChange={() => setSelectedGroups(current => toggleSet(current, rowId))}
+                            />
+                          </td>
                           <td>
                             <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
                           </td>
@@ -2184,6 +2235,15 @@ function DuplicatesView({
                             />
                           </td>
                           <td>
+                            <button
+                              type="button"
+                              className={'review-chip ' + (reviewed ? 'done' : '')}
+                              onClick={() => setReviewedGroups(current => toggleSet(current, rowId))}
+                            >
+                              {reviewed ? '✓ Analisado' : 'Marcar analisado'}
+                            </button>
+                          </td>
+                          <td>
                             <div className="dup-actions">
                               <button
                                 type="button"
@@ -2206,7 +2266,7 @@ function DuplicatesView({
                         </tr>
                         {open && (
                           <tr className="dup-expand-row">
-                            <td colSpan={7}>
+                            <td colSpan={9}>
                               <DuplicateGroupDetails
                                 groupId={rowId}
                                 fieldId={dup.fieldId}
