@@ -30,16 +30,20 @@ export default function MappingPanel({
   const coveragePercent = total ? Math.round((both / total) * 100) : 0
 
   const update = (fieldId: string, side: 'originHeader' | 'targetHeader', value: string) => {
+    const manualKey = side === 'originHeader' ? 'originManual' : 'targetManual'
     const current = mapping.find(item => item.fieldId === fieldId)
     if (!current) {
       onChange([...mapping, {
         fieldId,
         originHeader: side === 'originHeader' ? value : '',
         targetHeader: side === 'targetHeader' ? value : '',
+        [manualKey]: Boolean(value),
       }])
       return
     }
-    onChange(mapping.map(item => item.fieldId === fieldId ? { ...item, [side]: value } : item))
+    onChange(mapping.map(item => item.fieldId === fieldId
+      ? { ...item, [side]: value, [manualKey]: Boolean(value) }
+      : item))
   }
 
   const visibleFields = useMemo(() => {
@@ -114,7 +118,7 @@ export default function MappingPanel({
 
       <div className="mapping-legend">
         <span><i className="dot dot-green" /> Pronto</span>
-        <span><i className="dot dot-yellow" /> Parcial</span>
+        <span><i className="dot dot-yellow" /> Manual / Parcial</span>
         <span><i className="dot dot-gray" /> Não identificado</span>
         <span className="mapping-safe-note">
           Colunas genéricas ou ambíguas não são auto-vinculadas. Use as sugestões quando houver dúvida.
@@ -137,8 +141,9 @@ export default function MappingPanel({
               const item = mapping.find(map => map.fieldId === field.id)
               const originHeader = item?.originHeader ?? ''
               const targetHeader = item?.targetHeader ?? ''
+              const manual = Boolean(item?.originManual || item?.targetManual)
               const situation = originHeader && targetHeader
-                ? 'ok'
+                ? manual ? 'manual' : 'ok'
                 : originHeader || targetHeader
                   ? 'partial'
                   : 'none'
@@ -209,7 +214,13 @@ export default function MappingPanel({
                   </td>
                   <td>
                     <span className={'map-state ' + situation}>
-                      {situation === 'ok' ? 'Pronto' : situation === 'partial' ? 'Parcial' : 'Não identificado'}
+                      {situation === 'ok'
+                        ? 'Pronto'
+                        : situation === 'manual'
+                          ? 'Manual'
+                          : situation === 'partial'
+                            ? 'Parcial'
+                            : 'Não identificado'}
                     </span>
                   </td>
                 </tr>
