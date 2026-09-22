@@ -256,7 +256,7 @@ function App({
       try {
         const next = compareDatasets(origin, target, mapping, profile)
         setReport(next)
-        setActiveTab('overview')
+        setActiveTab(dashboardMode ? 'dashboard' : 'overview')
         setIssueFieldFilter('TODOS')
         setStatusFilter('TODOS')
         setSearch('')
