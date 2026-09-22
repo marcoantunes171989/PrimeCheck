@@ -1977,18 +1977,38 @@ function MissingView({
   const [search, setSearch] = useState('')
   const [originSort, setOriginSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [targetSort, setTargetSort] = useState<SortState>({ key: 'code', direction: 'asc' })
+  const [originFilters, setOriginFilters] = useState({
+    code: '',
+    name: '',
+    inactive: 'TODOS',
+    status: 'TODOS',
+  })
+  const [targetFilters, setTargetFilters] = useState({
+    code: '',
+    name: '',
+  })
 
   const term = search.trim().toLocaleUpperCase('pt-BR')
+  const contains = (value: unknown, filter: string) =>
+    !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
   const missing = useMemo(() => report.clients.filter(client => !client.found).filter(client => {
+    if (!contains(client.key, originFilters.code)) return false
+    if (!contains(client.name, originFilters.name)) return false
+    if (originFilters.inactive === 'SIM' && !client.originInactive) return false
+    if (originFilters.inactive === 'NAO' && client.originInactive) return false
+    if (originFilters.status !== 'TODOS' && client.status !== originFilters.status) return false
     if (!term) return true
     const raw = Object.values(client.originRow).join(' ')
-    return (client.key + ' ' + client.name + ' ' + raw).toLocaleUpperCase('pt-BR').includes(term)
-  }), [report.clients, search])
+    return (client.key + ' ' + client.name + ' ' + client.status + ' ' + raw).toLocaleUpperCase('pt-BR').includes(term)
+  }), [report.clients, search, originFilters])
 
   const targetOnly = useMemo(() => report.targetOnly.filter(client => {
+    if (!contains(client.key, targetFilters.code)) return false
+    if (!contains(client.name, targetFilters.name)) return false
     if (!term) return true
     return (client.key + ' ' + client.name + ' ' + Object.values(client.row).join(' ')).toLocaleUpperCase('pt-BR').includes(term)
-  }), [report.targetOnly, search])
+  }), [report.targetOnly, search, targetFilters])
 
   const sortedMissing = useMemo(() => sortedBy(missing, originSort, (client, key) => {
     if (key === 'code') return client.key
@@ -2012,91 +2032,174 @@ function MissingView({
   useEffect(() => {
     setOriginPage(1)
     setTargetPage(1)
-  }, [pageSize, search, originSort.key, originSort.direction, targetSort.key, targetSort.direction])
+  }, [
+    pageSize,
+    search,
+    originSort.key,
+    originSort.direction,
+    targetSort.key,
+    targetSort.direction,
+    originFilters,
+    targetFilters,
+  ])
+
+  const clearFilters = () => {
+    setSearch('')
+    setOriginFilters({ code: '', name: '', inactive: 'TODOS', status: 'TODOS' })
+    setTargetFilters({ code: '', name: '' })
+  }
+
+  const printRows = [
+    ...sortedMissing.map(client => ({
+      tipo: 'Origem não localizada',
+      codigo: client.key,
+      registro: client.name || '—',
+      detalhe: client.originInactive ? 'Origem inativa: Sim' : 'Origem inativa: Não',
+      resultado: client.status,
+    })),
+    ...sortedTargetOnly.map(client => ({
+      tipo: 'Somente no destino',
+      codigo: client.key,
+      registro: client.name || '—',
+      detalhe: 'Registro presente apenas no destino',
+      resultado: 'DESTINO',
+    })),
+  ]
 
   return (
-    <div className="missing-view">
-      <div className="table-toolbar searchable-toolbar">
-        <div className="screen-search inline-search">
-          <span aria-hidden="true">⌕</span>
-          <input
-            value={search}
-            onChange={event => setSearch(event.target.value)}
-            placeholder="Pesquisar código, nome ou qualquer campo importado…"
-            aria-label="Pesquisar registros não importados"
-          />
+    <>
+      <div className="missing-view">
+        <div className="table-toolbar searchable-toolbar missing-toolbar">
+          <div className="screen-search inline-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              placeholder="Pesquisar em todos os dados não localizados…"
+              aria-label="Pesquisar registros não importados"
+            />
+          </div>
+          <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
+          <button type="button" className="button secondary compact-button" disabled={!printRows.length} onClick={() => window.print()}>
+            Imprimir filtro
+          </button>
+          <PageSizeSelect value={pageSize} onChange={setPageSize} />
         </div>
-        <PageSizeSelect value={pageSize} onChange={setPageSize} />
+
+        <div className="two-panels">
+          <section className="panel">
+            <div className="section-head compact">
+              <div>
+                <h3>Origem não localizada no destino</h3>
+                <p>{number(sortedMissing.length)} registros.</p>
+              </div>
+            </div>
+            <div className="table-wrap">
+              <table className="missing-table">
+                <thead>
+                  <tr>
+                    <SortableHeader label="Código" sortKey="code" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <SortableHeader label={profile.recordLabel} sortKey="name" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Origem inativa" sortKey="inactive" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <SortableHeader label="Resultado" sortKey="status" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <th>Ação</th>
+                  </tr>
+                  <tr className="column-filter-row">
+                    <th><input value={originFilters.code} onChange={e => setOriginFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                    <th><input value={originFilters.name} onChange={e => setOriginFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                    <th>
+                      <select value={originFilters.inactive} onChange={e => setOriginFilters(current => ({ ...current, inactive: e.target.value }))}>
+                        <option value="TODOS">Todos</option>
+                        <option value="SIM">Sim</option>
+                        <option value="NAO">Não</option>
+                      </select>
+                    </th>
+                    <th>
+                      <select value={originFilters.status} onChange={e => setOriginFilters(current => ({ ...current, status: e.target.value }))}>
+                        <option value="TODOS">Todos</option>
+                        <option value="DIVERGENTE">Divergente</option>
+                        <option value="ATENÇÃO">Atenção</option>
+                        <option value="NÃO IMPORTADO">Não importado</option>
+                      </select>
+                    </th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {originItems.map(client => (
+                    <tr key={client.key}>
+                      <td className="mono">{client.key}</td>
+                      <td>{client.name || '—'}</td>
+                      <td>{client.originInactive ? 'Sim' : 'Não'}</td>
+                      <td><StatusBadge status={client.status} /></td>
+                      <td>
+                        <button type="button" className="analysis-action-button" onClick={() => onOpenClient(client)}>Abrir análise</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
+            </div>
+            <Pagination page={originPage} pages={originPages} onChange={setOriginPage} />
+          </section>
+
+          <section className="panel">
+            <div className="section-head compact">
+              <div>
+                <h3>Somente no destino</h3>
+                <p>{number(sortedTargetOnly.length)} registros.</p>
+              </div>
+            </div>
+            <div className="table-wrap">
+              <table className="missing-table">
+                <thead>
+                  <tr>
+                    <SortableHeader label="Código" sortKey="code" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                    <SortableHeader label={profile.recordLabel} sortKey="name" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                  </tr>
+                  <tr className="column-filter-row">
+                    <th><input value={targetFilters.code} onChange={e => setTargetFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                    <th><input value={targetFilters.name} onChange={e => setTargetFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {targetItems.map(client => (
+                    <tr key={client.key}>
+                      <td className="mono">{client.key}</td>
+                      <td>{client.name || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
+            </div>
+            <Pagination page={targetPage} pages={targetPages} onChange={setTargetPage} />
+          </section>
+        </div>
       </div>
 
-      <div className="two-panels">
-        <section className="panel">
-          <div className="section-head compact">
-            <div>
-              <h3>Origem não localizada no destino</h3>
-              <p>{number(sortedMissing.length)} registros.</p>
-            </div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <SortableHeader label="Código" sortKey="code" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <SortableHeader label={profile.recordLabel} sortKey="name" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Origem inativa" sortKey="inactive" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Resultado" sortKey="status" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {originItems.map(client => (
-                  <tr key={client.key}>
-                    <td className="mono">{client.key}</td>
-                    <td>{client.name || '—'}</td>
-                    <td>{client.originInactive ? 'Sim' : 'Não'}</td>
-                    <td><StatusBadge status={client.status} /></td>
-                    <td>
-                      <button type="button" className="link-button" onClick={() => onOpenClient(client)}>Analisar</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
-          </div>
-          <Pagination page={originPage} pages={originPages} onChange={setOriginPage} />
-        </section>
-
-        <section className="panel">
-          <div className="section-head compact">
-            <div>
-              <h3>Somente no destino</h3>
-              <p>{number(sortedTargetOnly.length)} registros.</p>
-            </div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <SortableHeader label="Código" sortKey="code" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
-                  <SortableHeader label={profile.recordLabel} sortKey="name" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
-                </tr>
-              </thead>
-              <tbody>
-                {targetItems.map(client => (
-                  <tr key={client.key}>
-                    <td className="mono">{client.key}</td>
-                    <td>{client.name || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
-          </div>
-          <Pagination page={targetPage} pages={targetPages} onChange={setTargetPage} />
-        </section>
-      </div>
-    </div>
+      <DataPrintReport
+        title="Registros não localizados"
+        subtitle={profile.label + ' · origem não localizada e registros somente no destino'}
+        filterDescription={[
+          search.trim() ? 'Pesquisa: ' + search.trim() : '',
+          originFilters.code ? 'Código origem: ' + originFilters.code : '',
+          originFilters.name ? profile.recordLabel + ' origem: ' + originFilters.name : '',
+          originFilters.status !== 'TODOS' ? 'Resultado: ' + originFilters.status : '',
+          targetFilters.code ? 'Código destino: ' + targetFilters.code : '',
+          targetFilters.name ? profile.recordLabel + ' destino: ' + targetFilters.name : '',
+        ].filter(Boolean).join(' · ')}
+        columns={[
+          { key: 'tipo', label: 'Tipo' },
+          { key: 'codigo', label: 'Código' },
+          { key: 'registro', label: profile.recordLabel },
+          { key: 'detalhe', label: 'Detalhe' },
+          { key: 'resultado', label: 'Resultado' },
+        ]}
+        rows={printRows}
+      />
+    </>
   )
 }
 
