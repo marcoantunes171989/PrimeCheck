@@ -736,6 +736,17 @@ function App({
             )}
 
             {activeTab === 'overview' && <Overview report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
+            {activeTab === 'diagnosis' && (
+              <TechnicalDiagnosisView
+                report={report}
+                profile={resultProfile}
+                onOpenIssue={(client, field) => openRecord(client, field.fieldId)}
+                onOpenDuplicates={fieldId => {
+                  setDuplicateFieldFocus(fieldId)
+                  setActiveTab('duplicates')
+                }}
+              />
+            )}
             {activeTab === 'clients' && (
               <>
                 <div className="panel">
@@ -1072,7 +1083,13 @@ function App({
             )}
 
             {activeTab === 'fields' && <FieldSummaryView report={report} onAnalyzeField={openFieldAnalysis} />}
-            {activeTab === 'duplicates' && <DuplicatesView report={report} profile={resultProfile} />}
+            {activeTab === 'duplicates' && (
+              <DuplicatesView
+                report={report}
+                profile={resultProfile}
+                initialFieldId={duplicateFieldFocus}
+              />
+            )}
             {activeTab === 'missing' && <MissingView report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
           </section>
         )}
