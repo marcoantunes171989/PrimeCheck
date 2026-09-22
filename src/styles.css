@@ -663,3 +663,9 @@ table, th, td {
   .validator-form.ie-form { grid-template-columns: 1fr; }
   .workspace-module-bar > div:first-child span { display: none; }
 }
+
+.module-topbar-title strong{display:block;color:var(--primary);font-size:13px}
+.module-topbar-title span{display:block;margin-top:2px;color:var(--muted);font-size:9px}
+.mapping-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mapping-profile-badge{display:inline-flex;align-items:center;padding:4px 7px;border-radius:999px;background:#eef8f3;color:#2d6a41;font-size:9px;font-weight:800;border:1px solid #c6e4d0}
+.mapping-safe-note{margin-left:auto;color:#8a5a17!important;font-weight:700}
