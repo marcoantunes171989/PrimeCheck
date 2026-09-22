@@ -1,7 +1,8 @@
 import type { DuplicateRecord } from '../types'
 
-const RECORD_PREVIEW = 3
+const RECORD_PREVIEW = 2
 const CODE_PREVIEW = 4
+const EXTRA_PREVIEW = 3
 
 export function DuplicateCodeList({
   codes,
@@ -46,6 +47,7 @@ export default function DuplicateRecordList({
   records,
   expanded,
   onToggle,
+  onPrint,
   monoValue,
 }: {
   groupId: string
@@ -54,6 +56,7 @@ export default function DuplicateRecordList({
   records: DuplicateRecord[]
   expanded: boolean
   onToggle: () => void
+  onPrint?: () => void
   monoValue: boolean
 }) {
   if (records.length === 0) return <span className="muted-cell">—</span>
@@ -77,7 +80,7 @@ export default function DuplicateRecordList({
                 <span>{fieldLabel}</span>
                 <strong className={monoValue ? 'mono' : undefined}>{value || '—'}</strong>
               </div>
-              {record.extras.map(extra => (
+              {record.extras.slice(0, EXTRA_PREVIEW).map(extra => (
                 <div key={`${record.key}-${extra.label}`} className="dup-card-extra">
                   <span>{extra.label}</span>
                   <b>{extra.value}</b>
@@ -87,17 +90,29 @@ export default function DuplicateRecordList({
           )
         })}
       </ul>
-      {records.length > RECORD_PREVIEW && (
-        <button
-          type="button"
-          className="dup-expand"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          aria-controls={listId}
-        >
-          {expanded ? 'Recolher' : `Ver todos os ${records.length} registros`}
-        </button>
-      )}
+      <div className="dup-record-actions">
+        {records.length > RECORD_PREVIEW && (
+          <button
+            type="button"
+            className="dup-expand"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-controls={listId}
+          >
+            {expanded ? 'Recolher' : `Ver todos os ${records.length} registros`}
+          </button>
+        )}
+        {onPrint && (
+          <button
+            type="button"
+            className="dup-print-group"
+            onClick={onPrint}
+            aria-label={`Imprimir grupo duplicado de ${fieldLabel}`}
+          >
+            Imprimir grupo
+          </button>
+        )}
+      </div>
     </div>
   )
 }
