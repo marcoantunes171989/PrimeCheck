@@ -99,12 +99,31 @@ const bestHeader = (headers: string[], aliases: string[]) => {
   return score >= 60 ? best : ''
 }
 
+const duplicateBase = (header: string) =>
+  normalizeHeader(header.replace(/__\d+$/, ''))
+
+const hasAmbiguousDuplicate = (headers: string[], selected: string) => {
+  if (!selected) return false
+  const base = duplicateBase(selected)
+  return headers.filter(header => duplicateBase(header) === base).length > 1
+}
+
 export const autoMap = (origin: Dataset, target: Dataset): FieldMapping[] =>
-  CHECKLIST_FIELDS.map(field => ({
-    fieldId: field.id,
-    originHeader: bestHeader(origin.headers, [field.label, ...field.aliases]),
-    targetHeader: bestHeader(target.headers, [field.label, ...field.aliases]),
-  }))
+  CHECKLIST_FIELDS.map(field => {
+    const originHeader = bestHeader(origin.headers, [field.label, ...field.aliases])
+    let targetHeader = bestHeader(target.headers, [field.label, ...field.aliases])
+
+    // No perfil local havia várias colunas "Convênio" com finalidades diferentes.
+    // Nestes campos, é mais seguro exigir confirmação humana do que vincular a coluna errada.
+    if (
+      (field.id === 'empresaConvenio' || field.id === 'conveniado') &&
+      hasAmbiguousDuplicate(target.headers, targetHeader)
+    ) {
+      targetHeader = ''
+    }
+
+    return { fieldId: field.id, originHeader, targetHeader }
+  })
 
 export const detectStatusHeader = (dataset: Dataset) =>
   bestHeader(dataset.headers, RECORD_STATUS_ALIASES)
