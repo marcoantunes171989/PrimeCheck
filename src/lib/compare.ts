@@ -15,6 +15,7 @@ import { getEntityProfile } from '../config/entities'
 import { validateInscricaoEstadual, type UfCode } from '@br-validators/core/inscricao-estadual'
 import {
   asText,
+  formatDateForDisplay,
   hasReplacementCharacter,
   isInactiveValue,
   normalizeAddress,
@@ -423,8 +424,12 @@ const createFieldResult = (
       fieldId: field.id,
       fieldLabel: field.label,
       group: field.group,
-      originValue: map?.originHeader ? asText(originRow[map.originHeader]) : '',
-      targetValue: map?.targetHeader && targetRow ? asText(targetRow[map.targetHeader]) : '',
+      originValue: map?.originHeader
+        ? field.kind === 'date' ? formatDateForDisplay(originRow[map.originHeader]) : asText(originRow[map.originHeader])
+        : '',
+      targetValue: map?.targetHeader && targetRow
+        ? field.kind === 'date' ? formatDateForDisplay(targetRow[map.targetHeader]) : asText(targetRow[map.targetHeader])
+        : '',
       status: 'NÃO VALIDÁVEL',
       reason: !map?.originHeader && !map?.targetHeader
         ? 'Campo não foi identificado em nenhum dos arquivos.'
@@ -449,8 +454,8 @@ const createFieldResult = (
     fieldId: field.id,
     fieldLabel: field.label,
     group: field.group,
-    originValue: asText(originValue),
-    targetValue: asText(targetValue),
+    originValue: field.kind === 'date' ? formatDateForDisplay(originValue) : asText(originValue),
+    targetValue: field.kind === 'date' ? formatDateForDisplay(targetValue) : asText(targetValue),
     ...compared,
   }
 }
