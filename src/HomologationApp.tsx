@@ -806,9 +806,10 @@ function App({
                   <div className="section-head compact">
                     <div>
                       <h3>{resultProfile.label}</h3>
-                      <p>{number(filteredClients.length)} registros no filtro atual.</p>
+                      <p>{number(filteredClients.length)} registros no filtro atual · paginação padrão de 20.</p>
                     </div>
                     <div className="section-head-actions">
+                      <span className="selection-summary">{number(selectedClients.length)} selecionados</span>
                       <button
                         type="button"
                         className="button ghost compact-button"
@@ -829,9 +830,25 @@ function App({
                       </button>
                       <button
                         type="button"
+                        className="button ghost compact-button"
+                        disabled={!currentClientPage.length}
+                        onClick={toggleCurrentClientPage}
+                      >
+                        {allCurrentClientsSelected ? 'Desmarcar página' : 'Selecionar página'}
+                      </button>
+                      <button
+                        type="button"
                         className="button secondary compact-button"
+                        disabled={!selectedClients.length}
+                        onClick={() => requestClientPrint(true)}
+                      >
+                        Imprimir selecionados
+                      </button>
+                      <button
+                        type="button"
+                        className="button primary compact-button"
                         disabled={!sortedClients.length}
-                        onClick={() => window.print()}
+                        onClick={() => requestClientPrint(false)}
                       >
                         Imprimir filtro
                       </button>
@@ -847,6 +864,14 @@ function App({
                     <table className="records-table">
                       <thead>
                         <tr>
+                          <th className="selection-column">
+                            <input
+                              type="checkbox"
+                              checked={allCurrentClientsSelected}
+                              onChange={toggleCurrentClientPage}
+                              aria-label="Selecionar página"
+                            />
+                          </th>
                           <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
@@ -855,9 +880,11 @@ function App({
                           <SortableHeader label="Atenções" sortKey="attention" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           {showDocument && <SortableHeader label="CPF/CNPJ origem" sortKey="document" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
                           {showDocument && <SortableHeader label="Validade" sortKey="validity" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                          <th>Análise</th>
                           <th>Ação</th>
                         </tr>
                         <tr className="column-filter-row">
+                          <th />
                           <th><input value={clientColumnFilters.code} onChange={e => setClientColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Filtrar…" /></th>
                           <th><input value={clientColumnFilters.name} onChange={e => setClientColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Filtrar…" /></th>
                           <th>
@@ -890,13 +917,22 @@ function App({
                             </th>
                           )}
                           <th />
+                          <th />
                         </tr>
                       </thead>
                       <tbody>
-                        {pageSlice(sortedClients).map(client => {
+                        {currentClientPage.map(client => {
                           const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
                           const validation = validateCpfCnpj(doc)
-                          return <tr key={client.key}>
+                          const reviewed = reviewedClientKeys.has(client.key)
+                          return <tr key={client.key} className={reviewed ? 'row-reviewed' : ''}>
+                            <td className="selection-column">
+                              <input
+                                type="checkbox"
+                                checked={selectedClientKeys.has(client.key)}
+                                onChange={() => setSelectedClientKeys(current => toggleStringSet(current, client.key))}
+                              />
+                            </td>
                             <td className="mono">{client.key}</td>
                             <td><strong>{client.name || '—'}</strong></td>
                             <td>{client.found ? 'Sim' : 'Não'}</td>
@@ -905,7 +941,27 @@ function App({
                             <td>{client.attentionCount}</td>
                             {showDocument && <td className="mono">{doc || '—'}</td>}
                             {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
-                            <td><button type="button" className="analysis-action-button" onClick={() => openRecord(client)}>Abrir análise</button></td>
+                            <td>
+                              <button
+                                type="button"
+                                className={'review-chip ' + (reviewed ? 'done' : '')}
+                                onClick={() => setReviewedClientKeys(current => toggleStringSet(current, client.key))}
+                              >
+                                {reviewed ? '✓ Analisado' : 'Marcar analisado'}
+                              </button>
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="analysis-action-button"
+                                onClick={() => {
+                                  setReviewedClientKeys(current => new Set(current).add(client.key))
+                                  openRecord(client)
+                                }}
+                              >
+                                Abrir análise
+                              </button>
+                            </td>
                           </tr>
                         })}
                       </tbody>
@@ -916,7 +972,7 @@ function App({
 
                 <DataPrintReport
                   title={`Relatório de ${resultProfile.label}`}
-                  subtitle="Registros conforme filtros aplicados na tela"
+                  subtitle="Registros conforme filtros e seleção aplicados na tela"
                   filterDescription={[
                     search.trim() ? 'Pesquisa: ' + search.trim() : '',
                     clientColumnFilters.code ? 'Código: ' + clientColumnFilters.code : '',
@@ -925,6 +981,7 @@ function App({
                     clientColumnFilters.status !== 'TODOS' ? 'Resultado: ' + clientColumnFilters.status : '',
                     clientColumnFilters.document ? 'CPF/CNPJ: ' + clientColumnFilters.document : '',
                     clientColumnFilters.validity !== 'TODOS' ? 'Validade: ' + clientColumnFilters.validity : '',
+                    clientPrintSelected ? 'Somente registros selecionados' : 'Resultado filtrado',
                   ].filter(Boolean).join(' · ')}
                   columns={[
                     { key: 'codigo', label: 'Código' },
@@ -937,8 +994,9 @@ function App({
                       { key: 'documento', label: 'CPF/CNPJ origem' },
                       { key: 'validade', label: 'Validade' },
                     ] : []),
+                    { key: 'analisado', label: 'Analisado' },
                   ]}
-                  rows={sortedClients.map(client => {
+                  rows={(clientPrintSelected ? selectedClients : sortedClients).map(client => {
                     const doc = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
                     return {
                       codigo: client.key,
@@ -949,6 +1007,7 @@ function App({
                       atencoes: client.attentionCount,
                       documento: doc || '—',
                       validade: showDocument ? validateCpfCnpj(doc).status : '',
+                      analisado: reviewedClientKeys.has(client.key) ? 'Sim' : 'Não',
                     }
                   })}
                 />
