@@ -341,21 +341,50 @@ function App({
     })
   }, [report, search, statusFilter, clientColumnFilters])
 
-  const issues = useMemo(() => {
+  const originDuplicateLookup = useMemo(() => {
+    const lookup = new Map<string, IssueDuplicateInfo>()
+    if (!report) return lookup
+
+    for (const duplicate of report.duplicates) {
+      if (duplicate.side !== 'ORIGEM') continue
+      for (const record of duplicate.records) {
+        if (!record.key) continue
+        lookup.set(
+          `${record.key}::${duplicate.fieldId}`,
+          { count: duplicate.count, normalizedValue: duplicate.normalizedValue },
+        )
+      }
+    }
+    return lookup
+  }, [report])
+
+  const issueScope = useMemo<IssueOccurrence[]>(() => {
     if (!report) return []
-    const term = search.trim().toLocaleUpperCase('pt-BR')
     const restrictField = issueFieldFilter !== 'TODOS'
-    const contains = (value: unknown, filter: string) =>
-      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
 
     return report.clients.flatMap(client => {
       if (restrictField && !client.found) return []
       return client.fields
         .filter(field => field.status === 'DIVERGENTE' || field.status === 'ATENÇÃO')
-        .map(field => ({ client, field }))
+        .map(field => {
+          const duplicate = originDuplicateLookup.get(`${client.key}::${field.fieldId}`)
+          return { client, field, duplicate }
+        })
     }).filter(item => {
       if (restrictField && item.field.fieldId !== issueFieldFilter) return false
       if (statusFilter !== 'TODOS' && item.field.status !== statusFilter) return false
+      if (issueDuplicateFilter === 'DUPLICADOS' && !item.duplicate) return false
+      if (issueDuplicateFilter === 'NAO_DUPLICADOS' && item.duplicate) return false
+      return true
+    })
+  }, [report, issueFieldFilter, statusFilter, issueDuplicateFilter, originDuplicateLookup])
+
+  const issues = useMemo(() => {
+    const term = search.trim().toLocaleUpperCase('pt-BR')
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
+    return issueScope.filter(item => {
       if (!contains(item.client.key, issueColumnFilters.code)) return false
       if (!contains(item.client.name, issueColumnFilters.name)) return false
       if (!contains(item.field.originValue, issueColumnFilters.origin)) return false
@@ -363,10 +392,14 @@ function App({
       if (!contains(item.field.reason, issueColumnFilters.reason)) return false
 
       if (!term) return true
-      const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.group} ${item.field.originValue} ${item.field.targetValue} ${item.field.status} ${item.field.reason}`.toLocaleUpperCase('pt-BR')
+      const duplicateText = item.duplicate
+        ? ` DUPLICADO ${item.duplicate.count} ${item.duplicate.normalizedValue}`
+        : ' NAO DUPLICADO'
+      const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.group} ${item.field.originValue} ${item.field.targetValue} ${item.field.status} ${item.field.reason}${duplicateText}`
+        .toLocaleUpperCase('pt-BR')
       return text.includes(term)
     })
-  }, [report, search, statusFilter, issueFieldFilter, issueColumnFilters])
+  }, [issueScope, search, issueColumnFilters])
 
   const issueFieldOptions = useMemo(() => {
     if (!report) return []
