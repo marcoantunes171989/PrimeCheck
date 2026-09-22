@@ -167,6 +167,36 @@ export default function Sidebar({
             )
           })}
 
+          <div className="sidebar-section-title sidebar-section-inline">{!collapsed ? 'DASHBOARDS' : '•••'}</div>
+
+          {WORKSPACE_MODULES
+            .filter(module => module.group === 'partners')
+            .map(module => {
+              const enabled = enabledSet.has(module.id)
+              return (
+                <button
+                  type="button"
+                  key={'dashboard-' + module.id}
+                  className={active === `dashboard:${module.id}` ? 'active' : ''}
+                  disabled={!enabled}
+                  onClick={() => enabled && onChange(`dashboard:${module.id}`)}
+                  title={!enabled
+                    ? 'Importe arquivos compatíveis para habilitar o dashboard'
+                    : collapsed
+                      ? 'Dashboard · ' + module.label
+                      : undefined}
+                >
+                  <Icon>▥</Icon>
+                  {!collapsed && (
+                    <span className="sidebar-item-copy">
+                      <strong>{module.label}</strong>
+                      <small>Dashboard gerencial</small>
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+
           <div className="sidebar-section-title sidebar-section-inline">{!collapsed ? 'VALIDAÇÃO' : '•••'}</div>
 
           {fixedItems.map(item => (
