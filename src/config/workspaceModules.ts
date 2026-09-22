@@ -372,6 +372,66 @@ const headerMatches = (header: string, aliases: string[]) => {
   )
 }
 
+const hasAnyHeader = (file: ImportedFile, aliases: string[]) =>
+  file.headers.some(header => headerMatches(header, aliases))
+
+const fileNameSuggestsModule = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
+  const name = normalizeHeader(file.name + ' ' + (file.sheetName ?? ''))
+  const tokens = [module.label, module.singular, ...module.signals]
+    .map(normalizeHeader)
+    .filter(token => token.length >= 5)
+  return tokens.some(token => name.includes(token))
+}
+
+const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
+  const productCode = hasAnyHeader(file, ['COD_PRODUTO', 'CODIGO_PRODUTO', 'COD_ITEM', 'ID_PRODUTO'])
+  const moduleNameHint = fileNameSuggestsModule(file, module)
+
+  switch (module.id) {
+    case 'clients':
+      return hasAnyHeader(file, ['COD_CLIENTE', 'CLIENTE_CODIGO', 'CODIGO_CLIENTE', 'DES_CLIENTE'])
+        || moduleNameHint
+    case 'suppliers':
+      return hasAnyHeader(file, ['COD_FORNECEDOR', 'COD_FORNEC', 'COD_FORN', 'DES_FORNECEDOR', 'NOME_FORNECEDOR'])
+        || moduleNameHint
+    case 'carriers':
+      return hasAnyHeader(file, ['COD_TRANSPORTADORA', 'COD_TRANSP', 'DES_TRANSPORTADORA', 'NOME_TRANSPORTADORA'])
+        || moduleNameHint
+    case 'sections':
+      return hasAnyHeader(file, ['COD_SECAO', 'DES_SECAO', 'CODIGO_SECAO'])
+    case 'groups':
+      return hasAnyHeader(file, ['COD_GRUPO', 'DES_GRUPO', 'CODIGO_GRUPO'])
+    case 'subgroups':
+      return hasAnyHeader(file, ['COD_SUBGRUPO', 'DES_SUBGRUPO', 'CODIGO_SUBGRUPO', 'SUB_GRUPO'])
+    case 'products':
+      return productCode || hasAnyHeader(file, ['DES_PRODUTO', 'DES_REDUZIDA', 'COD_BARRA_PRINCIPAL']) || moduleNameHint
+    case 'productStore':
+      return productCode && hasAnyHeader(file, ['COD_LOJA', 'CODIGO_LOJA', 'PRODUTO_LOJA', 'TAB_PRODUTO_LOJA'])
+    case 'barcodes':
+      return productCode && hasAnyHeader(file, ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
+    case 'productSupplier':
+      return productCode && hasAnyHeader(file, ['COD_FORNECEDOR', 'CODIGO_FORNECEDOR', 'REFERENCIA_FORNECEDOR'])
+    case 'similarProducts':
+      return productCode && hasAnyHeader(file, ['COD_PRODUTO_SIMILAR', 'COD_SIMILAR', 'PRODUTO_SIMILAR'])
+    case 'ncm':
+      return hasAnyHeader(file, ['NCM', 'COD_NCM'])
+    case 'cest':
+      return hasAnyHeader(file, ['CEST', 'COD_CEST'])
+    case 'ibpt':
+      return hasAnyHeader(file, ['IBPT', 'CHAVE_IBPT', 'ALIQUOTA_NACIONAL', 'ALIQ_NACIONAL'])
+    case 'ibscbs':
+      return hasAnyHeader(file, ['IBS', 'CBS', 'IBS_CBS', 'CST_IBS_CBS', 'ALIQUOTA_IBS', 'ALIQUOTA_CBS'])
+    case 'taxBenefit':
+      return hasAnyHeader(file, ['BENEFICIO_FISCAL', 'COD_BENEFICIO', 'CBENEF'])
+    case 'recipes':
+      return hasAnyHeader(file, ['RECEITA', 'FICHA_TECNICA', 'INGREDIENTE', 'COD_RECEITA'])
+    case 'nutrition':
+      return hasAnyHeader(file, ['NUTRICIONAL', 'VALOR_ENERGETICO', 'CALORIAS', 'PROTEINA', 'CARBOIDRATO'])
+    default:
+      return false
+  }
+}
+
 const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
   const headers = file.headers
   const signalHits = module.signals.filter(signal =>
@@ -380,16 +440,21 @@ const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinitio
   const fieldHits = module.fields.filter(item =>
     headers.some(header => headerMatches(header, item.aliases)),
   ).length
+  const nameHit = fileNameSuggestsModule(file, module)
+  const structuralMatch = moduleHasRequiredStructure(file, module)
 
-  const name = normalizeHeader(file.name + ' ' + (file.sheetName ?? ''))
-  const nameHit = module.signals.some(signal => {
-    const token = normalizeHeader(signal)
-    return token.length >= 5 && name.includes(token)
-  })
+  const score =
+    signalHits * 30 +
+    Math.min(45, fieldHits * 5) +
+    (nameHit ? 18 : 0) +
+    (structuralMatch ? 25 : 0)
 
-  const score = signalHits * 30 + Math.min(40, fieldHits * 4) + (nameHit ? 20 : 0)
-  const threshold = module.id === 'ncm' || module.id === 'cest' ? 30 : 38
-  return { score, matched: score >= threshold, fieldHits, signalHits }
+  return {
+    score,
+    matched: structuralMatch && (fieldHits >= 1 || nameHit),
+    fieldHits,
+    signalHits,
+  }
 }
 
 export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMatch[] =>
