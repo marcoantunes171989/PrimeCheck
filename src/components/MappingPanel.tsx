@@ -125,7 +125,7 @@ export default function MappingPanel({
         </span>
       </div>
 
-      <div className="table-wrap mapping-table-wrap">
+      <div className="table-wrap mapping-table-wrap stable-filter-table-wrap">
         <table className="mapping-table">
           <thead>
             <tr>
@@ -229,11 +229,6 @@ export default function MappingPanel({
           </tbody>
         </table>
 
-        {visibleFields.length === 0 && (
-          <div className="mapping-empty">
-            Nenhum campo corresponde ao filtro atual.
-          </div>
-        )}
       </div>
     </section>
   )
