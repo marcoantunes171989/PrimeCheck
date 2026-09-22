@@ -24,7 +24,7 @@ export default function MappingPanel({ mapping, originHeaders, targetHeaders, on
             <span className="mapping-profile-badge">Perfil local reativado</span>
           </div>
           <h2>Mapeamento dos campos</h2>
-          <p>O vínculo automático prioriza os mesmos nomes e regras usados na validação local. Campos não identificados ou ambíguos permanecem disponíveis para seleção manual antes da homologação.</p>
+          <p>O vínculo automático prioriza os mesmos nomes e regras usados na validação local. Colunas genéricas ou ambíguas, como “Convênio”, permanecem como Não mapeado para seleção manual.</p>
         </div>
         <div className="coverage">
           <strong>{coverage.both}/{coverage.total}</strong>
@@ -36,7 +36,7 @@ export default function MappingPanel({ mapping, originHeaders, targetHeaders, on
         <span><i className="dot dot-green" /> Origem e destino mapeados</span>
         <span><i className="dot dot-yellow" /> Mapeamento parcial</span>
         <span><i className="dot dot-gray" /> Não identificado</span>
-        <span className="mapping-safe-note">Colunas ambíguas de Convênio não são vinculadas automaticamente.</span>
+        <span className="mapping-safe-note">Colunas genéricas de Convênio e EMPRESA não são vinculadas automaticamente.</span>
       </div>
 
       <div className="table-wrap">

@@ -15,8 +15,12 @@ import {
   asText,
   hasReplacementCharacter,
   isInactiveValue,
+  normalizeAddress,
+  normalizeAddressNumber,
   normalizeAlphanumericDocument,
+  normalizeClientName,
   normalizeForField,
+  normalizeLooseText,
   normalizeText,
   onlyDigits,
   validateCpfCnpj,
@@ -63,17 +67,43 @@ const compareDocument = (origin: CellValue, target: CellValue): Pick<ComparisonF
   }
 }
 
-const normalizeLooseText = (value: CellValue) =>
-  normalizeText(value)
-    .replace(/[º°]/g, '')
-    .replace(/[^A-Z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+const LOOSE_TEXT_FIELDS = new Set([
+  'apelido',
+  'endereco',
+  'complemento',
+  'bairro',
+  'cidade',
+  'contato',
+  'observacao',
+  'condicaoPagamento',
+])
 
-const normalizeClientName = (value: CellValue) =>
-  normalizeLooseText(value)
-    .replace(/\s+\d+$/, '')
-    .trim()
+const TRUNCATION_FIELDS = new Set([
+  'nome',
+  'apelido',
+  'endereco',
+  'complemento',
+  'contato',
+  'observacao',
+  'bairro',
+  'cidade',
+])
+
+const comparableText = (field: FieldDefinition, value: CellValue) => {
+  if (field.id === 'nome') return normalizeClientName(value)
+  if (field.id === 'endereco') return normalizeAddress(value)
+  if (field.id === 'numeroEndereco') return normalizeAddressNumber(value)
+  if (LOOSE_TEXT_FIELDS.has(field.id)) return normalizeLooseText(value)
+  return normalizeForField(value, field)
+}
+
+const isTruncatedValue = (originNormalized: string, targetNormalized: string) => {
+  if (!originNormalized || !targetNormalized) return false
+  if (targetNormalized.length < 12) return false
+  if (originNormalized === targetNormalized) return false
+  if (!originNormalized.startsWith(targetNormalized)) return false
+  return originNormalized.length - targetNormalized.length >= 3
+}
 
 const compareField = (field: FieldDefinition, origin: CellValue, target: CellValue): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
   if (field.kind === 'document') return compareDocument(origin, target)
@@ -84,14 +114,28 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
   if (field.id === 'nome') {
     const originName = normalizeClientName(origin)
     const targetName = normalizeClientName(target)
-    if (originName === targetName) {
+    if (originName && originName === targetName) {
       return { status: 'CONFORME', reason: 'Nome equivalente após normalização de acentos, pontuação, espaços e sufixo de código.' }
     }
   }
 
   if (field.id === 'endereco') {
+    if (normalizeAddress(origin) === normalizeAddress(target)) {
+      return { status: 'CONFORME', reason: 'Endereço equivalente após normalização de pontuação e Nº/N°.' }
+    }
+  }
+
+  if (field.id === 'complemento' || field.id === 'bairro' || field.id === 'cidade') {
     if (normalizeLooseText(origin) === normalizeLooseText(target)) {
       return { status: 'CONFORME', reason: 'Endereço equivalente após normalização de pontuação e Nº/N°.' }
+    }
+  }
+
+  if (field.id === 'numeroEndereco') {
+    const oNumber = normalizeAddressNumber(origin)
+    const tNumber = normalizeAddressNumber(target)
+    if (oNumber === tNumber) {
+      return { status: 'CONFORME', reason: 'Número de endereço equivalente após normalizar Nº/N°/No e pontuação.' }
     }
   }
 
@@ -144,14 +188,14 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
     }
   }
 
-  const o = normalizeForField(origin, field)
-  const t = normalizeForField(target, field)
+  const o = comparableText(field, origin)
+  const t = comparableText(field, target)
   if (o === t) return { status: 'CONFORME', reason: 'Valores equivalentes após normalização.' }
 
   if (!originText && !targetText) return { status: 'CONFORME', reason: 'Campo vazio nos dois arquivos.' }
 
   if (!originText && targetText) {
-    if (field.kind === 'ie' && ['ISENTO','ISENTA'].includes(t)) {
+    if (field.kind === 'ie' && t === 'ISENTO') {
       return { status: 'ATENÇÃO', reason: 'Origem sem inscrição estadual e destino preenchido automaticamente como ISENTO. Confirmar regra da conversão.' }
     }
     return { status: 'ATENÇÃO', reason: 'Origem sem informação e destino preenchido. Confirmar regra/default aplicado na conversão.' }
@@ -161,6 +205,13 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
 
   if (field.id === 'contato' && targetText.length < originText.length && targetText.length <= 35 && originText.startsWith(targetText)) {
     return { status: 'DIVERGENTE', reason: `Possível truncamento: origem possui ${originText.length} caracteres e destino ${targetText.length}.` }
+  }
+
+  if (TRUNCATION_FIELDS.has(field.id) && isTruncatedValue(o, t)) {
+    return {
+      status: 'DIVERGENTE',
+      reason: `Possível truncamento: origem possui ${originText.length} caracteres e destino ${targetText.length}.`,
+    }
   }
 
   return { status: 'DIVERGENTE', reason: 'Valores diferentes após normalização; revisar conversão.' }

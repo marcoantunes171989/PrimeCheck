@@ -34,9 +34,44 @@ export const normalizeText = (value: CellValue) => stripAccents(asText(value))
 
 export const normalizePhone = (value: CellValue) => onlyDigits(value)
 
-export const normalizeIE = (value: CellValue) => asText(value)
-  .toUpperCase()
-  .replace(/[^A-Z0-9]/g, '')
+export const normalizeIE = (value: CellValue) => {
+  const v = asText(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+  if (v === 'ISENTO' || v === 'ISENTA') return 'ISENTO'
+  return v
+}
+
+export const normalizeLooseText = (value: CellValue) =>
+  normalizeText(value)
+    .replace(/[º°]/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+export const stripGeneratedCodeSuffix = (value: string) =>
+  value
+    .replace(/\s*[\-(/[]\s*\d{4,}\s*[\])\]]?\s*$/, '')
+    .replace(/\s+\d{4,}$/, '')
+    .trim()
+
+export const normalizeClientName = (value: CellValue) =>
+  stripGeneratedCodeSuffix(normalizeLooseText(value))
+
+export const normalizeAddressNumber = (value: CellValue) => {
+  const normalized = normalizeLooseText(value)
+    .replace(/^(N|NO|NR|NUM|NUMERO)\s+/, '')
+    .trim()
+
+  if (['SN', 'S N', 'SEM NUMERO', 'SEM N'].includes(normalized)) return 'SN'
+  return normalized
+}
+
+export const normalizeAddress = (value: CellValue) =>
+  normalizeLooseText(value)
+    .replace(/\bN(O|R|UM|UMERO)?\s+(?=\d)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 
 export const normalizePersonType = (value: CellValue) => {
   const v = normalizeText(value)
@@ -100,11 +135,13 @@ export const normalizeDate = (value: CellValue) => {
   const br = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)
   if (br) {
     let [, d, m, y] = br
+    if (!Number(d) || !Number(m) || !Number(y)) return ''
     if (y.length === 2) y = Number(y) >= 50 ? `19${y}` : `20${y}`
     return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
   }
   if (/^\d+(\.\d+)?$/.test(raw)) {
     const serial = Number(raw)
+    if (serial <= 1) return ''
     if (serial > 1 && serial < 100000) {
       const d = excelSerialToDate(serial)
       if (d) return d.toISOString().slice(0, 10)
@@ -115,6 +152,8 @@ export const normalizeDate = (value: CellValue) => {
 }
 
 export const normalizeForField = (value: CellValue, field: FieldDefinition): string => {
+  if (field.id === 'cep') return onlyDigits(value)
+
   switch (field.kind) {
     case 'code': return normalizeCode(value)
     case 'document': return normalizeAlphanumericDocument(value)

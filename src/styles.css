@@ -12,7 +12,7 @@
   --accent: #f38525;
   --text: #111111;
   --muted: #6b7280;
-  --border: #d9e0e6;
+  --border: #d1d5db;
   --surface: #ffffff;
   --soft: #f5f7f9;
   --green: #166534;
@@ -292,6 +292,9 @@ button, input, select, textarea {
   font-family: var(--font-sans);
 }
 table, th, td {
+  font-family: var(--font-sans);
+}
+.sidebar, .panel, .filters, .kpi, .tabs, .module-page, .drop-card, .coverage, .mapping-panel, .validator-card {
   font-family: var(--font-sans);
 }
 

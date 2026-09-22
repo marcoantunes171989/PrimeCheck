@@ -15,7 +15,7 @@ export default function IeValidatorPage() {
   const [value, setValue] = useState('')
 
   const normalized = value.trim()
-  const isento = /^isento$/i.test(normalized)
+  const isento = /^isent[oa]$/i.test(normalized)
 
   const result = useMemo(() => {
     if (!normalized || isento) return null
@@ -27,6 +27,14 @@ export default function IeValidatorPage() {
     const response = formatInscricaoEstadual(normalized, { uf })
     return response.ok ? response.formatted : ''
   }, [normalized, uf, isento])
+
+  const motivo = !normalized
+    ? 'Selecione a UF e informe a inscrição estadual.'
+    : isento
+      ? 'O valor ISENTO/ISENTA é aceito como situação cadastral especial, sem cálculo de dígito verificador.'
+      : result?.ok
+        ? `Inscrição estadual válida para a UF ${uf}.`
+        : result?.message || 'Inscrição estadual inválida para a UF selecionada.'
 
   return (
     <main className="module-page">
@@ -70,7 +78,7 @@ export default function IeValidatorPage() {
             <div>
               <span>ISENTO</span>
               <strong>Cadastro informado como isento</strong>
-              <p>O valor “ISENTO” é aceito como situação cadastral especial, sem cálculo de dígito verificador.</p>
+              <p>{motivo}</p>
             </div>
           </div>
         )}
@@ -80,16 +88,18 @@ export default function IeValidatorPage() {
             <div className="validator-result-icon">{result.ok ? '✓' : '!'}</div>
             <div>
               <span>{result.ok ? 'INSCRIÇÃO ESTADUAL VÁLIDA' : 'INSCRIÇÃO ESTADUAL INVÁLIDA'}</span>
-              <strong>{formatted || normalized}</strong>
-              <p>{result.ok ? `Validação concluída para a UF ${uf}.` : result.message}</p>
+              <strong className="mono">{formatted || normalized}</strong>
+              <p>{motivo}</p>
             </div>
           </div>
         )}
 
         <div className="validator-details">
-          <div><span>UF selecionada</span><strong>{uf}</strong></div>
-          <div><span>Valor informado</span><strong>{value || '—'}</strong></div>
-          <div><span>Valor formatado</span><strong>{formatted || (isento ? 'ISENTO' : '—')}</strong></div>
+          <div><span>UF</span><strong>{uf}</strong></div>
+          <div><span>Valor informado</span><strong className="mono">{value || '—'}</strong></div>
+          <div><span>Formatação</span><strong className="mono">{formatted || (isento ? 'ISENTO' : '—')}</strong></div>
+          <div><span>Situação</span><strong>{!normalized ? '—' : isento ? 'Isento' : result?.ok ? 'Válida' : 'Inválida'}</strong></div>
+          <div><span>Motivo</span><strong>{motivo}</strong></div>
         </div>
       </section>
     </main>
