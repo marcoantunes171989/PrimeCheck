@@ -9,8 +9,9 @@ alwaysApply: true
 - A branch de produção é sempre \`main\`.
 - Desenvolvimento deve ocorrer em branch de feature/fix.
 - Antes de qualquer liberação: executar build e typecheck e validar o Preview da Vercel.
-- Não interpretar "ok", "pode continuar" ou "pode prosseguir" como autorização para produção.
-- Só promover quando houver instrução inequívoca do usuário, como "liberado", "aprovado para produção", "pode publicar" ou "pode promover".
+- Toda tarefa concluída deve ser enviada ao GitHub e disponibilizada automaticamente em Vercel Preview, aguardando status Ready antes de ser declarada finalizada.
+- Não interpretar "ok", "pode continuar" ou "pode prosseguir" como liberação de produção.
+- Quando o usuário informar que a tarefa foi validada, liberada ou aprovada, concluir automaticamente o ciclo de release: merge em main, Vercel Production, Ready e smoke test, sem exigir uma segunda frase de promoção.
 
 ## Fluxo obrigatório
 

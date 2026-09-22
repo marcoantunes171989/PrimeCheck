@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { EntityProfile, FieldMapping } from '../types'
 import { getHeaderSuggestions, mappingCoverage } from '../lib/mapping'
 import { normalizeHeader } from '../lib/normalizers'
+import SearchableColumnSelect from './SearchableColumnSelect'
 
 type Props = {
   profile: EntityProfile
@@ -159,16 +160,13 @@ export default function MappingPanel({
                     {field.requiredForMatch && <span className="required">chave</span>}
                   </td>
                   <td>
-                    <select
+                    <SearchableColumnSelect
+                      options={originHeaders}
                       value={originHeader}
-                      onChange={event => update(field.id, 'originHeader', event.target.value)}
-                      title={originHeader || 'Selecionar coluna da origem'}
-                    >
-                      <option value="">Não mapeado</option>
-                      {originHeaders.map(header => (
-                        <option key={header} value={header}>{header}</option>
-                      ))}
-                    </select>
+                      onChange={value => update(field.id, 'originHeader', value)}
+                      placeholder="Selecionar coluna da origem"
+                      ariaLabel={'Coluna de origem para ' + field.label}
+                    />
                     {!originHeader && originSuggestions.length > 0 && (
                       <div className="mapping-suggestions">
                         <span>Sugestões:</span>
@@ -186,16 +184,13 @@ export default function MappingPanel({
                     )}
                   </td>
                   <td>
-                    <select
+                    <SearchableColumnSelect
+                      options={targetHeaders}
                       value={targetHeader}
-                      onChange={event => update(field.id, 'targetHeader', event.target.value)}
-                      title={targetHeader || 'Selecionar coluna do destino'}
-                    >
-                      <option value="">Não mapeado</option>
-                      {targetHeaders.map(header => (
-                        <option key={header} value={header}>{header}</option>
-                      ))}
-                    </select>
+                      onChange={value => update(field.id, 'targetHeader', value)}
+                      placeholder="Selecionar coluna do destino"
+                      ariaLabel={'Coluna de destino para ' + field.label}
+                    />
                     {!targetHeader && targetSuggestions.length > 0 && (
                       <div className="mapping-suggestions">
                         <span>Sugestões:</span>
