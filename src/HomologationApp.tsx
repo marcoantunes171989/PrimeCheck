@@ -4,6 +4,7 @@ import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
 import { DuplicateCodeList, DuplicateGroupDetails } from './components/DuplicateRecordList'
 import StatusBadge from './components/StatusBadge'
+import IssuePrintReport, { type IssuePrintItem } from './components/IssuePrintReport'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
@@ -11,10 +12,11 @@ import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustmen
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
 import { validateCpfCnpj } from './lib/normalizers'
-import type { ClientComparison, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
+import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
 type Tab = 'overview' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
+type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
 
 const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
@@ -108,6 +110,8 @@ function App({
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<string>>(new Set())
+  const [issuePrintItems, setIssuePrintItems] = useState<IssuePrintItem[]>([])
   const [focusedFieldId, setFocusedFieldId] = useState<string | undefined>()
   const [selectedOccurrenceKey, setSelectedOccurrenceKey] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -165,6 +169,16 @@ function App({
   }, [origin.headers.join('|'), target.headers.join('|'), profile.id, conservativeMapping])
 
   useEffect(() => setPage(1), [search, statusFilter, issueFieldFilter, activeTab, pageSize])
+
+  useEffect(() => {
+    const handleAfterPrint = () => setIssuePrintItems([])
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [])
+
+  useEffect(() => {
+    setSelectedIssueKeys(new Set())
+  }, [report?.generatedAt])
 
   const coverage = useMemo(() => mappingCoverage(mapping), [mapping])
   const keyFields = profile.fields.filter(field => field.requiredForMatch)
