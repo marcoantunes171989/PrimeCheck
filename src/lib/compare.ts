@@ -376,7 +376,7 @@ const duplicateScan = (
 const extraFieldPriority = (field: FieldDefinition) => {
   if (field.kind === 'document') return 0
   if (field.kind === 'ie') return 1
-  if (field.id === 'apelido' || field.id === 'nomeFantasia' || field.id === 'fantasia') return 2
+  if (field.id === 'apelido' || field.id === 'nomeFantasia' || field.id === 'fantasia' || field.id === 'descricaoReduzida') return 2
   if (field.id === 'rg') return 3
   if (field.kind === 'phone') return 4
   if (field.id === 'email' || field.id === 'pessoaTipo' || field.id === 'cidade' || field.id === 'uf') return 5
@@ -389,15 +389,15 @@ const collectRecordExtras = (
   mapIndex: Map<string, FieldMapping>,
   side: 'ORIGEM' | 'DESTINO',
 ) => {
-  const extras: Array<{ label: string; value: string }> = []
+  const extras: Array<{ id: string; label: string; value: string }> = []
   for (const item of candidates) {
-    if (extras.length >= 8) break
+    if (extras.length >= 10) break
     const map = mapIndex.get(item.id)
     const header = side === 'ORIGEM' ? map?.originHeader : map?.targetHeader
     if (!header) continue
     const value = asText(row[header]).trim()
     if (!value) continue
-    extras.push({ label: item.label, value })
+    extras.push({ id: item.id, label: item.label, value })
   }
   return extras
 }
