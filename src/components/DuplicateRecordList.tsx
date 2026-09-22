@@ -1,6 +1,12 @@
 import type { DuplicateRecord } from '../types'
+import {
+  buildGroupDisplayColumns,
+  isMonoDuplicateField,
+  recordValueMap,
+  type DuplicateDisplayContext,
+} from '../lib/duplicateDisplay'
 
-const RECORD_PREVIEW = 3
+const RECORD_PREVIEW = 2
 const CODE_PREVIEW = 4
 
 export function DuplicateCodeList({
@@ -39,65 +45,128 @@ export function DuplicateCodeList({
   )
 }
 
-export default function DuplicateRecordList({
+function DuplicateRecordTable({
+  listId,
+  records,
+  columns,
+  ctx,
+}: {
+  listId: string
+  records: DuplicateRecord[]
+  columns: Array<{ id: string; label: string }>
+  ctx: DuplicateDisplayContext
+}) {
+  return (
+    <div className="dup-record-table-wrap">
+      <table id={listId} className="dup-record-table">
+        <thead>
+          <tr>
+            {columns.map(column => (
+              <th key={column.id}>{column.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record, index) => {
+            const values = recordValueMap(record, ctx)
+            return (
+              <tr key={`${record.key}-${index}`}>
+                {columns.map(column => {
+                  const value = values.get(column.id)
+                  return (
+                    <td
+                      key={column.id}
+                      data-label={column.label}
+                      className={isMonoDuplicateField(column.id) ? 'mono' : undefined}
+                    >
+                      {value || '—'}
+                    </td>
+                  )
+                })}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+export function DuplicateGroupDetails({
   groupId,
+  fieldId,
   fieldLabel,
   normalizedValue,
+  nameLabel,
   records,
-  expanded,
-  onToggle,
+  codesExpanded,
+  onToggleCodes,
+  recordsExpanded,
+  onToggleRecords,
   monoValue,
 }: {
   groupId: string
+  fieldId: string
   fieldLabel: string
   normalizedValue: string
+  nameLabel: string
   records: DuplicateRecord[]
-  expanded: boolean
-  onToggle: () => void
+  codesExpanded: boolean
+  onToggleCodes: () => void
+  recordsExpanded: boolean
+  onToggleRecords: () => void
   monoValue: boolean
 }) {
-  if (records.length === 0) return <span className="muted-cell">—</span>
-
-  const showAll = expanded || records.length <= RECORD_PREVIEW
+  const ctx: DuplicateDisplayContext = { fieldId, fieldLabel, normalizedValue, nameLabel }
+  const columns = buildGroupDisplayColumns(records, ctx)
+  const showAll = recordsExpanded || records.length <= RECORD_PREVIEW
   const visible = showAll ? records : records.slice(0, RECORD_PREVIEW)
   const listId = `dup-records-${groupId.replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
   return (
-    <div className="dup-record-list">
-      <ul id={listId} className="dup-record-grid">
-        {visible.map((record, index) => {
-          const value = record.rawValue.trim() || normalizedValue
-          return (
-            <li key={`${record.key}-${index}`} className="dup-card">
-              <div className="dup-card-head">
-                <span className="dup-card-code">{record.key || '—'}</span>
-                <strong>{record.name || 'Sem descrição'}</strong>
-              </div>
-              <div className="dup-card-hit">
-                <span>{fieldLabel}</span>
-                <strong className={monoValue ? 'mono' : undefined}>{value || '—'}</strong>
-              </div>
-              {record.extras.map(extra => (
-                <div key={`${record.key}-${extra.label}`} className="dup-card-extra">
-                  <span>{extra.label}</span>
-                  <b>{extra.value}</b>
-                </div>
-              ))}
-            </li>
-          )
-        })}
-      </ul>
+    <div className="dup-group-panel">
+      <div className="dup-group-panel-head">
+        <div className="dup-group-panel-copy">
+          <span className="eyebrow">Detalhes do grupo</span>
+          <strong>Registros com {fieldLabel} duplicado</strong>
+        </div>
+        <div className="dup-group-highlights">
+          <div className="dup-value">
+            <span>Valor duplicado</span>
+            <strong className={monoValue ? 'mono' : undefined}>{normalizedValue || '—'}</strong>
+          </div>
+          <div className="dup-field">
+            <span>Campo duplicado</span>
+            <strong>{fieldLabel}</strong>
+          </div>
+        </div>
+        <div className="dup-group-codes">
+          <span>Códigos envolvidos</span>
+          <DuplicateCodeList
+            codes={records.map(record => record.key)}
+            expanded={codesExpanded}
+            onToggle={onToggleCodes}
+          />
+        </div>
+      </div>
+
+      <DuplicateRecordTable listId={listId} records={visible} columns={columns} ctx={ctx} />
+
       {records.length > RECORD_PREVIEW && (
-        <button
-          type="button"
-          className="dup-expand"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          aria-controls={listId}
-        >
-          {expanded ? 'Recolher' : `Ver todos os ${records.length} registros`}
-        </button>
+        <div className="dup-group-panel-actions">
+          <button
+            type="button"
+            className="dup-expand"
+            onClick={onToggleRecords}
+            aria-expanded={recordsExpanded}
+            aria-controls={listId}
+          >
+            {recordsExpanded ? 'Recolher' : `Ver todos os ${records.length} registros`}
+          </button>
+        </div>
       )}
     </div>
   )
 }
+
+export default DuplicateGroupDetails

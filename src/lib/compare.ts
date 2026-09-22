@@ -363,12 +363,19 @@ const duplicateScan = (
 }
 
 const extraFieldPriority = (field: FieldDefinition) => {
-  if (field.kind === 'document') return 0
-  if (field.kind === 'ie') return 1
-  if (field.kind === 'phone') return 2
-  if (field.id === 'email' || field.id === 'pessoaTipo' || field.id === 'cidade') return 3
-  return 6
+  if (field.id === 'apelido' || field.id === 'descricaoReduzida') return 0
+  if (field.kind === 'document' || field.id === 'cpfCnpj') return 1
+  if (field.kind === 'ie' || field.id === 'ie') return 2
+  if (field.id === 'rg') return 3
+  if (field.kind === 'phone' || field.id === 'telefone' || field.id === 'celular') return 4
+  if (field.id === 'cidade') return 5
+  if (field.id === 'pessoaTipo') return 6
+  if (field.id === 'email' || field.id === 'uf') return 7
+  if (field.id === 'codigoBarras' || field.id === 'unidade' || field.id === 'ncm') return 8
+  return 12
 }
+
+const MAX_RECORD_EXTRAS = 12
 
 const collectRecordExtras = (
   row: Record<string, CellValue>,
@@ -376,15 +383,15 @@ const collectRecordExtras = (
   mapIndex: Map<string, FieldMapping>,
   side: 'ORIGEM' | 'DESTINO',
 ) => {
-  const extras: Array<{ label: string; value: string }> = []
+  const extras: Array<{ id: string; label: string; value: string }> = []
   for (const item of candidates) {
-    if (extras.length >= 3) break
+    if (extras.length >= MAX_RECORD_EXTRAS) break
     const map = mapIndex.get(item.id)
     const header = side === 'ORIGEM' ? map?.originHeader : map?.targetHeader
     if (!header) continue
     const value = asText(row[header]).trim()
     if (!value) continue
-    extras.push({ label: item.label, value })
+    extras.push({ id: item.id, label: item.label, value })
   }
   return extras
 }

@@ -98,6 +98,7 @@ export interface ClientComparison {
 }
 
 export interface DuplicateRecordExtra {
+  id: string
   label: string
   value: string
 }

@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import FileDropZone from './components/FileDropZone'
 import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
-import DuplicateRecordList, { DuplicateCodeList } from './components/DuplicateRecordList'
+import { DuplicateCodeList, DuplicateGroupDetails } from './components/DuplicateRecordList'
 import StatusBadge from './components/StatusBadge'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
 import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustment } from './lib/compare'
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
+import { printDuplicateReport } from './lib/printDuplicates'
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
@@ -1007,6 +1008,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
   const [search, setSearch] = useState('')
   const [fieldFilter, setFieldFilter] = useState('TODOS')
   const [sort, setSort] = useState<SortState>({ key: 'count', direction: 'desc' })
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
 
@@ -1026,7 +1028,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
       record.key,
       record.name,
       record.rawValue,
-      ...record.extras.flatMap(extra => [extra.label, extra.value]),
+      ...record.extras.flatMap(extra => [extra.id, extra.label, extra.value]),
     ]).join(' ')
     const text = [
       dup.side,
@@ -1047,7 +1049,6 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     if (key === 'value') return dup.normalizedValue
     if (key === 'count') return dup.count
     if (key === 'codes') return dup.records.map(record => record.key).filter(Boolean).join(' ')
-    if (key === 'records') return dup.records.map(record => record.key + ' ' + record.name).join(' ')
     return ''
   }), [filtered, sort])
 
@@ -1060,12 +1061,38 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
     ? 'grupos duplicados em CPF/CNPJ ou IE.'
     : 'grupos duplicados nos campos de unicidade do perfil.'
   const monoKinds = new Set(['document', 'ie', 'code', 'phone'])
+  const nameLabel = profile.fields.find(field => field.id === profile.nameFieldId)?.label ?? profile.recordLabel
+  const selectedFieldLabel = fieldOptions.find(([fieldId]) => fieldId === fieldFilter)?.[1]
+  const filterLabel = [
+    fieldFilter === 'TODOS' ? 'Todos os campos' : selectedFieldLabel ?? fieldFilter,
+    search.trim() ? `Pesquisa: “${search.trim()}”` : null,
+  ].filter(Boolean).join(' · ')
+  const printMeta = {
+    entityLabel: profile.label,
+    generatedAt: report.generatedAt,
+    filterLabel,
+    nameLabel,
+  }
 
   const toggleSet = (current: Set<string>, id: string) => {
     const next = new Set(current)
     if (next.has(id)) next.delete(id)
     else next.add(id)
     return next
+  }
+
+  const toggleGroup = (rowId: string) => {
+    setOpenGroups(current => {
+      const next = toggleSet(current, rowId)
+      if (!next.has(rowId)) {
+        setExpandedRecords(records => {
+          const copy = new Set(records)
+          copy.delete(rowId)
+          return copy
+        })
+      }
+      return next
+    })
   }
 
   return (
@@ -1079,6 +1106,14 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
             {' '}{duplicateHint}
           </p>
         </div>
+        <button
+          type="button"
+          className="button secondary"
+          disabled={!sorted.length}
+          onClick={() => printDuplicateReport(sorted, printMeta)}
+        >
+          Imprimir duplicidades
+        </button>
       </div>
 
       <div className="table-toolbar searchable-toolbar duplicates-toolbar">
@@ -1119,7 +1154,7 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
                   <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                   <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                   <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Registros detalhados" sortKey="records" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -1127,50 +1162,81 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
                   const rowId = `${dup.side}::${dup.fieldId}::${dup.normalizedValue}`
                   const field = profile.fields.find(item => item.id === dup.fieldId)
                   const monoValue = field ? monoKinds.has(field.kind) : true
+                  const groupNumber = (safePage - 1) * pageSize + index + 1
+                  const open = openGroups.has(rowId)
                   return (
-                    <tr key={rowId + '-' + index}>
-                      <td>
-                        <span className={`dup-side dup-side-${dup.side.toLowerCase()}`}>{dup.side}</span>
-                      </td>
-                      <td>
-                        <div className="dup-field">
-                          <strong>{dup.fieldLabel}</strong>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="dup-category">{dup.category}</span>
-                      </td>
-                      <td>
-                        <div className="dup-value">
-                          <span>Valor duplicado</span>
-                          <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="dup-count">
-                          <strong>{number(dup.count)}</strong>
-                          <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
-                        </span>
-                      </td>
-                      <td>
-                        <DuplicateCodeList
-                          codes={dup.records.map(record => record.key)}
-                          expanded={expandedCodes.has(rowId)}
-                          onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
-                        />
-                      </td>
-                      <td>
-                        <DuplicateRecordList
-                          groupId={rowId}
-                          fieldLabel={dup.fieldLabel}
-                          normalizedValue={dup.normalizedValue}
-                          records={dup.records}
-                          expanded={expandedRecords.has(rowId)}
-                          onToggle={() => setExpandedRecords(current => toggleSet(current, rowId))}
-                          monoValue={monoValue}
-                        />
-                      </td>
-                    </tr>
+                    <Fragment key={rowId + '-' + index}>
+                      <tr className={'dup-group-row' + (open ? ' is-open' : '')}>
+                        <td>
+                          <span className={`dup-side dup-side-${dup.side.toLowerCase()}`}>{dup.side}</span>
+                        </td>
+                        <td>
+                          <div className="dup-field">
+                            <strong>{dup.fieldLabel}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="dup-category">{dup.category}</span>
+                        </td>
+                        <td>
+                          <div className="dup-value">
+                            <span>Valor duplicado</span>
+                            <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="dup-count">
+                            <strong>{number(dup.count)}</strong>
+                            <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
+                          </span>
+                        </td>
+                        <td>
+                          <DuplicateCodeList
+                            codes={dup.records.map(record => record.key)}
+                            expanded={expandedCodes.has(rowId)}
+                            onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
+                          />
+                        </td>
+                        <td>
+                          <div className="dup-actions">
+                            <button
+                              type="button"
+                              className="button ghost compact-button"
+                              onClick={() => toggleGroup(rowId)}
+                              aria-expanded={open}
+                            >
+                              {open ? 'Ocultar' : 'Ver registros'}
+                            </button>
+                            <button
+                              type="button"
+                              className="button ghost compact-button"
+                              onClick={() => printDuplicateReport([dup], printMeta, { numberStart: groupNumber })}
+                            >
+                              Imprimir grupo
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {open && (
+                        <tr className="dup-expand-row">
+                          <td colSpan={7}>
+                            <DuplicateGroupDetails
+                              groupId={rowId}
+                              fieldId={dup.fieldId}
+                              fieldLabel={dup.fieldLabel}
+                              normalizedValue={dup.normalizedValue}
+                              nameLabel={nameLabel}
+                              records={dup.records}
+                              codesExpanded={expandedCodes.has(`${rowId}::details`)}
+                              onToggleCodes={() => setExpandedCodes(current => toggleSet(current, `${rowId}::details`))}
+                              recordsExpanded={expandedRecords.has(rowId)}
+                              onToggleRecords={() => setExpandedRecords(current => toggleSet(current, rowId))}
+                              monoValue={monoValue}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>
