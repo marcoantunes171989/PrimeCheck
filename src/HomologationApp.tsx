@@ -2259,158 +2259,161 @@ function DuplicatesView({
           <span className="page-size-fixed">20 por página</span>
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="empty-state">{term || fieldFilter !== 'TODOS' || sideFilter !== 'TODOS' ? 'Nenhuma duplicidade encontrada para a pesquisa.' : 'Nenhuma duplicidade identificada nos campos mapeados.'}</div>
-        ) : (
-          <>
-            <div className="table-wrap">
-              <table className="dup-table">
-                <thead>
-                  <tr>
-                    <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
-                    <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <th>Análise</th>
-                    <th>Ações</th>
-                  </tr>
-                  <tr className="column-filter-row">
-                    <th />
-                    <th>
-                      <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
-                        <option value="TODOS">Todos</option>
-                        <option value="ORIGEM">Origem</option>
-                        <option value="DESTINO">Destino</option>
-                      </select>
-                    </th>
-                    <th>
-                      <select value={fieldFilter} onChange={event => setFieldFilter(event.target.value)}>
-                        <option value="TODOS">Todos os campos</option>
-                        {fieldOptions.map(([fieldId, fieldLabel]) => (
-                          <option key={fieldId} value={fieldId}>{fieldLabel}</option>
-                        ))}
-                      </select>
-                    </th>
-                    <th><input value={duplicateColumnFilters.category} onChange={event => setDuplicateColumnFilters(current => ({ ...current, category: event.target.value }))} placeholder="Tipo…" /></th>
-                    <th><input value={duplicateColumnFilters.value} onChange={event => setDuplicateColumnFilters(current => ({ ...current, value: event.target.value }))} placeholder="Valor…" /></th>
-                    <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
-                    <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
-                    <th />
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageItems.map((dup, index) => {
-                    const rowId = rowIdOf(dup)
-                    const field = profile.fields.find(item => item.id === dup.fieldId)
-                    const monoValue = field ? monoKinds.has(field.kind) : true
-                    const open = openGroups.has(rowId)
-                    const reviewed = reviewedGroups.has(rowId)
-                    return (
-                      <Fragment key={rowId + '-' + index}>
-                        <tr className={[
-                          'dup-group-row',
-                          open ? 'is-open' : '',
-                          reviewed ? 'row-reviewed' : '',
-                        ].filter(Boolean).join(' ')}>
-                          <td className="selection-column">
-                            <input
-                              type="checkbox"
-                              checked={selectedGroups.has(rowId)}
-                              onChange={() => setSelectedGroups(current => toggleSet(current, rowId))}
-                            />
-                          </td>
-                          <td>
-                            <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
-                          </td>
-                          <td>
-                            <div className="dup-field">
-                              <strong>{dup.fieldLabel}</strong>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="dup-category">{dup.category}</span>
-                          </td>
-                          <td>
-                            <div className="dup-value">
-                              <span>Valor duplicado</span>
-                              <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="dup-count">
-                              <strong>{number(dup.count)}</strong>
-                              <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
-                            </span>
-                          </td>
-                          <td>
-                            <DuplicateCodeList
-                              codes={dup.records.map(record => record.key)}
-                              expanded={expandedCodes.has(rowId)}
-                              onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
-                            />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className={'review-chip ' + (reviewed ? 'done' : '')}
-                              onClick={() => setReviewedGroups(current => toggleSet(current, rowId))}
-                            >
-                              {reviewed ? '✓ Analisado' : 'Marcar analisado'}
-                            </button>
-                          </td>
-                          <td>
-                            <div className="dup-actions">
-                              <button
-                                type="button"
-                                className="button ghost compact-button"
-                                onClick={() => toggleGroup(rowId)}
-                                aria-expanded={open}
-                              >
-                                {open ? 'Ocultar' : 'Ver registros'}
-                              </button>
-                              <button
-                                type="button"
-                                className="dup-print-group"
-                                onClick={() => requestPrint(rowId)}
-                                aria-label={'Imprimir grupo duplicado de ' + dup.fieldLabel}
-                              >
-                                Imprimir grupo
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {open && (
-                          <tr className="dup-expand-row">
-                            <td colSpan={9}>
-                              <DuplicateGroupDetails
-                                groupId={rowId}
-                                fieldId={dup.fieldId}
-                                fieldLabel={dup.fieldLabel}
-                                normalizedValue={dup.normalizedValue}
-                                nameLabel={nameLabel}
-                                records={dup.records}
-                                codesExpanded={expandedCodes.has(rowId + '::details')}
-                                onToggleCodes={() => setExpandedCodes(current => toggleSet(current, rowId + '::details'))}
-                                recordsExpanded={expandedRecords.has(rowId)}
-                                onToggleRecords={() => setExpandedRecords(current => toggleSet(current, rowId))}
-                                monoValue={monoValue}
-                              />
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <Pagination page={safePage} pages={pages} onChange={setPage} />
-          </>
-        )}
+        <div className="table-wrap">
+          <table className="dup-table">
+            <thead>
+              <tr>
+                <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
+                <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <th>Análise</th>
+                <th>Ações</th>
+              </tr>
+              <tr className="column-filter-row">
+                <th />
+                <th>
+                  <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
+                    <option value="TODOS">Todos</option>
+                    <option value="ORIGEM">Origem</option>
+                    <option value="DESTINO">Destino</option>
+                  </select>
+                </th>
+                <th>
+                  <select value={fieldFilter} onChange={event => setFieldFilter(event.target.value)}>
+                    <option value="TODOS">Todos os campos</option>
+                    {fieldOptions.map(([fieldId, fieldLabel]) => (
+                      <option key={fieldId} value={fieldId}>{fieldLabel}</option>
+                    ))}
+                  </select>
+                </th>
+                <th><input value={duplicateColumnFilters.category} onChange={event => setDuplicateColumnFilters(current => ({ ...current, category: event.target.value }))} placeholder="Tipo…" /></th>
+                <th><input value={duplicateColumnFilters.value} onChange={event => setDuplicateColumnFilters(current => ({ ...current, value: event.target.value }))} placeholder="Valor…" /></th>
+                <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
+                <th />
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={9}>
+                    <div className="inline-empty-state">
+                      <strong>Nenhuma duplicidade encontrada.</strong>
+                      <span>Os filtros e a estrutura da análise permanecem na tela. Altere a pesquisa para visualizar grupos novamente.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : pageItems.map((dup, index) => {
+                const rowId = rowIdOf(dup)
+                const field = profile.fields.find(item => item.id === dup.fieldId)
+                const monoValue = field ? monoKinds.has(field.kind) : true
+                const open = openGroups.has(rowId)
+                const reviewed = reviewedGroups.has(rowId)
+                return (
+                  <Fragment key={rowId + '-' + index}>
+                    <tr className={[
+                      'dup-group-row',
+                      open ? 'is-open' : '',
+                      reviewed ? 'row-reviewed' : '',
+                    ].filter(Boolean).join(' ')}>
+                      <td className="selection-column">
+                        <input
+                          type="checkbox"
+                          checked={selectedGroups.has(rowId)}
+                          onChange={() => setSelectedGroups(current => toggleSet(current, rowId))}
+                        />
+                      </td>
+                      <td>
+                        <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
+                      </td>
+                      <td>
+                        <div className="dup-field">
+                          <strong>{dup.fieldLabel}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="dup-category">{dup.category}</span>
+                      </td>
+                      <td>
+                        <div className="dup-value">
+                          <span>Valor duplicado</span>
+                          <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="dup-count">
+                          <strong>{number(dup.count)}</strong>
+                          <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
+                        </span>
+                      </td>
+                      <td>
+                        <DuplicateCodeList
+                          codes={dup.records.map(record => record.key)}
+                          expanded={expandedCodes.has(rowId)}
+                          onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={'review-chip ' + (reviewed ? 'done' : '')}
+                          onClick={() => setReviewedGroups(current => toggleSet(current, rowId))}
+                        >
+                          {reviewed ? '✓ Analisado' : 'Marcar analisado'}
+                        </button>
+                      </td>
+                      <td>
+                        <div className="dup-actions">
+                          <button
+                            type="button"
+                            className="button ghost compact-button"
+                            onClick={() => toggleGroup(rowId)}
+                            aria-expanded={open}
+                          >
+                            {open ? 'Ocultar' : 'Ver registros'}
+                          </button>
+                          <button
+                            type="button"
+                            className="dup-print-group"
+                            onClick={() => requestPrint(rowId)}
+                            aria-label={'Imprimir grupo duplicado de ' + dup.fieldLabel}
+                          >
+                            Imprimir grupo
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {open && (
+                      <tr className="dup-expand-row">
+                        <td colSpan={9}>
+                          <DuplicateGroupDetails
+                            groupId={rowId}
+                            fieldId={dup.fieldId}
+                            fieldLabel={dup.fieldLabel}
+                            normalizedValue={dup.normalizedValue}
+                            nameLabel={nameLabel}
+                            records={dup.records}
+                            codesExpanded={expandedCodes.has(rowId + '::details')}
+                            onToggleCodes={() => setExpandedCodes(current => toggleSet(current, rowId + '::details'))}
+                            recordsExpanded={expandedRecords.has(rowId)}
+                            onToggleRecords={() => setExpandedRecords(current => toggleSet(current, rowId))}
+                            monoValue={monoValue}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {sorted.length > 0 && <Pagination page={safePage} pages={pages} onChange={setPage} />}
       </div>
 
       <DuplicatePrintReport
