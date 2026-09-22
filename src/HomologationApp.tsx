@@ -1481,8 +1481,13 @@ function FieldSummaryView({
   report: ComparisonReport
   onAnalyzeField: (fieldId: string, status: 'TODOS' | 'DIVERGENTE' | 'ATENÇÃO') => void
 }) {
+  const PAGE_SIZE = 20
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set())
+  const [printSelected, setPrintSelected] = useState(false)
   const [filters, setFilters] = useState({
     group: '',
     field: '',
@@ -1522,6 +1527,15 @@ function FieldSummaryView({
     })
   }, [report.fieldSummary, search, sort, filters])
 
+  useEffect(() => setPage(1), [search, filters, sort.key, sort.direction])
+
+  const pages = Math.max(1, Math.ceil(fields.length / PAGE_SIZE))
+  const safePage = Math.min(page, pages)
+  const pageFields = fields.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageIds = pageFields.map(field => field.fieldId)
+  const selectedFields = fields.filter(field => selected.has(field.fieldId))
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selected.has(id))
+
   const clearFilters = () => {
     setSearch('')
     setFilters({
@@ -1535,17 +1549,40 @@ function FieldSummaryView({
     })
   }
 
+  const togglePage = () => {
+    setSelected(current => {
+      const next = new Set(current)
+      if (allPageSelected) pageIds.forEach(id => next.delete(id))
+      else pageIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const requestPrint = (onlySelected: boolean) => {
+    setPrintSelected(onlySelected)
+    window.setTimeout(() => window.print(), 80)
+  }
+
+  const rowsForPrint = printSelected ? selectedFields : fields
+
   return (
     <>
       <div className="panel">
         <div className="section-head compact">
           <div>
             <h3>Comparação por campo</h3>
-            <p>Pesquise, combine filtros, ordene e clique nas ocorrências para analisar divergências e atenções.</p>
+            <p>Pesquise, combine filtros e acompanhe a análise em páginas de {PAGE_SIZE} campos.</p>
           </div>
           <div className="section-head-actions">
+            <span className="selection-summary">{selectedFields.length.toLocaleString('pt-BR')} selecionados</span>
             <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
-            <button type="button" className="button secondary compact-button" disabled={!fields.length} onClick={() => window.print()}>
+            <button type="button" className="button ghost compact-button" disabled={!pageFields.length} onClick={togglePage}>
+              {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
+            </button>
+            <button type="button" className="button secondary compact-button" disabled={!selectedFields.length} onClick={() => requestPrint(true)}>
+              Imprimir selecionados
+            </button>
+            <button type="button" className="button primary compact-button" disabled={!fields.length} onClick={() => requestPrint(false)}>
               Imprimir filtro
             </button>
           </div>
@@ -1565,6 +1602,7 @@ function FieldSummaryView({
           <table className="field-summary-table">
             <thead>
               <tr>
+                <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePage} aria-label="Selecionar página" /></th>
                 <SortableHeader label="Grupo" sortKey="group" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="Conformes" sortKey="conform" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
@@ -1572,8 +1610,10 @@ function FieldSummaryView({
                 <SortableHeader label="Atenções" sortKey="attention" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="Não validáveis" sortKey="notValidatable" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 <SortableHeader label="% conformidade" sortKey="conformity" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <th>Análise</th>
               </tr>
               <tr className="column-filter-row">
+                <th />
                 <th><input value={filters.group} onChange={e => setFilters(current => ({ ...current, group: e.target.value }))} placeholder="Grupo…" /></th>
                 <th><input value={filters.field} onChange={e => setFilters(current => ({ ...current, field: e.target.value }))} placeholder="Campo…" /></th>
                 <th><input value={filters.conform} onChange={e => setFilters(current => ({ ...current, conform: e.target.value }))} placeholder="Qtd." /></th>
@@ -1581,23 +1621,33 @@ function FieldSummaryView({
                 <th><input value={filters.attention} onChange={e => setFilters(current => ({ ...current, attention: e.target.value }))} placeholder="Qtd." /></th>
                 <th><input value={filters.notValidatable} onChange={e => setFilters(current => ({ ...current, notValidatable: e.target.value }))} placeholder="Qtd." /></th>
                 <th><input value={filters.conformity} onChange={e => setFilters(current => ({ ...current, conformity: e.target.value }))} placeholder="%…" /></th>
+                <th />
               </tr>
             </thead>
             <tbody>
-              {fields.map(field => {
+              {pageFields.map(field => {
                 const reviewCount = field.divergent + field.attention
                 const conformity = field.conformityPercent ?? 0
+                const isReviewed = reviewed.has(field.fieldId)
                 return (
-                  <tr key={field.fieldId}>
+                  <tr key={field.fieldId} className={isReviewed ? 'row-reviewed' : ''}>
+                    <td className="selection-column">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(field.fieldId)}
+                        onChange={() => setSelected(current => toggleStringSet(current, field.fieldId))}
+                      />
+                    </td>
                     <td className="muted-cell">{field.group}</td>
                     <td>
                       {reviewCount > 0 ? (
                         <button
                           type="button"
                           className="field-analysis-link"
-                          onClick={() => onAnalyzeField(field.fieldId, 'TODOS')}
-                          title={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
-                          aria-label={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
+                          onClick={() => {
+                            setReviewed(current => new Set(current).add(field.fieldId))
+                            onAnalyzeField(field.fieldId, 'TODOS')
+                          }}
                         >
                           {field.fieldLabel}
                         </button>
@@ -1611,7 +1661,10 @@ function FieldSummaryView({
                         <button
                           type="button"
                           className="issue-count-link issue-count-link-divergent"
-                          onClick={() => onAnalyzeField(field.fieldId, 'DIVERGENTE')}
+                          onClick={() => {
+                            setReviewed(current => new Set(current).add(field.fieldId))
+                            onAnalyzeField(field.fieldId, 'DIVERGENTE')
+                          }}
                         >
                           {number(field.divergent)}
                         </button>
@@ -1622,7 +1675,10 @@ function FieldSummaryView({
                         <button
                           type="button"
                           className="issue-count-link issue-count-link-attention"
-                          onClick={() => onAnalyzeField(field.fieldId, 'ATENÇÃO')}
+                          onClick={() => {
+                            setReviewed(current => new Set(current).add(field.fieldId))
+                            onAnalyzeField(field.fieldId, 'ATENÇÃO')
+                          }}
                         >
                           {number(field.attention)}
                         </button>
@@ -1641,18 +1697,40 @@ function FieldSummaryView({
                         </div>
                       )}
                     </td>
+                    <td>
+                      <button
+                        type="button"
+                        className={'review-chip ' + (isReviewed ? 'done' : '')}
+                        onClick={() => setReviewed(current => toggleStringSet(current, field.fieldId))}
+                      >
+                        {isReviewed ? '✓ Analisado' : 'Marcar analisado'}
+                      </button>
+                    </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-          {!fields.length && <div className="empty-state">Nenhum campo encontrado para a combinação de filtros.</div>}
+          {!pageFields.length && <div className="empty-state">Nenhum campo encontrado para a combinação de filtros.</div>}
+        </div>
+
+        <div className="workspace-pagination dashboard-pagination">
+          <span>
+            {fields.length
+              ? `${((safePage - 1) * PAGE_SIZE + 1).toLocaleString('pt-BR')}–${Math.min(safePage * PAGE_SIZE, fields.length).toLocaleString('pt-BR')} de ${fields.length.toLocaleString('pt-BR')}`
+              : '0 registros'}
+          </span>
+          <div>
+            <button type="button" disabled={safePage <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>←</button>
+            <b>{safePage}/{pages}</b>
+            <button type="button" disabled={safePage >= pages} onClick={() => setPage(value => Math.min(pages, value + 1))}>→</button>
+          </div>
         </div>
       </div>
 
       <DataPrintReport
         title="Comparação por campo"
-        subtitle="Resumo dos campos conforme filtros aplicados"
+        subtitle="Resumo dos campos conforme filtros e seleção aplicados"
         filterDescription={[
           search.trim() ? 'Pesquisa: ' + search.trim() : '',
           filters.group ? 'Grupo: ' + filters.group : '',
@@ -1660,6 +1738,7 @@ function FieldSummaryView({
           filters.divergent ? 'Divergências: ' + filters.divergent : '',
           filters.attention ? 'Atenções: ' + filters.attention : '',
           filters.conformity ? 'Conformidade: ' + filters.conformity : '',
+          printSelected ? 'Somente campos selecionados' : 'Resultado filtrado',
         ].filter(Boolean).join(' · ')}
         columns={[
           { key: 'grupo', label: 'Grupo' },
@@ -1669,8 +1748,9 @@ function FieldSummaryView({
           { key: 'atencoes', label: 'Atenções' },
           { key: 'naoValidaveis', label: 'Não validáveis' },
           { key: 'conformidade', label: '% conformidade' },
+          { key: 'analisado', label: 'Analisado' },
         ]}
-        rows={fields.map(field => ({
+        rows={rowsForPrint.map(field => ({
           grupo: field.group,
           campo: field.fieldLabel,
           conformes: field.conform,
@@ -1678,6 +1758,7 @@ function FieldSummaryView({
           atencoes: field.attention,
           naoValidaveis: field.notValidatable,
           conformidade: field.conformityPercent === null ? '—' : field.conformityPercent.toFixed(2).replace('.', ',') + '%',
+          analisado: reviewed.has(field.fieldId) ? 'Sim' : 'Não',
         }))}
       />
     </>
