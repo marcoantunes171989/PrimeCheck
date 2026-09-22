@@ -264,8 +264,20 @@ function App({
   const filteredClients = useMemo(() => {
     if (!report) return []
     const term = search.trim().toLocaleUpperCase('pt-BR')
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
     return report.clients.filter(client => {
       if (statusFilter !== 'TODOS' && client.status !== statusFilter) return false
+      if (clientColumnFilters.status !== 'TODOS' && client.status !== clientColumnFilters.status) return false
+      if (clientColumnFilters.found === 'SIM' && !client.found) return false
+      if (clientColumnFilters.found === 'NAO' && client.found) return false
+      if (!contains(client.key, clientColumnFilters.code)) return false
+      if (!contains(client.name, clientColumnFilters.name)) return false
+
+      const document = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
+      if (!contains(document, clientColumnFilters.document)) return false
+
       if (!term) return true
       const fieldHit = client.fields.some(field =>
         `${field.fieldLabel} ${field.group} ${field.originValue} ${field.targetValue} ${field.reason}`
@@ -281,12 +293,15 @@ function App({
         || fieldHit
         || rawHit
     })
-  }, [report, search, statusFilter])
+  }, [report, search, statusFilter, clientColumnFilters])
 
   const issues = useMemo(() => {
     if (!report) return []
     const term = search.trim().toLocaleUpperCase('pt-BR')
     const restrictField = issueFieldFilter !== 'TODOS'
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
     return report.clients.flatMap(client => {
       if (restrictField && !client.found) return []
       return client.fields
@@ -295,11 +310,17 @@ function App({
     }).filter(item => {
       if (restrictField && item.field.fieldId !== issueFieldFilter) return false
       if (statusFilter !== 'TODOS' && item.field.status !== statusFilter) return false
+      if (!contains(item.client.key, issueColumnFilters.code)) return false
+      if (!contains(item.client.name, issueColumnFilters.name)) return false
+      if (!contains(item.field.originValue, issueColumnFilters.origin)) return false
+      if (!contains(item.field.targetValue, issueColumnFilters.target)) return false
+      if (!contains(item.field.reason, issueColumnFilters.reason)) return false
+
       if (!term) return true
       const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.group} ${item.field.originValue} ${item.field.targetValue} ${item.field.status} ${item.field.reason}`.toLocaleUpperCase('pt-BR')
       return text.includes(term)
     })
-  }, [report, search, statusFilter, issueFieldFilter])
+  }, [report, search, statusFilter, issueFieldFilter, issueColumnFilters])
 
   const issueFieldOptions = useMemo(() => {
     if (!report) return []
