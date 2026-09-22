@@ -7,6 +7,7 @@ import StatusBadge from './components/StatusBadge'
 import IssuePrintReport, { type IssuePrintItem } from './components/IssuePrintReport'
 import DataPrintReport from './components/DataPrintReport'
 import TechnicalDiagnosisView from './components/TechnicalDiagnosisView'
+import ManagementDashboardView from './components/ManagementDashboardView'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
@@ -16,7 +17,7 @@ import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
-type Tab = 'overview' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
+type Tab = 'overview' | 'dashboard' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
 type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
 
@@ -88,6 +89,7 @@ type HomologationAppProps = {
   embedded?: boolean
   originLabel?: string
   targetLabel?: string
+  dashboardMode?: boolean
 }
 
 function App({
@@ -97,6 +99,7 @@ function App({
   embedded = false,
   originLabel = 'Origem',
   targetLabel = 'Destino',
+  dashboardMode = false,
 }: HomologationAppProps = {}) {
   const [originFiles, setOriginFiles] = useState<ImportedFile[]>(presetOriginFiles ?? [])
   const [targetFiles, setTargetFiles] = useState<ImportedFile[]>(presetTargetFiles ?? [])
@@ -160,6 +163,14 @@ function App({
     if (profileOverride) setEntityMode(profileOverride.id)
   }, [profileOverride?.id])
 
+  useEffect(() => {
+    if (dashboardMode) {
+      setActiveTab('dashboard')
+    } else {
+      setActiveTab(current => current === 'dashboard' ? 'overview' : current)
+    }
+  }, [dashboardMode])
+
   const detectionHeaders = useMemo(
     () => [...new Set([...origin.headers, ...target.headers])],
     [origin.headers, target.headers],
@@ -210,6 +221,7 @@ function App({
   const keyLabel = keyFields.map(field => field.label).join(' + ') || 'chave do registro'
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'overview', label: 'Visão geral' },
+    { id: 'dashboard', label: 'Dashboard' },
     { id: 'diagnosis', label: 'Diagnóstico rápido' },
     { id: 'clients', label: plural(profile) },
     { id: 'issues', label: 'Divergências' },
@@ -707,7 +719,7 @@ function App({
               {tabs.map(tab => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
             </nav>
 
-            {activeTab !== 'overview' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
+            {activeTab !== 'overview' && activeTab !== 'dashboard' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
               <div className={`filters${activeTab === 'issues' ? ' filters-issues' : ''}`}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Pesquisar código, ${resultProfile.recordLabel.toLowerCase()} ou qualquer valor…`} />
                 {activeTab === 'issues' && (
@@ -736,6 +748,13 @@ function App({
             )}
 
             {activeTab === 'overview' && <Overview report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
+            {activeTab === 'dashboard' && (
+              <ManagementDashboardView
+                report={report}
+                profile={resultProfile}
+                onAnalyzeField={fieldId => openFieldAnalysis(fieldId, 'TODOS')}
+              />
+            )}
             {activeTab === 'diagnosis' && (
               <TechnicalDiagnosisView
                 report={report}
