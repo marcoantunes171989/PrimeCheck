@@ -1431,7 +1431,11 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
 
   const printItems = printGroupId
     ? sorted.filter(item => rowIdOf(item) === printGroupId)
-    : sorted
+    : [...sorted].sort((left, right) =>
+        left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
+        || left.side.localeCompare(right.side, 'pt-BR')
+        || left.normalizedValue.localeCompare(right.normalizedValue, 'pt-BR', { numeric: true, sensitivity: 'base' }),
+      )
 
   const filterDescription = [
     sideFilter === 'TODOS' ? 'Origem e destino' : sideFilter === 'ORIGEM' ? 'Somente origem' : 'Somente destino',
