@@ -1339,12 +1339,32 @@ function FieldSummaryView({
 }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [filters, setFilters] = useState({
+    group: '',
+    field: '',
+    conform: '',
+    divergent: '',
+    attention: '',
+    notValidatable: '',
+    conformity: '',
+  })
   const term = search.trim().toLocaleUpperCase('pt-BR')
+  const contains = (value: unknown, filter: string) =>
+    !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
 
   const fields = useMemo(() => {
     const filtered = report.fieldSummary.filter(field => {
+      if (!contains(field.group, filters.group)) return false
+      if (!contains(field.fieldLabel, filters.field)) return false
+      if (!contains(field.conform, filters.conform)) return false
+      if (!contains(field.divergent, filters.divergent)) return false
+      if (!contains(field.attention, filters.attention)) return false
+      if (!contains(field.notValidatable, filters.notValidatable)) return false
+      if (!contains(field.conformityPercent === null ? '' : field.conformityPercent.toFixed(2), filters.conformity)) return false
       if (!term) return true
-      return (field.fieldLabel + ' ' + field.group).toLocaleUpperCase('pt-BR').includes(term)
+      return (field.fieldLabel + ' ' + field.group + ' ' + field.conform + ' ' + field.divergent + ' ' + field.attention + ' ' + field.notValidatable + ' ' + (field.conformityPercent ?? ''))
+        .toLocaleUpperCase('pt-BR')
+        .includes(term)
     })
     return sortedBy(filtered, sort, (field, key) => {
       if (key === 'group') return field.group
@@ -1356,110 +1376,167 @@ function FieldSummaryView({
       if (key === 'conformity') return field.conformityPercent ?? -1
       return ''
     })
-  }, [report.fieldSummary, search, sort])
+  }, [report.fieldSummary, search, sort, filters])
+
+  const clearFilters = () => {
+    setSearch('')
+    setFilters({
+      group: '',
+      field: '',
+      conform: '',
+      divergent: '',
+      attention: '',
+      notValidatable: '',
+      conformity: '',
+    })
+  }
 
   return (
-    <div className="panel">
-      <div className="section-head compact">
-        <div>
-          <h3>Comparação por campo</h3>
-          <p>Pesquise, ordene e clique nas ocorrências para analisar divergências e atenções.</p>
+    <>
+      <div className="panel">
+        <div className="section-head compact">
+          <div>
+            <h3>Comparação por campo</h3>
+            <p>Pesquise, combine filtros, ordene e clique nas ocorrências para analisar divergências e atenções.</p>
+          </div>
+          <div className="section-head-actions">
+            <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
+            <button type="button" className="button secondary compact-button" disabled={!fields.length} onClick={() => window.print()}>
+              Imprimir filtro
+            </button>
+          </div>
+        </div>
+
+        <div className="screen-search inline-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Pesquisar em todos os campos e indicadores…"
+            aria-label="Pesquisar comparação por campo"
+          />
+        </div>
+
+        <div className="table-wrap">
+          <table className="field-summary-table">
+            <thead>
+              <tr>
+                <SortableHeader label="Grupo" sortKey="group" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Conformes" sortKey="conform" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Divergentes" sortKey="divergent" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Atenções" sortKey="attention" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Não validáveis" sortKey="notValidatable" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="% conformidade" sortKey="conformity" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              </tr>
+              <tr className="column-filter-row">
+                <th><input value={filters.group} onChange={e => setFilters(current => ({ ...current, group: e.target.value }))} placeholder="Grupo…" /></th>
+                <th><input value={filters.field} onChange={e => setFilters(current => ({ ...current, field: e.target.value }))} placeholder="Campo…" /></th>
+                <th><input value={filters.conform} onChange={e => setFilters(current => ({ ...current, conform: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.divergent} onChange={e => setFilters(current => ({ ...current, divergent: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.attention} onChange={e => setFilters(current => ({ ...current, attention: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.notValidatable} onChange={e => setFilters(current => ({ ...current, notValidatable: e.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={filters.conformity} onChange={e => setFilters(current => ({ ...current, conformity: e.target.value }))} placeholder="%…" /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {fields.map(field => {
+                const reviewCount = field.divergent + field.attention
+                const conformity = field.conformityPercent ?? 0
+                return (
+                  <tr key={field.fieldId}>
+                    <td className="muted-cell">{field.group}</td>
+                    <td>
+                      {reviewCount > 0 ? (
+                        <button
+                          type="button"
+                          className="field-analysis-link"
+                          onClick={() => onAnalyzeField(field.fieldId, 'TODOS')}
+                          title={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
+                          aria-label={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
+                        >
+                          {field.fieldLabel}
+                        </button>
+                      ) : (
+                        <span>{field.fieldLabel}</span>
+                      )}
+                    </td>
+                    <td>{number(field.conform)}</td>
+                    <td className="text-error">
+                      {field.divergent > 0 ? (
+                        <button
+                          type="button"
+                          className="issue-count-link issue-count-link-divergent"
+                          onClick={() => onAnalyzeField(field.fieldId, 'DIVERGENTE')}
+                        >
+                          {number(field.divergent)}
+                        </button>
+                      ) : number(field.divergent)}
+                    </td>
+                    <td className="text-warning">
+                      {field.attention > 0 ? (
+                        <button
+                          type="button"
+                          className="issue-count-link issue-count-link-attention"
+                          onClick={() => onAnalyzeField(field.fieldId, 'ATENÇÃO')}
+                        >
+                          {number(field.attention)}
+                        </button>
+                      ) : number(field.attention)}
+                    </td>
+                    <td>{number(field.notValidatable)}</td>
+                    <td>
+                      {field.conformityPercent === null ? (
+                        '—'
+                      ) : (
+                        <div className="field-progress">
+                          <div className="field-progress-track">
+                            <i style={{ width: String(conformity) + '%' }} />
+                          </div>
+                          <span>{conformity.toFixed(2).replace('.', ',')}%</span>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {!fields.length && <div className="empty-state">Nenhum campo encontrado para a combinação de filtros.</div>}
         </div>
       </div>
 
-      <div className="screen-search inline-search">
-        <span aria-hidden="true">⌕</span>
-        <input
-          value={search}
-          onChange={event => setSearch(event.target.value)}
-          placeholder="Pesquisar grupo ou campo…"
-          aria-label="Pesquisar comparação por campo"
-        />
-      </div>
-
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <SortableHeader label="Grupo" sortKey="group" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Conformes" sortKey="conform" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Divergentes" sortKey="divergent" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Atenções" sortKey="attention" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="Não validáveis" sortKey="notValidatable" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-              <SortableHeader label="% conformidade" sortKey="conformity" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-            </tr>
-          </thead>
-          <tbody>
-            {fields.map(field => {
-              const reviewCount = field.divergent + field.attention
-              const conformity = field.conformityPercent ?? 0
-              return (
-                <tr key={field.fieldId}>
-                  <td className="muted-cell">{field.group}</td>
-                  <td>
-                    {reviewCount > 0 ? (
-                      <button
-                        type="button"
-                        className="field-analysis-link"
-                        onClick={() => onAnalyzeField(field.fieldId, 'TODOS')}
-                        title={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
-                        aria-label={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
-                      >
-                        {field.fieldLabel}
-                      </button>
-                    ) : (
-                      <span>{field.fieldLabel}</span>
-                    )}
-                  </td>
-                  <td>{number(field.conform)}</td>
-                  <td className="text-error">
-                    {field.divergent > 0 ? (
-                      <button
-                        type="button"
-                        className="issue-count-link issue-count-link-divergent"
-                        onClick={() => onAnalyzeField(field.fieldId, 'DIVERGENTE')}
-                        title={'Ver ' + number(field.divergent) + ' divergências de ' + field.fieldLabel}
-                        aria-label={'Ver ' + number(field.divergent) + ' divergências de ' + field.fieldLabel}
-                      >
-                        {number(field.divergent)}
-                      </button>
-                    ) : number(field.divergent)}
-                  </td>
-                  <td className="text-warning">
-                    {field.attention > 0 ? (
-                      <button
-                        type="button"
-                        className="issue-count-link issue-count-link-attention"
-                        onClick={() => onAnalyzeField(field.fieldId, 'ATENÇÃO')}
-                        title={'Ver ' + number(field.attention) + ' atenções de ' + field.fieldLabel}
-                        aria-label={'Ver ' + number(field.attention) + ' atenções de ' + field.fieldLabel}
-                      >
-                        {number(field.attention)}
-                      </button>
-                    ) : number(field.attention)}
-                  </td>
-                  <td>{number(field.notValidatable)}</td>
-                  <td>
-                    {field.conformityPercent === null ? (
-                      '—'
-                    ) : (
-                      <div className="field-progress">
-                        <div className="field-progress-track">
-                          <i style={{ width: String(conformity) + '%' }} />
-                        </div>
-                        <span>{conformity.toFixed(2).replace('.', ',')}%</span>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {!fields.length && <div className="empty-state">Nenhum campo encontrado para a pesquisa.</div>}
-      </div>
-    </div>
+      <DataPrintReport
+        title="Comparação por campo"
+        subtitle="Resumo dos campos conforme filtros aplicados"
+        filterDescription={[
+          search.trim() ? 'Pesquisa: ' + search.trim() : '',
+          filters.group ? 'Grupo: ' + filters.group : '',
+          filters.field ? 'Campo: ' + filters.field : '',
+          filters.divergent ? 'Divergências: ' + filters.divergent : '',
+          filters.attention ? 'Atenções: ' + filters.attention : '',
+          filters.conformity ? 'Conformidade: ' + filters.conformity : '',
+        ].filter(Boolean).join(' · ')}
+        columns={[
+          { key: 'grupo', label: 'Grupo' },
+          { key: 'campo', label: 'Campo' },
+          { key: 'conformes', label: 'Conformes' },
+          { key: 'divergentes', label: 'Divergentes' },
+          { key: 'atencoes', label: 'Atenções' },
+          { key: 'naoValidaveis', label: 'Não validáveis' },
+          { key: 'conformidade', label: '% conformidade' },
+        ]}
+        rows={fields.map(field => ({
+          grupo: field.group,
+          campo: field.fieldLabel,
+          conformes: field.conform,
+          divergentes: field.divergent,
+          atencoes: field.attention,
+          naoValidaveis: field.notValidatable,
+          conformidade: field.conformityPercent === null ? '—' : field.conformityPercent.toFixed(2).replace('.', ',') + '%',
+        }))}
+      />
+    </>
   )
 }
 
