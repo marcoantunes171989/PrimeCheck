@@ -18,6 +18,63 @@ const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
 const plural = (profile: EntityProfile) => profile.label
 
+type SortDirection = 'asc' | 'desc'
+type SortState = { key: string; direction: SortDirection }
+
+const sortValue = (value: unknown) => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'boolean') return value ? 1 : 0
+  return String(value ?? '').toLocaleUpperCase('pt-BR')
+}
+
+const compareSortValues = (left: unknown, right: unknown) => {
+  const a = sortValue(left)
+  const b = sortValue(right)
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b), 'pt-BR', { numeric: true, sensitivity: 'base' })
+}
+
+const sortedBy = <T,>(
+  items: T[],
+  sort: SortState,
+  getter: (item: T, key: string) => unknown,
+) => [...items].sort((left, right) => {
+  const direction = sort.direction === 'asc' ? 1 : -1
+  return compareSortValues(getter(left, sort.key), getter(right, sort.key)) * direction
+})
+
+const nextSort = (current: SortState, key: string): SortState =>
+  current.key === key
+    ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+    : { key, direction: 'asc' }
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string
+  sortKey: string
+  sort: SortState
+  onSort: (key: string) => void
+}) {
+  const active = sort.key === sortKey
+  return (
+    <th aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        className={'sort-header' + (active ? ' active' : '')}
+        onClick={() => onSort(sortKey)}
+        title={'Ordenar por ' + label}
+      >
+        <span>{label}</span>
+        <i aria-hidden="true">{active ? (sort.direction === 'asc' ? '↑' : '↓') : '↕'}</i>
+      </button>
+    </th>
+  )
+}
+
 function App() {
   const [originFiles, setOriginFiles] = useState<ImportedFile[]>([])
   const [targetFiles, setTargetFiles] = useState<ImportedFile[]>([])
@@ -31,6 +88,8 @@ function App() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'TODOS' | Severity>('TODOS')
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
+  const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
+  const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
   const [focusedFieldId, setFocusedFieldId] = useState<string | undefined>()
   const [selectedOccurrenceKey, setSelectedOccurrenceKey] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -150,15 +209,54 @@ function App() {
       if (restrictField && item.field.fieldId !== issueFieldFilter) return false
       if (statusFilter !== 'TODOS' && item.field.status !== statusFilter) return false
       if (!term) return true
-      const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.originValue} ${item.field.targetValue} ${item.field.reason}`.toLocaleUpperCase('pt-BR')
+      const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.group} ${item.field.originValue} ${item.field.targetValue} ${item.field.status} ${item.field.reason}`.toLocaleUpperCase('pt-BR')
       return text.includes(term)
     })
   }, [report, search, statusFilter, issueFieldFilter])
+
+  const issueFieldOptions = useMemo(() => {
+    if (!report) return []
+    return report.fieldSummary
+      .filter(field => field.divergent > 0 || field.attention > 0)
+      .map(field => ({
+        fieldId: field.fieldId,
+        fieldLabel: field.fieldLabel,
+        count: field.divergent + field.attention,
+      }))
+      .sort((a, b) => a.fieldLabel.localeCompare(b.fieldLabel, 'pt-BR', { sensitivity: 'base' }))
+  }, [report])
+
+  const sortedClients = useMemo(() => sortedBy(filteredClients, clientSort, (client, key) => {
+    if (key === 'code') return client.key
+    if (key === 'name') return client.name
+    if (key === 'found') return client.found
+    if (key === 'status') return client.status
+    if (key === 'divergent') return client.divergentCount
+    if (key === 'attention') return client.attentionCount
+    if (key === 'document') return client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
+    if (key === 'validity') return validateCpfCnpj(client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? '').status
+    return ''
+  }), [filteredClients, clientSort])
+
+  const sortedIssues = useMemo(() => sortedBy(issues, issueSort, (item, key) => {
+    if (key === 'code') return item.client.key
+    if (key === 'name') return item.client.name
+    if (key === 'field') return item.field.fieldLabel
+    if (key === 'origin') return item.field.originValue
+    if (key === 'target') return item.field.targetValue
+    if (key === 'status') return item.field.status
+    if (key === 'reason') return item.field.reason
+    return ''
+  }), [issues, issueSort])
 
   const pageSlice = <T,>(items: T[]) => items.slice((page - 1) * pageSize, page * pageSize)
   const pageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / pageSize))
   const resultProfile = report ? getEntityProfile(report.profileId) : profile
   const showDocument = resultProfile.showDocumentValidity === true
+  const conformityProgress = report?.summary.validTests
+    ? (report.summary.conformTests / report.summary.validTests) * 100
+    : 0
+  const reviewProgress = Math.max(0, 100 - conformityProgress)
 
   const clearAll = () => {
     setOriginFiles([])
@@ -203,10 +301,10 @@ function App() {
 
   const occurrenceKeyOf = (clientKey: string, fieldId: string) => `${clientKey}::${fieldId}`
   const occurrenceIndex = selectedOccurrenceKey
-    ? issues.findIndex(item => occurrenceKeyOf(item.client.key, item.field.fieldId) === selectedOccurrenceKey)
+    ? sortedIssues.findIndex(item => occurrenceKeyOf(item.client.key, item.field.fieldId) === selectedOccurrenceKey)
     : -1
   const goToOccurrence = (index: number) => {
-    const item = issues[index]
+    const item = sortedIssues[index]
     if (!item) return
     setPage(Math.floor(index / pageSize) + 1)
     openRecord(item.client, item.field.fieldId, occurrenceKeyOf(item.client.key, item.field.fieldId))
@@ -236,7 +334,7 @@ function App() {
   const occurrenceNav = selectedClient && occurrenceIndex >= 0 && issues.length > 0
     ? {
         current: occurrenceIndex,
-        total: issues.length,
+        total: sortedIssues.length,
         onPrev: () => goToOccurrence(occurrenceIndex - 1),
         onNext: () => goToOccurrence(occurrenceIndex + 1),
       }
@@ -401,6 +499,23 @@ function App() {
               <Kpi label="Não importados" value={report.summary.notImportedClients} note="ausentes no destino" />
             </div>
 
+            <div className="validation-progress" aria-label="Progresso da homologação">
+              <div className="validation-progress-copy">
+                <div>
+                  <span>Conformidade dos testes</span>
+                  <strong>{conformityProgress.toFixed(2).replace('.', ',')}%</strong>
+                </div>
+                <div className="validation-progress-review">
+                  <span>Divergências + atenções</span>
+                  <strong>{reviewProgress.toFixed(2).replace('.', ',')}%</strong>
+                </div>
+              </div>
+              <div className="validation-progress-track">
+                <i className="validation-progress-ok" style={{ width: `${conformityProgress}%` }} />
+                <i className="validation-progress-pending" style={{ width: `${reviewProgress}%` }} />
+              </div>
+            </div>
+
             <nav className="tabs">
               {tabs.map(tab => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
             </nav>
@@ -414,9 +529,11 @@ function App() {
                     onChange={e => setIssueFieldFilter(e.target.value)}
                     aria-label="Filtrar por campo"
                   >
-                    <option value="TODOS">Todos os campos</option>
-                    {report.fieldSummary.map(field => (
-                      <option key={field.fieldId} value={field.fieldId}>{field.fieldLabel}</option>
+                    <option value="TODOS">Todos os tipos de divergência</option>
+                    {issueFieldOptions.map(field => (
+                      <option key={field.fieldId} value={field.fieldId}>
+                        {field.fieldLabel} ({number(field.count)})
+                      </option>
                     ))}
                   </select>
                 )}
@@ -439,19 +556,19 @@ function App() {
                   <table>
                     <thead>
                       <tr>
-                        <th>Código</th>
-                        <th>{resultProfile.recordLabel}</th>
-                        <th>Encontrado</th>
-                        <th>Resultado</th>
-                        <th>Divergências</th>
-                        <th>Atenções</th>
-                        {showDocument && <th>CPF/CNPJ origem</th>}
-                        {showDocument && <th>Validade</th>}
-                        <th></th>
+                        <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                        <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Resultado" sortKey="status" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Divergências" sortKey="divergent" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Atenções" sortKey="attention" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                        {showDocument && <SortableHeader label="CPF/CNPJ origem" sortKey="document" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                        {showDocument && <SortableHeader label="Validade" sortKey="validity" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />}
+                        <th>Ação</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pageSlice(filteredClients).map(client => {
+                      {pageSlice(sortedClients).map(client => {
                         const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
                         const validation = validateCpfCnpj(doc)
                         return <tr key={client.key}>
@@ -469,7 +586,7 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-                <Pagination page={page} pages={pageCount(filteredClients)} onChange={setPage} />
+                <Pagination page={page} pages={pageCount(sortedClients)} onChange={setPage} />
               </div>
             )}
 
@@ -505,9 +622,20 @@ function App() {
                 <>
                 <div className="table-wrap">
                   <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
-                    <thead><tr><th>Código</th><th>{resultProfile.recordLabel}</th><th>Campo</th><th>Origem</th><th>Destino</th><th>Status</th><th>Motivo</th><th>Ação</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <SortableHeader label="Código" sortKey="code" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                        <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Campo" sortKey="field" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Origem" sortKey="origin" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                        <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                        <th>Ação</th>
+                      </tr>
+                    </thead>
                     <tbody>
-                      {pageSlice(issues).map((item, idx) => {
+                      {pageSlice(sortedIssues).map((item, idx) => {
                         const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
                         const highlight = issueFieldFilter !== 'TODOS'
                         return (
@@ -550,7 +678,7 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-                <Pagination page={page} pages={pageCount(issues)} onChange={setPage} />
+                <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
                 </>
                 )}
               </div>
