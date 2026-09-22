@@ -22,6 +22,7 @@ import {
   normalizeAlphanumericDocument,
   normalizeClientName,
   normalizeForField,
+  normalizeIE,
   normalizeLooseText,
   normalizeState,
   normalizeText,
