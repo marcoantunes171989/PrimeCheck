@@ -1204,16 +1204,41 @@ function Overview({
     .sort((a, b) => (b.divergent * 2 + b.attention) - (a.divergent * 2 + a.attention))
     .slice(0, 8)
 
+  const printRows = [
+    ...worstFields.map(field => ({
+      tipo: 'Campo',
+      referencia: field.fieldLabel,
+      grupo: field.group,
+      resumo: `${field.divergent} divergências · ${field.attention} atenções · ${field.conformityPercent === null ? '—' : field.conformityPercent.toFixed(2).replace('.', ',') + '%'} conformidade`,
+    })),
+    ...critical.map(client => ({
+      tipo: profile.recordLabel,
+      referencia: client.key,
+      grupo: client.name || '—',
+      resumo: `${client.divergentCount} divergências · ${client.attentionCount} atenções`,
+    })),
+  ]
+
   return (
     <>
-      <div className="screen-search">
-        <span aria-hidden="true">⌕</span>
-        <input
-          value={search}
-          onChange={event => setSearch(event.target.value)}
-          placeholder="Pesquisar no resumo por campo, código ou registro…"
-          aria-label="Pesquisar no resumo"
-        />
+      <div className="overview-toolbar">
+        <div className="screen-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Pesquisar no resumo por campo, código ou registro…"
+            aria-label="Pesquisar no resumo"
+          />
+        </div>
+        <button
+          type="button"
+          className="button secondary compact-button"
+          disabled={!printRows.length}
+          onClick={() => window.print()}
+        >
+          Imprimir resumo
+        </button>
       </div>
       <div className="overview-grid">
         <section className="panel">
@@ -1253,6 +1278,19 @@ function Overview({
           </section>
         )}
       </div>
+
+      <DataPrintReport
+        title="Visão geral da homologação"
+        subtitle={profile.label + ' · campos e registros prioritários'}
+        filterDescription={search.trim() ? 'Pesquisa: ' + search.trim() : 'Resumo sem filtro adicional'}
+        columns={[
+          { key: 'tipo', label: 'Tipo' },
+          { key: 'referencia', label: 'Referência' },
+          { key: 'grupo', label: 'Grupo / registro' },
+          { key: 'resumo', label: 'Resumo técnico' },
+        ]}
+        rows={printRows}
+      />
     </>
   )
 }
