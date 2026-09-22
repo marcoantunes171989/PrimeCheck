@@ -1521,12 +1521,16 @@ function IssueValueCell({
   status,
   highlight,
   showCharacterCount = false,
+  duplicate,
+  onOpenDuplicate,
 }: {
   label: string
   value: string
   status: Severity
   highlight: boolean
   showCharacterCount?: boolean
+  duplicate?: IssueDuplicateInfo
+  onOpenDuplicate?: () => void
 }) {
   const tone = highlight
     ? status === 'DIVERGENTE'
@@ -1545,6 +1549,16 @@ function IssueValueCell({
         <span className="issue-char-count">
           {length} {length === 1 ? 'caractere' : 'caracteres'}
         </span>
+      )}
+      {duplicate && onOpenDuplicate && (
+        <button
+          type="button"
+          className="issue-duplicate-link"
+          onClick={onOpenDuplicate}
+          title="Abrir este valor na tela de duplicidades"
+        >
+          Duplicado · {number(duplicate.count)}x
+        </button>
       )}
     </div>
   )
