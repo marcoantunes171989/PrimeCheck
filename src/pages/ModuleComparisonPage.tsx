@@ -27,10 +27,12 @@ export default function ModuleComparisonPage({
   module,
   files,
   onBackToImport,
+  dashboardMode = false,
 }: {
   module: WorkspaceModuleDefinition
   files: ImportedFile[]
   onBackToImport: () => void
+  dashboardMode?: boolean
 }) {
   const resolved = useMemo(() => resolveModuleHeaders(files, module), [files, module])
   const physicalNames = useMemo(
@@ -160,6 +162,7 @@ export default function ModuleComparisonPage({
           embedded
           originLabel={originName}
           targetLabel={targetName}
+          dashboardMode={dashboardMode}
         />
       )}
     </main>
