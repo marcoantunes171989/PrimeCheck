@@ -271,6 +271,7 @@ function App({
         setActiveTab(dashboardMode ? 'dashboard' : 'overview')
         setIssueFieldFilter('TODOS')
         setStatusFilter('TODOS')
+        setIssueDuplicateFilter('TODOS')
         setSearch('')
         setFocusedFieldId(undefined)
         setSelectedOccurrenceKey(null)
@@ -480,6 +481,18 @@ function App({
 
   const clearIssueFieldFilter = () => {
     setIssueFieldFilter('TODOS')
+    setPage(1)
+  }
+
+  const openDuplicates = (
+    fieldId?: string,
+    normalizedValue = '',
+    side: 'TODOS' | 'ORIGEM' | 'DESTINO' = 'TODOS',
+  ) => {
+    setDuplicateFieldFocus(fieldId)
+    setDuplicateSearchFocus(normalizedValue)
+    setDuplicateSideFocus(side)
+    setActiveTab('duplicates')
     setPage(1)
   }
 
@@ -799,7 +812,22 @@ function App({
             </div>
 
             <nav className="tabs">
-              {tabs.map(tab => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  className={activeTab === tab.id ? 'active' : ''}
+                  onClick={() => {
+                    if (tab.id === 'duplicates') {
+                      setDuplicateFieldFocus(undefined)
+                      setDuplicateSearchFocus('')
+                      setDuplicateSideFocus('TODOS')
+                    }
+                    setActiveTab(tab.id)
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </nav>
 
             {activeTab !== 'overview' && activeTab !== 'dashboard' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
@@ -843,10 +871,7 @@ function App({
                 report={report}
                 profile={resultProfile}
                 onOpenIssue={(client, field) => openRecord(client, field.fieldId)}
-                onOpenDuplicates={fieldId => {
-                  setDuplicateFieldFocus(fieldId)
-                  setActiveTab('duplicates')
-                }}
+                onOpenDuplicates={fieldId => openDuplicates(fieldId)}
               />
             )}
             {activeTab === 'clients' && (
@@ -1305,6 +1330,8 @@ function App({
                 report={report}
                 profile={resultProfile}
                 initialFieldId={duplicateFieldFocus}
+                initialSearch={duplicateSearchFocus}
+                initialSide={duplicateSideFocus}
               />
             )}
             {activeTab === 'missing' && <MissingView report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
