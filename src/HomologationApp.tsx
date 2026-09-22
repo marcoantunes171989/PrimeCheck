@@ -1879,6 +1879,47 @@ function FieldSummaryView({
   )
 }
 
+type DuplicateReportMode = 'ANALITICO' | 'SINTETICO'
+
+type DuplicateSyntheticRow = {
+  key: string
+  side: ComparisonReport['duplicates'][number]['side']
+  fieldId: string
+  fieldLabel: string
+  category: string
+  groupCount: number
+  recordCount: number
+}
+
+function summarizeDuplicates(items: ComparisonReport['duplicates']): DuplicateSyntheticRow[] {
+  const grouped = new Map<string, DuplicateSyntheticRow>()
+
+  for (const dup of items) {
+    const key = [dup.side, dup.fieldId, dup.category].join('::')
+    const current = grouped.get(key)
+    if (current) {
+      current.groupCount += 1
+      current.recordCount += dup.count
+      continue
+    }
+    grouped.set(key, {
+      key,
+      side: dup.side,
+      fieldId: dup.fieldId,
+      fieldLabel: dup.fieldLabel,
+      category: dup.category,
+      groupCount: 1,
+      recordCount: dup.count,
+    })
+  }
+
+  return [...grouped.values()].sort((left, right) =>
+    left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
+    || left.side.localeCompare(right.side, 'pt-BR')
+    || left.category.localeCompare(right.category, 'pt-BR', { sensitivity: 'base' }),
+  )
+}
+
 function DuplicatePrintReport({
   items,
   profile,
@@ -1989,6 +2030,83 @@ function DuplicatePrintReport({
   )
 }
 
+function DuplicateSyntheticPrintReport({
+  rows,
+  sourceItems,
+  profile,
+  filterDescription,
+  generatedAt,
+}: {
+  rows: DuplicateSyntheticRow[]
+  sourceItems: ComparisonReport['duplicates']
+  profile: EntityProfile
+  filterDescription: string
+  generatedAt: string
+}) {
+  const printedAt = (() => {
+    const date = new Date(generatedAt)
+    return Number.isNaN(date.getTime()) ? new Date().toLocaleString('pt-BR') : date.toLocaleString('pt-BR')
+  })()
+  const totalRecords = sourceItems.reduce((total, dup) => total + dup.count, 0)
+  const totalFields = new Set(sourceItems.map(dup => dup.fieldId)).size
+
+  return (
+    <section className="dup-print-report dup-print-synthetic-report" aria-hidden="true">
+      <article className="dup-print-synthetic-page">
+        <header className="dup-print-head">
+          <span className="dup-print-brand">PrimeCheck</span>
+          <h1>Relatório de Duplicidades — Sintético</h1>
+          <p>{profile.label}</p>
+          <div className="dup-print-summary">
+            <div><span>Data/hora de geração</span><strong>{printedAt}</strong></div>
+            <div><span>Tipo de relatório</span><strong>Sintético</strong></div>
+            <div><span>Filtro aplicado</span><strong>{filterDescription}</strong></div>
+          </div>
+        </header>
+
+        <div className="dup-print-synthetic-kpis">
+          <div><span>Grupos duplicados</span><strong>{number(sourceItems.length)}</strong></div>
+          <div><span>Registros envolvidos</span><strong>{number(totalRecords)}</strong></div>
+          <div><span>Campos com duplicidade</span><strong>{number(totalFields)}</strong></div>
+        </div>
+
+        <div className="dup-print-guidance">
+          <strong>Resumo sintético</strong>
+          <p>
+            As duplicidades estão agrupadas por lado, campo e tipo. A quantidade de grupos representa valores
+            duplicados distintos e a quantidade de registros representa a soma dos cadastros envolvidos nesses grupos.
+          </p>
+        </div>
+
+        <table className="dup-print-synthetic-table">
+          <thead>
+            <tr>
+              <th>Lado</th>
+              <th>Campo duplicado</th>
+              <th>Tipo</th>
+              <th>Grupos duplicados</th>
+              <th>Registros envolvidos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={5}>Nenhuma duplicidade encontrada para os filtros aplicados.</td></tr>
+            ) : rows.map(row => (
+              <tr key={row.key}>
+                <td>{sideLabel(row.side)}</td>
+                <td>{row.fieldLabel}</td>
+                <td>{row.category}</td>
+                <td>{number(row.groupCount)}</td>
+                <td>{number(row.recordCount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </article>
+    </section>
+  )
+}
+
 function DuplicatesView({
   report,
   profile,
@@ -2021,6 +2139,7 @@ function DuplicatesView({
   const [reviewedGroups, setReviewedGroups] = useState<Set<string>>(new Set())
   const [printGroupId, setPrintGroupId] = useState<string | null>(null)
   const [printSelected, setPrintSelected] = useState(false)
+  const [reportMode, setReportMode] = useState<DuplicateReportMode>('ANALITICO')
 
   const fieldOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -2078,7 +2197,18 @@ function DuplicatesView({
     return ''
   }), [filtered, sort])
 
+  const syntheticRows = useMemo(() => summarizeDuplicates(sorted), [sorted])
+  const syntheticRecordCount = useMemo(
+    () => sorted.reduce((total, dup) => total + dup.count, 0),
+    [sorted],
+  )
+  const syntheticFieldCount = useMemo(
+    () => new Set(sorted.map(dup => dup.fieldId)).size,
+    [sorted],
+  )
+
   useEffect(() => setPage(1), [search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
+  useEffect(() => setPage(1), [reportMode])
 
   useEffect(() => {
     setFieldFilter(initialFieldId || 'TODOS')
@@ -2096,9 +2226,11 @@ function DuplicatesView({
     return () => window.removeEventListener('afterprint', handleAfterPrint)
   }, [])
 
-  const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
+  const activeLength = reportMode === 'ANALITICO' ? sorted.length : syntheticRows.length
+  const pages = Math.max(1, Math.ceil(activeLength / pageSize))
   const safePage = Math.min(page, pages)
   const pageItems = sorted.slice((safePage - 1) * pageSize, safePage * pageSize)
+  const syntheticPageItems = syntheticRows.slice((safePage - 1) * pageSize, safePage * pageSize)
   const pageIds = pageItems.map(rowIdOf)
   const selectedItems = sorted.filter(item => selectedGroups.has(rowIdOf(item)))
   const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedGroups.has(id))
@@ -2106,6 +2238,13 @@ function DuplicatesView({
     ? 'grupos duplicados em CPF/CNPJ ou IE.'
     : 'grupos duplicados nos campos de unicidade do perfil.'
   const monoKinds = new Set(['document', 'ie', 'code', 'phone'])
+
+  const changeReportMode = (mode: DuplicateReportMode) => {
+    setReportMode(mode)
+    setPrintGroupId(null)
+    setPrintSelected(false)
+    setPage(1)
+  }
 
   const toggleSet = (current: Set<string>, id: string) => {
     const next = new Set(current)
@@ -2151,6 +2290,7 @@ function DuplicatesView({
         )
 
   const filterDescription = [
+    reportMode === 'ANALITICO' ? 'Relatório analítico' : 'Relatório sintético',
     sideFilter === 'TODOS' ? 'Origem e destino' : sideFilter === 'ORIGEM' ? 'Somente origem' : 'Somente destino',
     fieldFilter === 'TODOS'
       ? 'Todos os campos'
@@ -2164,8 +2304,8 @@ function DuplicatesView({
   ].filter(Boolean).join(' · ')
 
   const requestPrint = (groupId?: string, selectedOnly = false) => {
-    setPrintGroupId(groupId || null)
-    setPrintSelected(selectedOnly)
+    setPrintGroupId(reportMode === 'ANALITICO' ? groupId || null : null)
+    setPrintSelected(reportMode === 'ANALITICO' && selectedOnly)
     window.setTimeout(() => window.print(), 80)
   }
 
@@ -2176,13 +2316,45 @@ function DuplicatesView({
           <div>
             <h3>Duplicidades</h3>
             <p>
-              {number(filtered.length)} {filtered.length === 1 ? 'grupo' : 'grupos'} no filtro atual
-              {filtered.length !== report.duplicates.length ? ' · ' + number(report.duplicates.length) + ' no total' : ''}.
-              {' '}{duplicateHint} Paginação padrão de {pageSize}.
+              {reportMode === 'ANALITICO' ? (
+                <>
+                  {number(filtered.length)} {filtered.length === 1 ? 'grupo' : 'grupos'} no filtro atual
+                  {filtered.length !== report.duplicates.length ? ' · ' + number(report.duplicates.length) + ' no total' : ''}.
+                  {' '}{duplicateHint} Paginação padrão de {pageSize}.
+                </>
+              ) : (
+                <>
+                  {number(syntheticRows.length)} {syntheticRows.length === 1 ? 'agrupamento sintético' : 'agrupamentos sintéticos'} · {' '}
+                  {number(sorted.length)} {sorted.length === 1 ? 'grupo duplicado' : 'grupos duplicados'} · {' '}
+                  {number(syntheticRecordCount)} registros envolvidos.
+                </>
+              )}
             </p>
           </div>
-          <div className="section-head-actions">
-            <span className="selection-summary">{number(selectedItems.length)} selecionados</span>
+          <div className="section-head-actions duplicates-head-actions">
+            <div className="dup-report-mode" role="radiogroup" aria-label="Tipo de relatório de duplicidades">
+              <label className={reportMode === 'ANALITICO' ? 'active' : ''}>
+                <input
+                  type="radio"
+                  name="duplicate-report-mode"
+                  value="ANALITICO"
+                  checked={reportMode === 'ANALITICO'}
+                  onChange={() => changeReportMode('ANALITICO')}
+                />
+                Analítico
+              </label>
+              <label className={reportMode === 'SINTETICO' ? 'active' : ''}>
+                <input
+                  type="radio"
+                  name="duplicate-report-mode"
+                  value="SINTETICO"
+                  checked={reportMode === 'SINTETICO'}
+                  onChange={() => changeReportMode('SINTETICO')}
+                />
+                Sintético
+              </label>
+            </div>
+            {reportMode === 'ANALITICO' && <span className="selection-summary">{number(selectedItems.length)} selecionados</span>}
             <button
               type="button"
               className="button ghost compact-button"
@@ -2195,34 +2367,45 @@ function DuplicatesView({
             >
               Limpar filtros
             </button>
-            <button type="button" className="button ghost compact-button" disabled={!pageItems.length} onClick={togglePageSelection}>
-              {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
-            </button>
-            <button
-              type="button"
-              className="button secondary compact-button"
-              onClick={() => requestPrint(undefined, true)}
-              disabled={!selectedItems.length}
-            >
-              Imprimir selecionados
-            </button>
+            {reportMode === 'ANALITICO' && (
+              <>
+                <button type="button" className="button ghost compact-button" disabled={!pageItems.length} onClick={togglePageSelection}>
+                  {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
+                </button>
+                <button
+                  type="button"
+                  className="button secondary compact-button"
+                  onClick={() => requestPrint(undefined, true)}
+                  disabled={!selectedItems.length}
+                >
+                  Imprimir selecionados
+                </button>
+              </>
+            )}
             <button
               type="button"
               className="button primary dup-print-button"
               onClick={() => requestPrint()}
               disabled={sorted.length === 0}
             >
-              Imprimir filtro
+              {reportMode === 'ANALITICO' ? 'Imprimir filtro' : 'Imprimir sintético'}
             </button>
           </div>
         </div>
 
         <div className="dup-analysis-note">
-          <strong>Como analisar</strong>
+          <strong>{reportMode === 'ANALITICO' ? 'Como analisar' : 'Visão sintética'}</strong>
           <span>
-            Revise os registros do mesmo grupo e confirme qual cadastro deve prevalecer.
-            Ao abrir um grupo ele é marcado como analisado para facilitar a sequência da revisão.
+            {reportMode === 'ANALITICO'
+              ? 'Revise os registros do mesmo grupo e confirme qual cadastro deve prevalecer. Ao abrir um grupo ele é marcado como analisado para facilitar a sequência da revisão.'
+              : 'Resumo agrupado por lado, campo e tipo. Use esta visão para conferir rapidamente quantos grupos duplicados e quantos registros estão envolvidos antes da análise individual.'}
           </span>
+        </div>
+
+        <div className="dup-summary-strip" aria-label="Resumo das duplicidades filtradas">
+          <div><span>Grupos duplicados</span><strong>{number(sorted.length)}</strong></div>
+          <div><span>Registros envolvidos</span><strong>{number(syntheticRecordCount)}</strong></div>
+          <div><span>Campos com duplicidade</span><strong>{number(syntheticFieldCount)}</strong></div>
         </div>
 
         <div className="table-toolbar searchable-toolbar duplicates-toolbar">
@@ -2259,8 +2442,9 @@ function DuplicatesView({
           <span className="page-size-fixed">20 por página</span>
         </div>
 
-        <div className="table-wrap">
-          <table className="dup-table">
+        {reportMode === 'ANALITICO' ? (
+          <div className="table-wrap">
+            <table className="dup-table">
             <thead>
               <tr>
                 <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
@@ -2411,17 +2595,62 @@ function DuplicatesView({
                 )
               })}
             </tbody>
-          </table>
-        </div>
-        {sorted.length > 0 && <Pagination page={safePage} pages={pages} onChange={setPage} />}
+            </table>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="dup-table dup-synthetic-table">
+              <thead>
+                <tr>
+                  <th>Lado</th>
+                  <th>Campo duplicado</th>
+                  <th>Tipo</th>
+                  <th>Grupos duplicados</th>
+                  <th>Registros envolvidos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {syntheticPageItems.length === 0 ? (
+                  <tr className="table-empty-row">
+                    <td colSpan={5}>
+                      <div className="inline-empty-state">
+                        <strong>Nenhuma duplicidade encontrada.</strong>
+                        <span>Altere a pesquisa ou os filtros para visualizar o resumo sintético.</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : syntheticPageItems.map(row => (
+                  <tr key={row.key}>
+                    <td><span className={'dup-side dup-side-' + row.side.toLowerCase()}>{row.side}</span></td>
+                    <td><div className="dup-field"><strong>{row.fieldLabel}</strong></div></td>
+                    <td><span className="dup-category">{row.category}</span></td>
+                    <td><strong className="dup-synthetic-number">{number(row.groupCount)}</strong></td>
+                    <td><strong className="dup-synthetic-number">{number(row.recordCount)}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {activeLength > 0 && <Pagination page={safePage} pages={pages} onChange={setPage} />}
       </div>
 
-      <DuplicatePrintReport
-        items={printItems}
-        profile={profile}
-        filterDescription={filterDescription}
-        generatedAt={report.generatedAt}
-      />
+      {reportMode === 'ANALITICO' ? (
+        <DuplicatePrintReport
+          items={printItems}
+          profile={profile}
+          filterDescription={filterDescription}
+          generatedAt={report.generatedAt}
+        />
+      ) : (
+        <DuplicateSyntheticPrintReport
+          rows={syntheticRows}
+          sourceItems={sorted}
+          profile={profile}
+          filterDescription={filterDescription}
+          generatedAt={report.generatedAt}
+        />
+      )}
     </>
   )
 }
