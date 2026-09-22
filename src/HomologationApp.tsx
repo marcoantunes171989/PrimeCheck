@@ -1814,14 +1814,28 @@ function DuplicatesView({
               {' '}{duplicateHint}
             </p>
           </div>
-          <button
-            type="button"
-            className="button primary dup-print-button"
-            onClick={() => requestPrint()}
-            disabled={sorted.length === 0}
-          >
-            Imprimir duplicidades
-          </button>
+          <div className="section-head-actions">
+            <button
+              type="button"
+              className="button ghost compact-button"
+              onClick={() => {
+                setSearch('')
+                setSideFilter('TODOS')
+                setFieldFilter('TODOS')
+                setDuplicateColumnFilters({ category: '', value: '', count: '', codes: '' })
+              }}
+            >
+              Limpar filtros
+            </button>
+            <button
+              type="button"
+              className="button primary dup-print-button"
+              onClick={() => requestPrint()}
+              disabled={sorted.length === 0}
+            >
+              Imprimir duplicidades
+            </button>
+          </div>
         </div>
 
         <div className="dup-analysis-note">
@@ -1881,6 +1895,28 @@ function DuplicatesView({
                     <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                     <th>Ações</th>
+                  </tr>
+                  <tr className="column-filter-row">
+                    <th>
+                      <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
+                        <option value="TODOS">Todos</option>
+                        <option value="ORIGEM">Origem</option>
+                        <option value="DESTINO">Destino</option>
+                      </select>
+                    </th>
+                    <th>
+                      <select value={fieldFilter} onChange={event => setFieldFilter(event.target.value)}>
+                        <option value="TODOS">Todos os campos</option>
+                        {fieldOptions.map(([fieldId, fieldLabel]) => (
+                          <option key={fieldId} value={fieldId}>{fieldLabel}</option>
+                        ))}
+                      </select>
+                    </th>
+                    <th><input value={duplicateColumnFilters.category} onChange={event => setDuplicateColumnFilters(current => ({ ...current, category: event.target.value }))} placeholder="Tipo…" /></th>
+                    <th><input value={duplicateColumnFilters.value} onChange={event => setDuplicateColumnFilters(current => ({ ...current, value: event.target.value }))} placeholder="Valor…" /></th>
+                    <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
+                    <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
