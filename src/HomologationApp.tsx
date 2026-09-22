@@ -354,8 +354,14 @@ function App() {
 
   const hasFiles = origin.headers.length > 0 || target.headers.length > 0
 
+  const homologationModeClass = report
+    ? 'homologation-results-mode'
+    : hasFiles
+      ? 'homologation-setup-mode has-files'
+      : 'homologation-setup-mode empty-files'
+
   return (
-    <div className="app-shell">
+    <div className={'app-shell homologation-shell ' + homologationModeClass}>
       <header className="topbar">
         <div className="module-topbar-title">
           <strong>Homologação</strong>

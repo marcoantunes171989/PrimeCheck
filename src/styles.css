@@ -2844,3 +2844,818 @@ td {
     display: none !important;
   }
 }
+
+
+/* =========================================================
+   Homologação — viewport fixo no desktop + modo app responsivo
+   ========================================================= */
+
+@media (min-width: 1100px) and (min-height: 680px) {
+  .workspace-main-homologacao {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspace-main-homologacao .workspace-module-bar {
+    position: relative;
+    height: 42px;
+    min-height: 42px;
+    padding-inline: clamp(16px, 2.2vw, 34px);
+  }
+
+  .homologation-shell {
+    height: calc(100dvh - 42px);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .homologation-shell > .topbar {
+    position: relative;
+    top: auto;
+    flex: 0 0 48px;
+    height: 48px;
+    min-height: 48px;
+    padding-inline: clamp(16px, 2.2vw, 34px);
+  }
+
+  .homologation-shell .module-topbar-title strong {
+    font-size: 12px;
+  }
+
+  .homologation-shell .module-topbar-title span {
+    font-size: 8px;
+  }
+
+  .homologation-shell .privacy-pill {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+
+  .homologation-shell > .main-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    width: min(1680px, calc(100% - 24px));
+    padding: 8px 0 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .homologation-shell .hero {
+    flex: 0 0 auto;
+    min-height: 64px;
+    gap: 16px;
+    padding: 0 0 8px;
+    align-items: center;
+  }
+
+  .homologation-shell .hero .eyebrow {
+    font-size: 8px;
+    letter-spacing: .11em;
+  }
+
+  .homologation-shell .hero h1 {
+    margin: 3px 0 4px;
+    font-size: clamp(27px, 2.4vw, 34px);
+    line-height: 1.02;
+  }
+
+  .homologation-shell .hero p {
+    max-width: 880px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .homologation-shell .flow-mini {
+    gap: 5px;
+    flex-wrap: nowrap;
+  }
+
+  .homologation-shell .flow-mini span {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+
+  .homologation-setup-mode .privacy-banner {
+    flex: 0 0 30px;
+    min-height: 30px;
+    margin-bottom: 7px;
+    padding: 5px 10px;
+    gap: 8px;
+    border-radius: 9px;
+  }
+
+  .homologation-setup-mode .privacy-banner strong {
+    font-size: 10px;
+  }
+
+  .homologation-setup-mode .privacy-banner span {
+    font-size: 9px;
+  }
+
+  .homologation-setup-mode .entity-type-card {
+    flex: 0 0 auto;
+    min-height: 58px;
+    grid-template-columns: minmax(260px, 1fr) minmax(210px, 260px) minmax(230px, .75fr);
+    gap: 8px 14px;
+    align-items: center;
+    margin-bottom: 7px;
+    padding: 8px 11px;
+    border-radius: 11px;
+  }
+
+  .homologation-setup-mode .entity-type-copy .eyebrow {
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .entity-type-copy h2 {
+    margin: 2px 0 0;
+    font-size: 13px;
+  }
+
+  .homologation-setup-mode .entity-type-copy p {
+    display: none;
+  }
+
+  .homologation-setup-mode .entity-type-select {
+    gap: 3px;
+  }
+
+  .homologation-setup-mode .entity-type-select > span {
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .entity-type-select select {
+    min-height: 32px;
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+
+  .homologation-setup-mode .entity-detection {
+    grid-column: auto;
+    min-height: 32px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    gap: 4px 7px;
+  }
+
+  .homologation-setup-mode .entity-detection strong {
+    font-size: 9px;
+  }
+
+  .homologation-setup-mode .entity-detection span,
+  .homologation-setup-mode .entity-detection small {
+    font-size: 8px;
+  }
+
+  .homologation-setup-mode .entity-detection small {
+    display: none;
+  }
+
+  .homologation-setup-mode .import-grid {
+    flex: 0 0 134px;
+    min-height: 134px;
+    gap: 8px;
+  }
+
+  .homologation-setup-mode .drop-card {
+    height: 134px;
+    min-height: 134px;
+    overflow: hidden;
+    padding: 9px 10px;
+    border-radius: 11px;
+    border-top-width: 3px;
+  }
+
+  .homologation-setup-mode .drop-card-head {
+    min-height: 35px;
+    margin-bottom: 6px;
+    gap: 8px;
+  }
+
+  .homologation-setup-mode .drop-card-head .eyebrow {
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .drop-card-head h3 {
+    margin: 1px 0;
+    font-size: 12px;
+  }
+
+  .homologation-setup-mode .drop-card-head p {
+    display: none;
+  }
+
+  .homologation-setup-mode .file-count {
+    padding: 4px 7px;
+    font-size: 8px;
+  }
+
+  .homologation-setup-mode .drop-zone {
+    min-height: 73px;
+    height: 73px;
+    padding: 8px 10px;
+    border-radius: 9px;
+  }
+
+  .homologation-setup-mode .drop-zone:hover,
+  .homologation-setup-mode .drop-zone.dragging {
+    transform: none;
+  }
+
+  .homologation-setup-mode .upload-icon {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 3px;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+
+  .homologation-setup-mode .drop-zone strong {
+    font-size: 10px;
+  }
+
+  .homologation-setup-mode .drop-zone span {
+    margin-top: 2px;
+    font-size: 8px;
+  }
+
+  .homologation-setup-mode .file-list {
+    max-height: 36px;
+    margin-top: 5px;
+    gap: 3px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .homologation-setup-mode .file-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .homologation-setup-mode .file-item {
+    min-height: 32px;
+    padding: 5px 7px;
+    gap: 7px;
+    border-radius: 7px;
+  }
+
+  .homologation-setup-mode .file-item strong {
+    max-width: 42vw;
+    overflow: hidden;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: normal;
+  }
+
+  .homologation-setup-mode .file-item span {
+    margin-top: 0;
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .file-item .icon-button {
+    width: 24px;
+    height: 24px;
+    font-size: 15px;
+  }
+
+  .homologation-setup-mode .drop-card:has(.file-list) .drop-zone {
+    min-height: 48px;
+    height: 48px;
+  }
+
+  .homologation-setup-mode .drop-card:has(.file-list) .upload-icon {
+    display: none;
+  }
+
+  .homologation-setup-mode .dataset-summary {
+    flex: 0 0 48px;
+    min-height: 48px;
+    margin: 6px 0;
+    gap: 7px;
+  }
+
+  .homologation-setup-mode .dataset-summary > div {
+    min-height: 48px;
+    padding: 6px 10px;
+    border-radius: 9px;
+  }
+
+  .homologation-setup-mode .dataset-summary span,
+  .homologation-setup-mode .dataset-summary small {
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .dataset-summary strong {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.05;
+  }
+
+  .homologation-setup-mode .mapping-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 10px;
+  }
+
+  .homologation-setup-mode .mapping-head {
+    flex: 0 0 42px;
+    min-height: 42px;
+    padding: 6px 10px;
+    align-items: center;
+  }
+
+  .homologation-setup-mode .mapping-head > div:first-child {
+    max-width: none;
+  }
+
+  .homologation-setup-mode .mapping-title-line {
+    gap: 5px;
+  }
+
+  .homologation-setup-mode .mapping-head h2 {
+    margin: 2px 0 0;
+    font-size: 13px;
+  }
+
+  .homologation-setup-mode .mapping-head p {
+    display: none;
+  }
+
+  .homologation-setup-mode .mapping-profile-badge {
+    padding: 2px 5px;
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .coverage-card {
+    min-width: 150px;
+    padding: 6px 8px;
+    border-radius: 8px;
+  }
+
+  .homologation-setup-mode .coverage-card .coverage {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .homologation-setup-mode .coverage-card .coverage strong {
+    font-size: 16px;
+  }
+
+  .homologation-setup-mode .coverage-card .coverage span,
+  .homologation-setup-mode .coverage-card small {
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .coverage-progress {
+    height: 3px;
+    margin-top: 4px;
+  }
+
+  .homologation-setup-mode .coverage-card small {
+    margin-top: 2px;
+  }
+
+  .homologation-setup-mode .mapping-toolbar {
+    flex: 0 0 36px;
+    min-height: 36px;
+    gap: 6px;
+    padding: 4px 10px;
+  }
+
+  .homologation-setup-mode .mapping-search {
+    min-width: 220px;
+  }
+
+  .homologation-setup-mode .mapping-search input {
+    min-height: 28px;
+    padding: 5px 8px 5px 29px;
+    border-radius: 7px;
+    font-size: 9px;
+  }
+
+  .homologation-setup-mode .mapping-search > span {
+    left: 9px;
+    font-size: 14px;
+  }
+
+  .homologation-setup-mode .mapping-toggle {
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 7px;
+    font-size: 8px;
+  }
+
+  .homologation-setup-mode .mapping-toggle input {
+    width: 13px;
+    height: 13px;
+  }
+
+  .homologation-setup-mode .mapping-toolbar .button {
+    min-height: 28px;
+    padding: 5px 8px;
+    font-size: 8px;
+  }
+
+  .homologation-setup-mode .mapping-legend {
+    flex: 0 0 26px;
+    min-height: 26px;
+    padding: 4px 10px;
+    gap: 8px;
+    font-size: 8px;
+  }
+
+  .homologation-setup-mode .mapping-safe-note {
+    max-width: 440px;
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .mapping-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    width: calc(100% - 16px);
+    margin: 0 8px 7px;
+    overflow: auto;
+    border-radius: 8px;
+    scrollbar-width: none;
+  }
+
+  .homologation-setup-mode .mapping-table-wrap::-webkit-scrollbar {
+    display: none;
+  }
+
+  .homologation-setup-mode .mapping-table {
+    min-width: 980px;
+  }
+
+  .homologation-setup-mode .mapping-table th {
+    padding: 6px 8px;
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .mapping-table td {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+
+  .homologation-setup-mode .mapping-group {
+    max-width: 180px;
+    line-height: 1.15;
+  }
+
+  .homologation-setup-mode .column-combobox {
+    min-width: 180px;
+  }
+
+  .homologation-setup-mode .column-combobox input {
+    min-height: 29px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    font-size: 9px;
+  }
+
+  .homologation-setup-mode .mapping-suggestions {
+    margin-top: 3px;
+  }
+
+  .homologation-setup-mode .mapping-suggestions button,
+  .homologation-setup-mode .mapping-suggestions > span {
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .map-state {
+    min-width: 48px;
+    font-size: 7px;
+  }
+
+  .homologation-setup-mode .global-error {
+    flex: 0 0 auto;
+    margin: 5px 0;
+    padding: 6px 9px;
+    font-size: 9px;
+  }
+
+  .homologation-setup-mode .run-bar {
+    position: static;
+    flex: 0 0 45px;
+    min-height: 45px;
+    margin-top: 6px;
+    padding: 6px 9px;
+    border-radius: 10px;
+    gap: 10px;
+  }
+
+  .homologation-setup-mode .run-bar strong {
+    font-size: 10px;
+  }
+
+  .homologation-setup-mode .run-bar span {
+    font-size: 8px;
+  }
+
+  .homologation-setup-mode .run-bar .button.large {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 9px;
+  }
+
+  .homologation-results-mode > .main-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+  }
+
+  .homologation-results-mode > .main-content::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Tablet e smartphone: experiência semelhante a aplicativo */
+@media (max-width: 1099px) {
+  .workspace-shell {
+    min-height: 100dvh;
+  }
+
+  .workspace-main,
+  .workspace-shell:not(.sidebar-is-collapsed) .workspace-main,
+  .sidebar-is-collapsed .workspace-main {
+    margin-left: 0 !important;
+    padding-bottom: 74px;
+  }
+
+  .sidebar,
+  .sidebar.collapsed,
+  .sidebar:not(.collapsed) {
+    inset: auto 0 0 0;
+    width: 100% !important;
+    height: 68px;
+    padding: 5px 7px;
+    background: var(--primary);
+    box-shadow: 0 -10px 30px rgba(1, 46, 70, .14);
+  }
+
+  .sidebar-container {
+    height: 58px;
+    flex-direction: row;
+    align-items: center;
+    border-radius: 15px 15px 0 0;
+  }
+
+  .sidebar-brand,
+  .sidebar-section-title,
+  .sidebar-footer {
+    display: none !important;
+  }
+
+  .sidebar-nav,
+  .sidebar.collapsed .sidebar-nav {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 4px;
+    padding: 3px 4px;
+  }
+
+  .sidebar-nav button,
+  .sidebar.collapsed .sidebar-nav button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 48px;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 5px;
+    border-radius: 10px;
+    text-align: center;
+  }
+
+  .sidebar-icon {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    font-size: 13px;
+  }
+
+  .sidebar-item-copy,
+  .sidebar.collapsed .sidebar-item-copy {
+    display: block !important;
+    min-width: 0;
+  }
+
+  .sidebar-item-copy strong {
+    overflow: hidden;
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebar-item-copy small {
+    display: none;
+  }
+
+  .workspace-module-bar {
+    position: sticky;
+    top: 0;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    z-index: 90;
+  }
+
+  .workspace-module-bar strong {
+    font-size: 10px;
+  }
+
+  .workspace-module-bar span,
+  .workspace-local-badge {
+    font-size: 8px;
+  }
+
+  .homologation-shell {
+    min-height: calc(100dvh - 44px - 74px);
+  }
+
+  .homologation-shell > .topbar {
+    position: sticky;
+    top: 44px;
+    min-height: 48px;
+    height: 48px;
+    padding: 7px 12px;
+    z-index: 80;
+  }
+
+  .homologation-shell .privacy-pill {
+    display: none;
+  }
+
+  .homologation-shell .module-topbar-title strong {
+    font-size: 11px;
+  }
+
+  .homologation-shell .module-topbar-title span {
+    font-size: 8px;
+  }
+
+  .homologation-shell > .main-content {
+    width: min(100% - 20px, 1680px);
+    padding: 12px 0 20px;
+  }
+
+  .homologation-shell .hero {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 4px 0 14px;
+  }
+
+  .homologation-shell .hero h1 {
+    margin: 4px 0 5px;
+    font-size: clamp(25px, 5vw, 31px);
+    line-height: 1.05;
+  }
+
+  .homologation-shell .hero p {
+    max-width: 720px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .homologation-shell .flow-mini {
+    gap: 4px;
+  }
+
+  .homologation-shell .flow-mini span {
+    padding: 5px 7px;
+    font-size: 8px;
+  }
+
+  .homologation-shell .privacy-banner {
+    margin-bottom: 10px;
+    padding: 9px 11px;
+  }
+
+  .homologation-shell .privacy-banner strong,
+  .homologation-shell .privacy-banner span {
+    font-size: 9px;
+  }
+
+  .homologation-shell .entity-type-card {
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .homologation-shell .entity-type-copy h2 {
+    font-size: 15px;
+  }
+
+  .homologation-shell .entity-type-copy p {
+    font-size: 10px;
+  }
+
+  .homologation-shell .import-grid {
+    gap: 10px;
+  }
+
+  .homologation-shell .drop-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .homologation-shell .drop-zone {
+    min-height: 118px;
+  }
+
+  .homologation-shell .dataset-summary {
+    margin: 10px 0;
+  }
+
+  .homologation-shell .mapping-panel {
+    margin-top: 10px;
+  }
+
+  .homologation-shell .mapping-table-wrap {
+    scrollbar-width: thin;
+  }
+
+  .homologation-shell .run-bar {
+    bottom: 76px;
+  }
+
+  .module-page {
+    width: min(100% - 20px, 1200px);
+    padding: 20px 0 24px;
+  }
+}
+
+@media (max-width: 700px) {
+  .homologation-shell .hero {
+    flex-direction: column;
+  }
+
+  .homologation-shell .flow-mini {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .homologation-shell .entity-type-card,
+  .homologation-shell .import-grid,
+  .homologation-shell .dataset-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .homologation-shell .drop-card-head {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .homologation-shell .drop-card-head p {
+    font-size: 9px;
+  }
+
+  .homologation-shell .dataset-summary > div {
+    padding: 10px 12px;
+  }
+
+  .homologation-shell .mapping-head {
+    gap: 9px;
+  }
+
+  .homologation-shell .mapping-head h2 {
+    font-size: 17px;
+  }
+
+  .homologation-shell .mapping-toolbar {
+    gap: 7px;
+  }
+
+  .homologation-shell .mapping-legend {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .homologation-shell .run-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .homologation-shell .run-bar .button {
+    width: 100%;
+  }
+}
