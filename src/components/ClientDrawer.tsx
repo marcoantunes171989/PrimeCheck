@@ -58,6 +58,24 @@ export default function ClientDrawer({
 
   const docField = client.fields.find(field => field.fieldId === 'cpfCnpj')
   const docValidation = validateCpfCnpj(docField?.originValue)
+  const focusedField = focusedFieldId
+    ? client.fields.find(field => field.fieldId === focusedFieldId)
+    : undefined
+
+  const severityRank = (field: ComparisonFieldResult) => {
+    if (field.fieldId === focusedFieldId) return -1
+    if (field.status === 'DIVERGENTE') return 0
+    if (field.status === 'ATENÇÃO') return 1
+    if (field.status === 'NÃO VALIDÁVEL') return 2
+    if (field.manualAdjustment) return 3
+    return 4
+  }
+
+  const orderedFields = [...client.fields].sort((a, b) =>
+    severityRank(a) - severityRank(b)
+    || a.group.localeCompare(b.group, 'pt-BR')
+    || a.fieldLabel.localeCompare(b.fieldLabel, 'pt-BR'),
+  )
 
   const startMaintenance = (field: ComparisonFieldResult) => {
     setEditingFieldId(field.fieldId)
@@ -135,6 +153,33 @@ export default function ClientDrawer({
           </div>
         )}
 
+        {focusedField && (
+          <section className="drawer-focus-card">
+            <div className="drawer-focus-head">
+              <div>
+                <span className="eyebrow">CAMPO EM ANÁLISE</span>
+                <strong>{focusedField.fieldLabel}</strong>
+                <small>{focusedField.group}</small>
+              </div>
+              <StatusBadge status={focusedField.status} />
+            </div>
+            <div className="drawer-focus-values">
+              <div>
+                <span>Origem</span>
+                <strong>{focusedField.originValue || '—'}</strong>
+              </div>
+              <div>
+                <span>Destino</span>
+                <strong>{focusedField.targetValue || '—'}</strong>
+              </div>
+            </div>
+            <div className="drawer-focus-reason">
+              <span>Motivo da análise</span>
+              <p>{focusedField.reason}</p>
+            </div>
+          </section>
+        )}
+
         <div className="manual-maintenance-info">
           <strong>Manutenção manual da homologação</strong>
           <span>
@@ -144,7 +189,7 @@ export default function ClientDrawer({
         </div>
 
         <div className="drawer-fields">
-          {client.fields.map(field => {
+          {orderedFields.map(field => {
             const editing = editingFieldId === field.fieldId
             const focused = focusedFieldId === field.fieldId
             const canMaintain =
