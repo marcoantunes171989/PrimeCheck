@@ -106,7 +106,14 @@ export default function Sidebar({
                 <button
                   type="button"
                   className="sidebar-group-toggle"
-                  onClick={() => toggleGroup(group.id)}
+                  onClick={() => {
+                    if (collapsed) {
+                      onToggle()
+                      setOpenGroup(group.id)
+                    } else {
+                      toggleGroup(group.id)
+                    }
+                  }}
                   aria-expanded={isOpen}
                   title={collapsed ? group.label : undefined}
                 >
