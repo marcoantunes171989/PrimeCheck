@@ -454,6 +454,7 @@ function App({
     setSearch('')
     setStatusFilter('TODOS')
     setIssueFieldFilter('TODOS')
+    setIssueDuplicateFilter('TODOS')
     setFocusedFieldId(undefined)
     setSelectedOccurrenceKey(null)
     setEntityMode('auto')
@@ -462,6 +463,7 @@ function App({
   const openFieldAnalysis = (fieldId: string, status: 'TODOS' | 'DIVERGENTE' | 'ATENÇÃO') => {
     setIssueFieldFilter(fieldId)
     setStatusFilter(status)
+    setIssueDuplicateFilter('TODOS')
     setSearch('')
     setPage(1)
     setActiveTab('issues')
@@ -471,6 +473,7 @@ function App({
     setActiveTab('fields')
     setIssueFieldFilter('TODOS')
     setStatusFilter('TODOS')
+    setIssueDuplicateFilter('TODOS')
     setSearch('')
     setPage(1)
   }
@@ -513,10 +516,10 @@ function App({
       ? 'Atenção'
       : 'Divergências + Atenções'
   const analysisCountLabel = statusFilter === 'DIVERGENTE'
-    ? `${number(issues.length)} ${issues.length === 1 ? 'divergência encontrada' : 'divergências encontradas'}`
+    ? `${number(issueScope.length)} ${issueScope.length === 1 ? 'divergência encontrada' : 'divergências encontradas'}`
     : statusFilter === 'ATENÇÃO'
-      ? `${number(issues.length)} ${issues.length === 1 ? 'atenção encontrada' : 'atenções encontradas'}`
-      : `${number(issues.length)} ${issues.length === 1 ? 'ocorrência para revisão' : 'ocorrências para revisão'}`
+      ? `${number(issueScope.length)} ${issueScope.length === 1 ? 'atenção encontrada' : 'atenções encontradas'}`
+      : `${number(issueScope.length)} ${issueScope.length === 1 ? 'ocorrência para revisão' : 'ocorrências para revisão'}`
   const drawerFocusedFieldId = focusedFieldId ?? (issueFieldFilter !== 'TODOS' ? issueFieldFilter : undefined)
   const occurrenceNav = selectedClient && occurrenceIndex >= 0 && issues.length > 0
     ? {
@@ -584,6 +587,7 @@ function App({
       ? 'Todos os campos'
       : resultProfile.fields.find(field => field.id === issueFieldFilter)?.label || issueFieldFilter,
     statusFilter === 'TODOS' ? 'Divergências e atenções' : statusFilter,
+    issueDuplicateFilter === 'DUPLICADOS' ? 'Somente duplicados' : issueDuplicateFilter === 'NAO_DUPLICADOS' ? 'Sem duplicidade' : '',
     search.trim() ? 'Pesquisa: ' + search.trim() : '',
   ].filter(Boolean).join(' · ')
 
