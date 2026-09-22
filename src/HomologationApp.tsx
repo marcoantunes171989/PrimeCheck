@@ -2319,6 +2319,9 @@ function MissingView({
   const [search, setSearch] = useState('')
   const [originSort, setOriginSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [targetSort, setTargetSort] = useState<SortState>({ key: 'code', direction: 'asc' })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set())
+  const [printSelected, setPrintSelected] = useState(false)
   const [originFilters, setOriginFilters] = useState({
     code: '',
     name: '',
@@ -2371,11 +2374,22 @@ function MissingView({
   const originItems = sortedMissing.slice((originPage - 1) * pageSize, originPage * pageSize)
   const targetItems = sortedTargetOnly.slice((targetPage - 1) * pageSize, targetPage * pageSize)
 
+  const originId = (key: string) => 'ORIGEM::' + key
+  const targetId = (key: string) => 'DESTINO::' + key
+  const visibleIds = [
+    ...originItems.map(client => originId(client.key)),
+    ...targetItems.map(client => targetId(client.key)),
+  ]
+  const selectedCount = [...selected].filter(id =>
+    sortedMissing.some(client => originId(client.key) === id)
+    || sortedTargetOnly.some(client => targetId(client.key) === id),
+  ).length
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selected.has(id))
+
   useEffect(() => {
     setOriginPage(1)
     setTargetPage(1)
   }, [
-    pageSize,
     search,
     originSort.key,
     originSort.direction,
@@ -2391,20 +2405,43 @@ function MissingView({
     setTargetFilters({ code: '', name: '' })
   }
 
+  const toggleVisible = () => {
+    setSelected(current => {
+      const next = new Set(current)
+      if (allVisibleSelected) visibleIds.forEach(id => next.delete(id))
+      else visibleIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const requestPrint = (onlySelected: boolean) => {
+    setPrintSelected(onlySelected)
+    window.setTimeout(() => window.print(), 80)
+  }
+
+  const sourceMissing = printSelected
+    ? sortedMissing.filter(client => selected.has(originId(client.key)))
+    : sortedMissing
+  const sourceTarget = printSelected
+    ? sortedTargetOnly.filter(client => selected.has(targetId(client.key)))
+    : sortedTargetOnly
+
   const printRows = [
-    ...sortedMissing.map(client => ({
+    ...sourceMissing.map(client => ({
       tipo: 'Origem não localizada',
       codigo: client.key,
       registro: client.name || '—',
       detalhe: client.originInactive ? 'Origem inativa: Sim' : 'Origem inativa: Não',
       resultado: client.status,
+      analisado: reviewed.has(originId(client.key)) ? 'Sim' : 'Não',
     })),
-    ...sortedTargetOnly.map(client => ({
+    ...sourceTarget.map(client => ({
       tipo: 'Somente no destino',
       codigo: client.key,
       registro: client.name || '—',
       detalhe: 'Registro presente apenas no destino',
       resultado: 'DESTINO',
+      analisado: reviewed.has(targetId(client.key)) ? 'Sim' : 'Não',
     })),
   ]
 
@@ -2421,8 +2458,15 @@ function MissingView({
               aria-label="Pesquisar registros não importados"
             />
           </div>
+          <span className="selection-summary">{selectedCount.toLocaleString('pt-BR')} selecionados</span>
           <button type="button" className="button ghost compact-button" onClick={clearFilters}>Limpar filtros</button>
-          <button type="button" className="button secondary compact-button" disabled={!printRows.length} onClick={() => window.print()}>
+          <button type="button" className="button ghost compact-button" disabled={!visibleIds.length} onClick={toggleVisible}>
+            {allVisibleSelected ? 'Desmarcar páginas' : 'Selecionar páginas'}
+          </button>
+          <button type="button" className="button secondary compact-button" disabled={!selectedCount} onClick={() => requestPrint(true)}>
+            Imprimir selecionados
+          </button>
+          <button type="button" className="button primary compact-button" disabled={!sortedMissing.length && !sortedTargetOnly.length} onClick={() => requestPrint(false)}>
             Imprimir filtro
           </button>
           <span className="page-size-fixed">20 por página</span>
@@ -2440,13 +2484,16 @@ function MissingView({
               <table className="missing-table">
                 <thead>
                   <tr>
+                    <th className="selection-column" />
                     <SortableHeader label="Código" sortKey="code" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
                     <SortableHeader label={profile.recordLabel} sortKey="name" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
                     <SortableHeader label="Origem inativa" sortKey="inactive" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
                     <SortableHeader label="Resultado" sortKey="status" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                    <th>Análise</th>
                     <th>Ação</th>
                   </tr>
                   <tr className="column-filter-row">
+                    <th />
                     <th><input value={originFilters.code} onChange={e => setOriginFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
                     <th><input value={originFilters.name} onChange={e => setOriginFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
                     <th>
@@ -2465,20 +2512,42 @@ function MissingView({
                       </select>
                     </th>
                     <th />
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {originItems.map(client => (
-                    <tr key={client.key}>
-                      <td className="mono">{client.key}</td>
-                      <td>{client.name || '—'}</td>
-                      <td>{client.originInactive ? 'Sim' : 'Não'}</td>
-                      <td><StatusBadge status={client.status} /></td>
-                      <td>
-                        <button type="button" className="analysis-action-button" onClick={() => onOpenClient(client)}>Abrir análise</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {originItems.map(client => {
+                    const id = originId(client.key)
+                    const isReviewed = reviewed.has(id)
+                    return (
+                      <tr key={client.key} className={isReviewed ? 'row-reviewed' : ''}>
+                        <td className="selection-column">
+                          <input type="checkbox" checked={selected.has(id)} onChange={() => setSelected(current => toggleStringSet(current, id))} />
+                        </td>
+                        <td className="mono">{client.key}</td>
+                        <td>{client.name || '—'}</td>
+                        <td>{client.originInactive ? 'Sim' : 'Não'}</td>
+                        <td><StatusBadge status={client.status} /></td>
+                        <td>
+                          <button type="button" className={'review-chip ' + (isReviewed ? 'done' : '')} onClick={() => setReviewed(current => toggleStringSet(current, id))}>
+                            {isReviewed ? '✓ Analisado' : 'Marcar analisado'}
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="analysis-action-button"
+                            onClick={() => {
+                              setReviewed(current => new Set(current).add(id))
+                              onOpenClient(client)
+                            }}
+                          >
+                            Abrir análise
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
               {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
@@ -2497,21 +2566,37 @@ function MissingView({
               <table className="missing-table">
                 <thead>
                   <tr>
+                    <th className="selection-column" />
                     <SortableHeader label="Código" sortKey="code" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
                     <SortableHeader label={profile.recordLabel} sortKey="name" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                    <th>Análise</th>
                   </tr>
                   <tr className="column-filter-row">
+                    <th />
                     <th><input value={targetFilters.code} onChange={e => setTargetFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
                     <th><input value={targetFilters.name} onChange={e => setTargetFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {targetItems.map(client => (
-                    <tr key={client.key}>
-                      <td className="mono">{client.key}</td>
-                      <td>{client.name || '—'}</td>
-                    </tr>
-                  ))}
+                  {targetItems.map(client => {
+                    const id = targetId(client.key)
+                    const isReviewed = reviewed.has(id)
+                    return (
+                      <tr key={client.key} className={isReviewed ? 'row-reviewed' : ''}>
+                        <td className="selection-column">
+                          <input type="checkbox" checked={selected.has(id)} onChange={() => setSelected(current => toggleStringSet(current, id))} />
+                        </td>
+                        <td className="mono">{client.key}</td>
+                        <td>{client.name || '—'}</td>
+                        <td>
+                          <button type="button" className={'review-chip ' + (isReviewed ? 'done' : '')} onClick={() => setReviewed(current => toggleStringSet(current, id))}>
+                            {isReviewed ? '✓ Analisado' : 'Marcar analisado'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
               {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
@@ -2531,6 +2616,7 @@ function MissingView({
           originFilters.status !== 'TODOS' ? 'Resultado: ' + originFilters.status : '',
           targetFilters.code ? 'Código destino: ' + targetFilters.code : '',
           targetFilters.name ? profile.recordLabel + ' destino: ' + targetFilters.name : '',
+          printSelected ? 'Somente registros selecionados' : 'Resultado filtrado',
         ].filter(Boolean).join(' · ')}
         columns={[
           { key: 'tipo', label: 'Tipo' },
@@ -2538,6 +2624,7 @@ function MissingView({
           { key: 'registro', label: profile.recordLabel },
           { key: 'detalhe', label: 'Detalhe' },
           { key: 'resultado', label: 'Resultado' },
+          { key: 'analisado', label: 'Analisado' },
         ]}
         rows={printRows}
       />
