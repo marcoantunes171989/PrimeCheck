@@ -4,10 +4,19 @@ import type { ManualAdjustmentInput, ManualReviewStatus } from '../lib/compare'
 import StatusBadge from './StatusBadge'
 import { validateCpfCnpj } from '../lib/normalizers'
 
+type OccurrenceNav = {
+  current: number
+  total: number
+  onPrev: () => void
+  onNext: () => void
+}
+
 type Props = {
   client: ClientComparison | null
   recordLabel?: string
   showDocumentValidity?: boolean
+  focusedFieldId?: string
+  occurrenceNav?: OccurrenceNav
   onClose: () => void
   onApplyManualAdjustment: (
     clientKey: string,
@@ -21,6 +30,8 @@ export default function ClientDrawer({
   client,
   recordLabel = 'Registro',
   showDocumentValidity = false,
+  focusedFieldId,
+  occurrenceNav,
   onClose,
   onApplyManualAdjustment,
   onRevertManualAdjustment,
@@ -36,6 +47,12 @@ export default function ClientDrawer({
     setManualStatus('AUTO')
     setNote('')
   }, [client?.key])
+
+  useEffect(() => {
+    if (!client || !focusedFieldId) return
+    const el = document.getElementById(`drawer-field-${focusedFieldId}`)
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [client?.key, focusedFieldId])
 
   if (!client) return null
 
@@ -77,6 +94,30 @@ export default function ClientDrawer({
           <button type="button" className="icon-button large" onClick={onClose}>×</button>
         </div>
 
+        {occurrenceNav && occurrenceNav.total > 1 && (
+          <div className="occurrence-nav">
+            <button
+              type="button"
+              className="button ghost compact-button"
+              disabled={occurrenceNav.current <= 0}
+              onClick={occurrenceNav.onPrev}
+              aria-label="Ocorrência anterior"
+            >
+              ← Anterior
+            </button>
+            <span>{occurrenceNav.current + 1} de {occurrenceNav.total}</span>
+            <button
+              type="button"
+              className="button ghost compact-button"
+              disabled={occurrenceNav.current >= occurrenceNav.total - 1}
+              onClick={occurrenceNav.onNext}
+              aria-label="Próxima ocorrência"
+            >
+              Próximo →
+            </button>
+          </div>
+        )}
+
         <div className="drawer-summary">
           <StatusBadge status={client.status} />
           <div><strong>{client.divergentCount}</strong><span>divergências</span></div>
@@ -105,19 +146,25 @@ export default function ClientDrawer({
         <div className="drawer-fields">
           {client.fields.map(field => {
             const editing = editingFieldId === field.fieldId
+            const focused = focusedFieldId === field.fieldId
             const canMaintain =
               client.found &&
               (field.status !== 'CONFORME' || Boolean(field.manualAdjustment))
 
             return (
               <div
-                className={`field-compare field-${field.status.toLowerCase().replace(/[^a-z]/g, '')}`}
+                className={`field-compare field-${field.status.toLowerCase().replace(/[^a-z]/g, '')}${focused ? ' field-compare-focused' : ''}`}
                 key={field.fieldId}
+                id={`drawer-field-${field.fieldId}`}
+                aria-current={focused ? 'true' : undefined}
               >
                 <div className="field-title">
                   <div>
                     <span>{field.group}</span>
                     <strong>{field.fieldLabel}</strong>
+                    {focused && (
+                      <em className="manual-tag">Campo em análise</em>
+                    )}
                     {field.manualAdjustment && (
                       <em className="manual-tag">Ajustado manualmente</em>
                     )}
