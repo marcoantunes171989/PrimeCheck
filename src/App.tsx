@@ -19,8 +19,12 @@ const staticModuleTitle: Record<'importacao' | 'homologacao' | 'cnpj' | 'ie', st
 
 export default function App() {
   const [module, setModule] = useState<ModuleId>('importacao')
-  const [collapsed, setCollapsed] = useState(true)
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return !window.matchMedia('(min-width: 1100px)').matches
+  })
   const [workspaceFiles, setWorkspaceFiles] = useState<ImportedFile[]>([])
+  const [visitedWorkspaceModules, setVisitedWorkspaceModules] = useState<Set<string>>(new Set())
 
   const toggleSidebar = () => {
     setCollapsed(current => {
@@ -28,6 +32,19 @@ export default function App() {
       window.localStorage.setItem('primecheck.sidebar.collapsed', String(next))
       return next
     })
+  }
+
+  const changeModule = (next: ModuleId) => {
+    setModule(next)
+    if (next.startsWith('data:')) {
+      const moduleId = next.slice(5)
+      setVisitedWorkspaceModules(current => {
+        if (current.has(moduleId)) return current
+        const updated = new Set(current)
+        updated.add(moduleId)
+        return updated
+      })
+    }
   }
 
   const workspaceMatches = useMemo(
@@ -47,7 +64,7 @@ export default function App() {
 
   const openImportedModules = () => {
     const first = workspaceMatches[0]?.module.id
-    if (first) setModule(`data:${first}`)
+    if (first) changeModule(`data:${first}`)
   }
 
   const isHomologationModule = module === 'homologacao'
@@ -58,7 +75,7 @@ export default function App() {
         active={module}
         collapsed={collapsed}
         onToggle={toggleSidebar}
-        onChange={next => setModule(next as ModuleId)}
+        onChange={next => changeModule(next as ModuleId)}
         enabledWorkspaceModules={enabledWorkspaceModules}
         hasWorkspaceData={workspaceFiles.length > 0}
       />
@@ -82,13 +99,25 @@ export default function App() {
           />
         )}
 
-        {activeWorkspaceModule && (
-          <ModuleComparisonPage
-            module={activeWorkspaceModule}
-            files={workspaceFiles}
-            onBackToImport={() => setModule('importacao')}
-          />
-        )}
+        {[...visitedWorkspaceModules].map(moduleId => {
+          const workspaceModule = getWorkspaceModule(moduleId)
+          if (!workspaceModule) return null
+          const active = module === `data:${moduleId}`
+          return (
+            <div
+              key={moduleId}
+              className="workspace-module-cache"
+              hidden={!active}
+              aria-hidden={!active}
+            >
+              <ModuleComparisonPage
+                module={workspaceModule}
+                files={workspaceFiles}
+                onBackToImport={() => changeModule('importacao')}
+              />
+            </div>
+          )
+        })}
 
         {module === 'homologacao' && <HomologationApp />}
         {module === 'cnpj' && <CnpjValidatorPage />}
