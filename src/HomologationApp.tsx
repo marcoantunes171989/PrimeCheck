@@ -966,7 +966,7 @@ function App({
                       </button>
                     </div>
                   </div>
-                  <div className="table-wrap">
+                  <div className="table-wrap stable-filter-table-wrap">
                     <table className="records-table">
                       <thead>
                         <tr>
@@ -1207,7 +1207,7 @@ function App({
                     </div>
                   </div>
 
-                  <div className="table-wrap">
+                  <div className="table-wrap stable-filter-table-wrap">
                     <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
                       <thead>
                         <tr>
@@ -1256,16 +1256,7 @@ function App({
                         </tr>
                       </thead>
                       <tbody>
-                        {currentIssuePage.length === 0 ? (
-                          <tr className="table-empty-row">
-                            <td colSpan={10}>
-                              <div className="inline-empty-state">
-                                <strong>Nenhum registro encontrado.</strong>
-                                <span>A análise, o campo selecionado e os filtros permanecem ativos. Altere a pesquisa para visualizar registros novamente.</span>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : currentIssuePage.map((item, idx) => {
+                        {currentIssuePage.map((item, idx) => {
                           const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
                           const highlight = issueFieldFilter !== 'TODOS'
                           const fieldDefinition = resultProfile.fields.find(field => field.id === item.field.fieldId)
@@ -1360,9 +1351,7 @@ function App({
                       </tbody>
                     </table>
                   </div>
-                  {sortedIssues.length > 0 && (
-                    <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
-                  )}
+                  <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
                 </div>
 
                 <IssuePrintReport
@@ -1527,7 +1516,7 @@ function Overview({
       <div className="overview-grid">
         <section className="panel">
           <div className="section-head compact"><div><h3>Campos que mais exigem revisão</h3><p>Priorizados por divergência e atenção.</p></div></div>
-          <div className="field-ranking">
+          <div className="field-ranking stable-filter-list">
             {worstFields.map(field => (
               <div className="rank-row" key={field.fieldId}>
                 <div><strong>{field.fieldLabel}</strong><span>{field.group}</span></div>
@@ -1538,12 +1527,11 @@ function Overview({
                 </div>
               </div>
             ))}
-            {!worstFields.length && <div className="empty-state">Nenhum campo encontrado para a pesquisa.</div>}
           </div>
         </section>
         <section className="panel">
           <div className="section-head compact"><div><h3>Registros prioritários</h3><p>{profile.label} com maior quantidade de divergências.</p></div></div>
-          <div className="priority-list">
+          <div className="priority-list stable-filter-list">
             {critical.map(client => (
               <button key={client.key} onClick={() => onOpenClient(client)}>
                 <span className="mono">{client.key}</span>
@@ -1551,7 +1539,7 @@ function Overview({
                 <span>→</span>
               </button>
             ))}
-            {!critical.length && <div className="empty-state">{term ? 'Nenhum registro encontrado para a pesquisa.' : 'Nenhum registro divergente. Excelente resultado.'}</div>}
+            {!critical.length && !term && <div className="empty-state">Nenhum registro divergente. Excelente resultado.</div>}
           </div>
         </section>
         {profile.showDocumentValidity && (
@@ -1753,7 +1741,7 @@ function FieldSummaryView({
           />
         </div>
 
-        <div className="table-wrap">
+        <div className="table-wrap stable-filter-table-wrap">
           <table className="field-summary-table">
             <thead>
               <tr>
@@ -1866,7 +1854,6 @@ function FieldSummaryView({
               })}
             </tbody>
           </table>
-          {!pageFields.length && <div className="empty-state">Nenhum campo encontrado para a combinação de filtros.</div>}
         </div>
 
         <div className="workspace-pagination dashboard-pagination">
@@ -2484,7 +2471,7 @@ function DuplicatesView({
         </div>
 
         {reportMode === 'ANALITICO' ? (
-          <div className="table-wrap">
+          <div className="table-wrap stable-filter-table-wrap">
             <table className="dup-table">
             <thead>
               <tr>
@@ -2524,16 +2511,7 @@ function DuplicatesView({
               </tr>
             </thead>
             <tbody>
-              {pageItems.length === 0 ? (
-                <tr className="table-empty-row">
-                  <td colSpan={9}>
-                    <div className="inline-empty-state">
-                      <strong>Nenhuma duplicidade encontrada.</strong>
-                      <span>Os filtros e a estrutura da análise permanecem na tela. Altere a pesquisa para visualizar grupos novamente.</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : pageItems.map((dup, index) => {
+              {pageItems.map((dup, index) => {
                 const rowId = rowIdOf(dup)
                 const field = profile.fields.find(item => item.id === dup.fieldId)
                 const monoValue = field ? monoKinds.has(field.kind) : true
@@ -2639,7 +2617,7 @@ function DuplicatesView({
             </table>
           </div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap stable-filter-table-wrap">
             <table className="dup-table dup-synthetic-table">
               <thead>
                 <tr>
@@ -2651,16 +2629,7 @@ function DuplicatesView({
                 </tr>
               </thead>
               <tbody>
-                {syntheticPageItems.length === 0 ? (
-                  <tr className="table-empty-row">
-                    <td colSpan={5}>
-                      <div className="inline-empty-state">
-                        <strong>Nenhuma duplicidade encontrada.</strong>
-                        <span>Altere a pesquisa ou os filtros para visualizar o resumo sintético.</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : syntheticPageItems.map(row => (
+                {syntheticPageItems.map(row => (
                   <tr key={row.key}>
                     <td><span className={'dup-side dup-side-' + row.side.toLowerCase()}>{row.side}</span></td>
                     <td><div className="dup-field"><strong>{row.fieldLabel}</strong></div></td>
@@ -2673,7 +2642,7 @@ function DuplicatesView({
             </table>
           </div>
         )}
-        {activeLength > 0 && <Pagination page={safePage} pages={pages} onChange={setPage} />}
+        <Pagination page={safePage} pages={pages} onChange={setPage} />
       </div>
 
       {reportMode === 'ANALITICO' ? (
@@ -2872,7 +2841,7 @@ function MissingView({
                 <p>{number(sortedMissing.length)} registros.</p>
               </div>
             </div>
-            <div className="table-wrap">
+            <div className="table-wrap stable-filter-table-wrap">
               <table className="missing-table">
                 <thead>
                   <tr>
@@ -2942,7 +2911,6 @@ function MissingView({
                   })}
                 </tbody>
               </table>
-              {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
             </div>
             <Pagination page={originPage} pages={originPages} onChange={setOriginPage} />
           </section>
@@ -2954,7 +2922,7 @@ function MissingView({
                 <p>{number(sortedTargetOnly.length)} registros.</p>
               </div>
             </div>
-            <div className="table-wrap">
+            <div className="table-wrap stable-filter-table-wrap">
               <table className="missing-table">
                 <thead>
                   <tr>
@@ -2991,7 +2959,6 @@ function MissingView({
                   })}
                 </tbody>
               </table>
-              {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
             </div>
             <Pagination page={targetPage} pages={targetPages} onChange={setTargetPage} />
           </section>

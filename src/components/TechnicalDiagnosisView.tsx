@@ -337,7 +337,7 @@ export default function TechnicalDiagnosisView({
           />
         </div>
 
-        <div className="table-wrap">
+        <div className="table-wrap stable-filter-table-wrap">
           <table className="technical-diagnosis-table">
             <thead>
               <tr>
@@ -421,7 +421,6 @@ export default function TechnicalDiagnosisView({
               ))}
             </tbody>
           </table>
-          {!pageItems.length && <div className="empty-state">Nenhum diagnóstico encontrado para a combinação de filtros.</div>}
         </div>
 
         <div className="workspace-pagination dashboard-pagination">
