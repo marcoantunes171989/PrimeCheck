@@ -22,6 +22,7 @@ import {
   normalizeAddressNumber,
   normalizeAlphanumericDocument,
   normalizeClientName,
+  normalizeComparableCharacters,
   normalizeForField,
   normalizeIE,
   normalizeLooseText,
@@ -337,6 +338,17 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
   const o = comparableText(field, origin)
   const t = comparableText(field, target)
   if (o === t) return { status: 'CONFORME', reason: 'Valores equivalentes após normalização.' }
+
+  if (field.kind !== 'money') {
+    const originCharacters = normalizeComparableCharacters(origin)
+    const targetCharacters = normalizeComparableCharacters(target)
+    if (originCharacters && originCharacters === targetCharacters) {
+      return {
+        status: 'CONFORME',
+        reason: 'Valores equivalentes após desconsiderar máscara/formatação e comparar a sequência de letras e números.',
+      }
+    }
+  }
 
   if (!originText && !targetText) return { status: 'CONFORME', reason: 'Campo vazio nos dois arquivos.' }
 
