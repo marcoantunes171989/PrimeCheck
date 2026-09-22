@@ -7,6 +7,7 @@ import WorkspaceImportPage from './pages/WorkspaceImportPage'
 import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceModules'
 import type { ImportedFile } from './types'
+import { clearWorkspaceFiles, loadWorkspaceFiles, saveWorkspaceFiles } from './lib/workspaceStorage'
 
 type ModuleId = 'importacao' | 'homologacao' | 'cnpj' | 'ie' | `data:${string}`
 
@@ -24,14 +25,66 @@ export default function App() {
     return !window.matchMedia('(min-width: 1100px)').matches
   })
   const [workspaceFiles, setWorkspaceFiles] = useState<ImportedFile[]>([])
+  const [workspaceStorageReady, setWorkspaceStorageReady] = useState(false)
+  const [workspaceStorageMessage, setWorkspaceStorageMessage] = useState('Restaurando dados locais…')
   const [visitedWorkspaceModules, setVisitedWorkspaceModules] = useState<Set<string>>(new Set())
+  const [sidebarPinned, setSidebarPinned] = useState(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem('primecheck.sidebar.pinned') === 'true',
+  )
+
+  useEffect(() => {
+    let active = true
+    void loadWorkspaceFiles().then(files => {
+      if (!active) return
+      setWorkspaceFiles(files)
+      setWorkspaceStorageMessage(files.length ? 'Dados restaurados deste navegador.' : 'Nenhum dado salvo neste navegador.')
+      setWorkspaceStorageReady(true)
+    })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    if (!workspaceStorageReady) return
+    void saveWorkspaceFiles(workspaceFiles)
+      .then(() => setWorkspaceStorageMessage(workspaceFiles.length ? 'Dados salvos neste navegador.' : 'Nenhum dado salvo neste navegador.'))
+      .catch(() => setWorkspaceStorageMessage('Não foi possível salvar os dados localmente.'))
+  }, [workspaceFiles, workspaceStorageReady])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(min-width: 1100px)')
+    const handleChange = () => {
+      if (media.matches) setCollapsed(false)
+      else if (!sidebarPinned) setCollapsed(true)
+    }
+    handleChange()
+    media.addEventListener('change', handleChange)
+    return () => media.removeEventListener('change', handleChange)
+  }, [sidebarPinned])
 
   const toggleSidebar = () => {
-    setCollapsed(current => {
+    if (sidebarPinned) {
+      setSidebarPinned(false)
+      window.localStorage.setItem('primecheck.sidebar.pinned', 'false')
+    }
+    setCollapsed(current => !current)
+  }
+
+  const toggleSidebarPin = () => {
+    setSidebarPinned(current => {
       const next = !current
-      window.localStorage.setItem('primecheck.sidebar.collapsed', String(next))
+      window.localStorage.setItem('primecheck.sidebar.pinned', String(next))
+      if (next) setCollapsed(false)
       return next
     })
+  }
+
+  const clearImportedData = async () => {
+    await clearWorkspaceFiles()
+    setWorkspaceFiles([])
+    setVisitedWorkspaceModules(new Set())
+    setModule('importacao')
+    setWorkspaceStorageMessage('Dados importados removidos deste navegador.')
   }
 
   const changeModule = (next: ModuleId) => {
@@ -75,6 +128,8 @@ export default function App() {
         active={module}
         collapsed={collapsed}
         onToggle={toggleSidebar}
+        pinned={sidebarPinned}
+        onTogglePin={toggleSidebarPin}
         onChange={next => changeModule(next as ModuleId)}
         enabledWorkspaceModules={enabledWorkspaceModules}
         hasWorkspaceData={workspaceFiles.length > 0}
@@ -96,6 +151,9 @@ export default function App() {
             files={workspaceFiles}
             onFilesChange={setWorkspaceFiles}
             onContinue={openImportedModules}
+            onClear={clearImportedData}
+            restoring={!workspaceStorageReady}
+            storageMessage={workspaceStorageMessage}
           />
         )}
 
