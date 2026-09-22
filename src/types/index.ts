@@ -97,13 +97,27 @@ export interface ClientComparison {
   fields: ComparisonFieldResult[]
 }
 
+export interface DuplicateRecordExtra {
+  label: string
+  value: string
+}
+
+export interface DuplicateRecord {
+  key: string
+  name: string
+  rawValue: string
+  extras: DuplicateRecordExtra[]
+}
+
 export interface DuplicateItem {
   side: 'ORIGEM' | 'DESTINO'
   fieldId: string
   fieldLabel: string
+  fieldGroup: string
+  category: string
   normalizedValue: string
   count: number
-  records: Array<{ key: string; name: string }>
+  records: DuplicateRecord[]
 }
 
 export interface FieldSummary {

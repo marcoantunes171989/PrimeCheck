@@ -27,6 +27,7 @@ import {
   validateCpfCnpj,
 } from './normalizers'
 import { detectStatusHeader } from './mapping'
+import { duplicateCategory } from './duplicates'
 
 const mappingByField = (mapping: FieldMapping[]) => new Map(mapping.map(item => [item.fieldId, item]))
 
@@ -334,22 +335,58 @@ const duplicateScan = (
       groups.set(normalized, arr)
     })
 
+    const skipExtraIds = new Set([fieldId, keyField.id, nameField?.id].filter(Boolean) as string[])
+    const extraCandidates = [...profile.fields]
+      .filter(item => !skipExtraIds.has(item.id))
+      .sort((a, b) => extraFieldPriority(a) - extraFieldPriority(b) || a.label.localeCompare(b.label, 'pt-BR'))
+
     groups.forEach((records, value) => {
       if (records.length < 2) return
       result.push({
         side,
         fieldId,
         fieldLabel: field.label,
+        fieldGroup: field.group,
+        category: duplicateCategory(field),
         normalizedValue: value,
         count: records.length,
         records: records.map(row => ({
           key: keyHeader ? normalizeForField(row[keyHeader], keyField) : '',
           name: nameHeader ? asText(row[nameHeader]) : '',
+          rawValue: asText(row[header]),
+          extras: collectRecordExtras(row, extraCandidates, mapIndex, side),
         })),
       })
     })
   }
   return result
+}
+
+const extraFieldPriority = (field: FieldDefinition) => {
+  if (field.kind === 'document') return 0
+  if (field.kind === 'ie') return 1
+  if (field.kind === 'phone') return 2
+  if (field.id === 'email' || field.id === 'pessoaTipo' || field.id === 'cidade') return 3
+  return 6
+}
+
+const collectRecordExtras = (
+  row: Record<string, CellValue>,
+  candidates: FieldDefinition[],
+  mapIndex: Map<string, FieldMapping>,
+  side: 'ORIGEM' | 'DESTINO',
+) => {
+  const extras: Array<{ label: string; value: string }> = []
+  for (const item of candidates) {
+    if (extras.length >= 3) break
+    const map = mapIndex.get(item.id)
+    const header = side === 'ORIGEM' ? map?.originHeader : map?.targetHeader
+    if (!header) continue
+    const value = asText(row[header]).trim()
+    if (!value) continue
+    extras.push({ label: item.label, value })
+  }
+  return extras
 }
 
 const summarizeFields = (clients: ClientComparison[], fields: FieldDefinition[]): FieldSummary[] => fields.map(field => {

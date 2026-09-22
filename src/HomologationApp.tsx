@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import FileDropZone from './components/FileDropZone'
 import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
+import DuplicateRecordList, { DuplicateCodeList } from './components/DuplicateRecordList'
 import StatusBadge from './components/StatusBadge'
 import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
@@ -1004,84 +1005,178 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [fieldFilter, setFieldFilter] = useState('TODOS')
+  const [sort, setSort] = useState<SortState>({ key: 'count', direction: 'desc' })
+  const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
+  const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
+
+  const fieldOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const dup of report.duplicates) {
+      if (!map.has(dup.fieldId)) map.set(dup.fieldId, dup.fieldLabel)
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
+  }, [report.duplicates])
 
   const term = search.trim().toLocaleUpperCase('pt-BR')
   const filtered = useMemo(() => report.duplicates.filter(dup => {
+    if (fieldFilter !== 'TODOS' && dup.fieldId !== fieldFilter) return false
     if (!term) return true
-    const records = dup.records.map(record => record.key + ' ' + record.name).join(' ')
-    const text = [dup.side, dup.fieldLabel, dup.normalizedValue, dup.count, records].join(' ').toLocaleUpperCase('pt-BR')
+    const records = dup.records.flatMap(record => [
+      record.key,
+      record.name,
+      record.rawValue,
+      ...record.extras.flatMap(extra => [extra.label, extra.value]),
+    ]).join(' ')
+    const text = [
+      dup.side,
+      dup.fieldLabel,
+      dup.fieldGroup,
+      dup.category,
+      dup.normalizedValue,
+      dup.count,
+      records,
+    ].join(' ').toLocaleUpperCase('pt-BR')
     return text.includes(term)
-  }), [report.duplicates, search])
+  }), [report.duplicates, search, fieldFilter])
 
   const sorted = useMemo(() => sortedBy(filtered, sort, (dup, key) => {
     if (key === 'side') return dup.side
     if (key === 'field') return dup.fieldLabel
+    if (key === 'category') return dup.category
     if (key === 'value') return dup.normalizedValue
     if (key === 'count') return dup.count
+    if (key === 'codes') return dup.records.map(record => record.key).filter(Boolean).join(' ')
     if (key === 'records') return dup.records.map(record => record.key + ' ' + record.name).join(' ')
     return ''
   }), [filtered, sort])
 
-  useEffect(() => setPage(1), [pageSize, search, sort.key, sort.direction])
+  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sort.key, sort.direction])
 
   const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
-  const pageItems = sorted.slice((page - 1) * pageSize, page * pageSize)
+  const safePage = Math.min(page, pages)
+  const pageItems = sorted.slice((safePage - 1) * pageSize, safePage * pageSize)
   const duplicateHint = profile.showDocumentValidity
     ? 'grupos duplicados em CPF/CNPJ ou IE.'
     : 'grupos duplicados nos campos de unicidade do perfil.'
+  const monoKinds = new Set(['document', 'ie', 'code', 'phone'])
+
+  const toggleSet = (current: Set<string>, id: string) => {
+    const next = new Set(current)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  }
 
   return (
     <div className="panel">
       <div className="section-head compact">
         <div>
           <h3>Duplicidades</h3>
-          <p>{number(filtered.length)} {duplicateHint}</p>
+          <p>
+            {number(filtered.length)} {filtered.length === 1 ? 'grupo' : 'grupos'} no filtro atual
+            {filtered.length !== report.duplicates.length ? ` · ${number(report.duplicates.length)} no total` : ''}.
+            {' '}{duplicateHint}
+          </p>
         </div>
       </div>
 
-      <div className="table-toolbar searchable-toolbar">
+      <div className="table-toolbar searchable-toolbar duplicates-toolbar">
         <div className="screen-search inline-search">
           <span aria-hidden="true">⌕</span>
           <input
             value={search}
             onChange={event => setSearch(event.target.value)}
-            placeholder="Pesquisar em todos os dados de duplicidade…"
+            placeholder="Pesquisar campo, valor, código, nome, lado ou tipo…"
             aria-label="Pesquisar duplicidades"
           />
         </div>
+        <select
+          className="dup-field-filter"
+          value={fieldFilter}
+          onChange={event => setFieldFilter(event.target.value)}
+          aria-label="Filtrar por campo duplicado"
+        >
+          <option value="TODOS">Todos os campos</option>
+          {fieldOptions.map(([fieldId, fieldLabel]) => (
+            <option key={fieldId} value={fieldId}>{fieldLabel}</option>
+          ))}
+        </select>
         <PageSizeSelect value={pageSize} onChange={setPageSize} />
       </div>
 
       {filtered.length === 0 ? (
-        <div className="empty-state">{term ? 'Nenhuma duplicidade encontrada para a pesquisa.' : 'Nenhuma duplicidade identificada nos campos mapeados.'}</div>
+        <div className="empty-state">{term || fieldFilter !== 'TODOS' ? 'Nenhuma duplicidade encontrada para a pesquisa.' : 'Nenhuma duplicidade identificada nos campos mapeados.'}</div>
       ) : (
         <>
           <div className="table-wrap">
-            <table>
+            <table className="dup-table">
               <thead>
                 <tr>
                   <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Valor" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Qtd." sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                  <SortableHeader label="Registros envolvidos" sortKey="records" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Registros detalhados" sortKey="records" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map((dup, index) => (
-                  <tr key={dup.side + '-' + dup.fieldId + '-' + dup.normalizedValue + '-' + index}>
-                    <td>{dup.side}</td>
-                    <td>{dup.fieldLabel}</td>
-                    <td className="mono">{dup.normalizedValue}</td>
-                    <td>{dup.count}</td>
-                    <td>{dup.records.map(record => record.key + (record.name ? ' · ' + record.name : '')).join(' | ')}</td>
-                  </tr>
-                ))}
+                {pageItems.map((dup, index) => {
+                  const rowId = `${dup.side}::${dup.fieldId}::${dup.normalizedValue}`
+                  const field = profile.fields.find(item => item.id === dup.fieldId)
+                  const monoValue = field ? monoKinds.has(field.kind) : true
+                  return (
+                    <tr key={rowId + '-' + index}>
+                      <td>
+                        <span className={`dup-side dup-side-${dup.side.toLowerCase()}`}>{dup.side}</span>
+                      </td>
+                      <td>
+                        <div className="dup-field">
+                          <strong>{dup.fieldLabel}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="dup-category">{dup.category}</span>
+                      </td>
+                      <td>
+                        <div className="dup-value">
+                          <span>Valor duplicado</span>
+                          <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="dup-count">
+                          <strong>{number(dup.count)}</strong>
+                          <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
+                        </span>
+                      </td>
+                      <td>
+                        <DuplicateCodeList
+                          codes={dup.records.map(record => record.key)}
+                          expanded={expandedCodes.has(rowId)}
+                          onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
+                        />
+                      </td>
+                      <td>
+                        <DuplicateRecordList
+                          groupId={rowId}
+                          fieldLabel={dup.fieldLabel}
+                          normalizedValue={dup.normalizedValue}
+                          records={dup.records}
+                          expanded={expandedRecords.has(rowId)}
+                          onToggle={() => setExpandedRecords(current => toggleSet(current, rowId))}
+                          monoValue={monoValue}
+                        />
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
-          <Pagination page={page} pages={pages} onChange={setPage} />
+          <Pagination page={safePage} pages={pages} onChange={setPage} />
         </>
       )}
     </div>

@@ -119,6 +119,7 @@ export const exportReportExcel = (report: ComparisonReport) => {
   const duplicateRows = report.duplicates.flatMap(d => d.records.map(r => ({
     Arquivo: d.side,
     Campo: d.fieldLabel,
+    Categoria: d.category,
     Valor: d.normalizedValue,
     Quantidade: d.count,
     Codigo: r.key,
