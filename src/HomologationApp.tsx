@@ -191,8 +191,19 @@ function App() {
     return report.clients.filter(client => {
       if (statusFilter !== 'TODOS' && client.status !== statusFilter) return false
       if (!term) return true
-      const fieldHit = client.fields.some(field => `${field.originValue} ${field.targetValue}`.toLocaleUpperCase('pt-BR').includes(term))
-      return client.key.toLocaleUpperCase('pt-BR').includes(term) || client.name.toLocaleUpperCase('pt-BR').includes(term) || fieldHit
+      const fieldHit = client.fields.some(field =>
+        `${field.fieldLabel} ${field.group} ${field.originValue} ${field.targetValue} ${field.reason}`
+          .toLocaleUpperCase('pt-BR')
+          .includes(term),
+      )
+      const rawHit = [
+        ...Object.values(client.originRow),
+        ...Object.values(client.targetRow ?? {}),
+      ].some(value => String(value ?? '').toLocaleUpperCase('pt-BR').includes(term))
+      return client.key.toLocaleUpperCase('pt-BR').includes(term)
+        || client.name.toLocaleUpperCase('pt-BR').includes(term)
+        || fieldHit
+        || rawHit
     })
   }, [report, search, statusFilter])
 
@@ -762,34 +773,71 @@ function Overview({
   profile: EntityProfile
   onOpenClient: (client: ClientComparison) => void
 }) {
-  const critical = report.clients.filter(c => c.status === 'DIVERGENTE').sort((a,b) => b.divergentCount - a.divergentCount).slice(0, 8)
-  const cpfField = report.fieldSummary.find(f => f.fieldId === 'cpfCnpj')
-  const worstFields = [...report.fieldSummary].filter(f => f.divergent || f.attention).sort((a,b) => (b.divergent * 2 + b.attention) - (a.divergent * 2 + a.attention)).slice(0, 8)
-  return <div className="overview-grid">
-    <section className="panel">
-      <div className="section-head compact"><div><h3>Campos que mais exigem revisão</h3><p>Priorizados por divergência e atenção.</p></div></div>
-      <div className="field-ranking">
-        {worstFields.map(field => <div className="rank-row" key={field.fieldId}>
-          <div><strong>{field.fieldLabel}</strong><span>{field.group}</span></div>
-          <div className="rank-metrics"><span className="metric-error">{field.divergent} erros</span><span className="metric-warning">{field.attention} avisos</span><strong>{field.conformityPercent === null ? '—' : `${field.conformityPercent.toFixed(1)}%`}</strong></div>
-        </div>)}
+  const [search, setSearch] = useState('')
+  const term = search.trim().toLocaleUpperCase('pt-BR')
+  const cpfField = report.fieldSummary.find(field => field.fieldId === 'cpfCnpj')
+  const critical = report.clients
+    .filter(client => client.status === 'DIVERGENTE')
+    .filter(client => !term || (client.key + ' ' + client.name).toLocaleUpperCase('pt-BR').includes(term))
+    .sort((a, b) => b.divergentCount - a.divergentCount)
+    .slice(0, 8)
+  const worstFields = [...report.fieldSummary]
+    .filter(field => field.divergent || field.attention)
+    .filter(field => !term || (field.fieldLabel + ' ' + field.group).toLocaleUpperCase('pt-BR').includes(term))
+    .sort((a, b) => (b.divergent * 2 + b.attention) - (a.divergent * 2 + a.attention))
+    .slice(0, 8)
+
+  return (
+    <>
+      <div className="screen-search">
+        <span aria-hidden="true">⌕</span>
+        <input
+          value={search}
+          onChange={event => setSearch(event.target.value)}
+          placeholder="Pesquisar no resumo por campo, código ou registro…"
+          aria-label="Pesquisar no resumo"
+        />
       </div>
-    </section>
-    <section className="panel">
-      <div className="section-head compact"><div><h3>Registros prioritários</h3><p>{profile.label} com maior quantidade de divergências.</p></div></div>
-      <div className="priority-list">
-        {critical.map(client => <button key={client.key} onClick={() => onOpenClient(client)}><span className="mono">{client.key}</span><div><strong>{client.name || 'Sem descrição'}</strong><small>{client.divergentCount} divergências · {client.attentionCount} atenções</small></div><span>→</span></button>)}
-        {!critical.length && <div className="empty-state">Nenhum registro divergente. Excelente resultado.</div>}
+      <div className="overview-grid">
+        <section className="panel">
+          <div className="section-head compact"><div><h3>Campos que mais exigem revisão</h3><p>Priorizados por divergência e atenção.</p></div></div>
+          <div className="field-ranking">
+            {worstFields.map(field => (
+              <div className="rank-row" key={field.fieldId}>
+                <div><strong>{field.fieldLabel}</strong><span>{field.group}</span></div>
+                <div className="rank-metrics">
+                  <span className="metric-error">{field.divergent} erros</span>
+                  <span className="metric-warning">{field.attention} avisos</span>
+                  <strong>{field.conformityPercent === null ? '—' : field.conformityPercent.toFixed(1) + '%'}</strong>
+                </div>
+              </div>
+            ))}
+            {!worstFields.length && <div className="empty-state">Nenhum campo encontrado para a pesquisa.</div>}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="section-head compact"><div><h3>Registros prioritários</h3><p>{profile.label} com maior quantidade de divergências.</p></div></div>
+          <div className="priority-list">
+            {critical.map(client => (
+              <button key={client.key} onClick={() => onOpenClient(client)}>
+                <span className="mono">{client.key}</span>
+                <div><strong>{client.name || 'Sem descrição'}</strong><small>{client.divergentCount} divergências · {client.attentionCount} atenções</small></div>
+                <span>→</span>
+              </button>
+            ))}
+            {!critical.length && <div className="empty-state">{term ? 'Nenhum registro encontrado para a pesquisa.' : 'Nenhum registro divergente. Excelente resultado.'}</div>}
+          </div>
+        </section>
+        {profile.showDocumentValidity && (
+          <section className="panel wide insight-panel">
+            <div className="insight-icon">✓</div>
+            <div><span className="eyebrow">REGRA CPF/CNPJ</span><h3>Validação de documento incorporada</h3><p>CPF/CNPJ válido na origem e diferente no destino é classificado como erro. Documento ausente ou inválido na origem com valor gerado no destino é tratado como atenção.</p></div>
+            <div className="insight-stat"><strong>{cpfField ? cpfField.divergent : 0}</strong><span>erros de documento</span></div>
+          </section>
+        )}
       </div>
-    </section>
-    {profile.showDocumentValidity && (
-      <section className="panel wide insight-panel">
-        <div className="insight-icon">✓</div>
-        <div><span className="eyebrow">REGRA CPF/CNPJ</span><h3>Validação de documento incorporada</h3><p>CPF/CNPJ válido na origem e diferente no destino é classificado como erro. Documento ausente ou inválido na origem com valor gerado no destino é tratado como atenção.</p></div>
-        <div className="insight-stat"><strong>{cpfField ? cpfField.divergent : 0}</strong><span>erros de documento</span></div>
-      </section>
-    )}
-  </div>
+    </>
+  )
 }
 
 function IssueValueCell({
@@ -826,30 +874,63 @@ function FieldSummaryView({
   report: ComparisonReport
   onAnalyzeField: (fieldId: string, status: 'TODOS' | 'DIVERGENTE' | 'ATENÇÃO') => void
 }) {
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const term = search.trim().toLocaleUpperCase('pt-BR')
+
+  const fields = useMemo(() => {
+    const filtered = report.fieldSummary.filter(field => {
+      if (!term) return true
+      return (field.fieldLabel + ' ' + field.group).toLocaleUpperCase('pt-BR').includes(term)
+    })
+    return sortedBy(filtered, sort, (field, key) => {
+      if (key === 'group') return field.group
+      if (key === 'field') return field.fieldLabel
+      if (key === 'conform') return field.conform
+      if (key === 'divergent') return field.divergent
+      if (key === 'attention') return field.attention
+      if (key === 'notValidatable') return field.notValidatable
+      if (key === 'conformity') return field.conformityPercent ?? -1
+      return ''
+    })
+  }, [report.fieldSummary, search, sort])
+
   return (
     <div className="panel">
       <div className="section-head compact">
         <div>
           <h3>Comparação por campo</h3>
-          <p>Resumo completo do perfil de homologação. Clique no campo ou na quantidade para analisar as ocorrências.</p>
+          <p>Pesquise, ordene e clique nas ocorrências para analisar divergências e atenções.</p>
         </div>
       </div>
+
+      <div className="screen-search inline-search">
+        <span aria-hidden="true">⌕</span>
+        <input
+          value={search}
+          onChange={event => setSearch(event.target.value)}
+          placeholder="Pesquisar grupo ou campo…"
+          aria-label="Pesquisar comparação por campo"
+        />
+      </div>
+
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Grupo</th>
-              <th>Campo</th>
-              <th>Conformes</th>
-              <th>Divergentes</th>
-              <th>Atenções</th>
-              <th>Não validáveis</th>
-              <th>% conformidade</th>
+              <SortableHeader label="Grupo" sortKey="group" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              <SortableHeader label="Conformes" sortKey="conform" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              <SortableHeader label="Divergentes" sortKey="divergent" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              <SortableHeader label="Atenções" sortKey="attention" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              <SortableHeader label="Não validáveis" sortKey="notValidatable" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+              <SortableHeader label="% conformidade" sortKey="conformity" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
             </tr>
           </thead>
           <tbody>
-            {report.fieldSummary.map(field => {
+            {fields.map(field => {
               const reviewCount = field.divergent + field.attention
+              const conformity = field.conformityPercent ?? 0
               return (
                 <tr key={field.fieldId}>
                   <td className="muted-cell">{field.group}</td>
@@ -859,13 +940,13 @@ function FieldSummaryView({
                         type="button"
                         className="field-analysis-link"
                         onClick={() => onAnalyzeField(field.fieldId, 'TODOS')}
-                        title={`Ver ${number(reviewCount)} ocorrências de ${field.fieldLabel}`}
-                        aria-label={`Ver ${number(reviewCount)} ocorrências de ${field.fieldLabel}`}
+                        title={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
+                        aria-label={'Ver ' + number(reviewCount) + ' ocorrências de ' + field.fieldLabel}
                       >
                         {field.fieldLabel}
                       </button>
                     ) : (
-                      <strong>{field.fieldLabel}</strong>
+                      <span>{field.fieldLabel}</span>
                     )}
                   </td>
                   <td>{number(field.conform)}</td>
@@ -875,8 +956,8 @@ function FieldSummaryView({
                         type="button"
                         className="issue-count-link issue-count-link-divergent"
                         onClick={() => onAnalyzeField(field.fieldId, 'DIVERGENTE')}
-                        title={`Ver ${number(field.divergent)} divergências de ${field.fieldLabel}`}
-                        aria-label={`Ver ${number(field.divergent)} divergências de ${field.fieldLabel}`}
+                        title={'Ver ' + number(field.divergent) + ' divergências de ' + field.fieldLabel}
+                        aria-label={'Ver ' + number(field.divergent) + ' divergências de ' + field.fieldLabel}
                       >
                         {number(field.divergent)}
                       </button>
@@ -888,8 +969,8 @@ function FieldSummaryView({
                         type="button"
                         className="issue-count-link issue-count-link-attention"
                         onClick={() => onAnalyzeField(field.fieldId, 'ATENÇÃO')}
-                        title={`Ver ${number(field.attention)} atenções de ${field.fieldLabel}`}
-                        aria-label={`Ver ${number(field.attention)} atenções de ${field.fieldLabel}`}
+                        title={'Ver ' + number(field.attention) + ' atenções de ' + field.fieldLabel}
+                        aria-label={'Ver ' + number(field.attention) + ' atenções de ' + field.fieldLabel}
                       >
                         {number(field.attention)}
                       </button>
@@ -897,13 +978,23 @@ function FieldSummaryView({
                   </td>
                   <td>{number(field.notValidatable)}</td>
                   <td>
-                    <strong>{field.conformityPercent === null ? '—' : `${field.conformityPercent.toFixed(2).replace('.', ',')}%`}</strong>
+                    {field.conformityPercent === null ? (
+                      '—'
+                    ) : (
+                      <div className="field-progress">
+                        <div className="field-progress-track">
+                          <i style={{ width: String(conformity) + '%' }} />
+                        </div>
+                        <span>{conformity.toFixed(2).replace('.', ',')}%</span>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
+        {!fields.length && <div className="empty-state">Nenhum campo encontrado para a pesquisa.</div>}
       </div>
     </div>
   )
@@ -912,11 +1003,30 @@ function FieldSummaryView({
 function DuplicatesView({ report, profile }: { report: ComparisonReport; profile: EntityProfile }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortState>({ key: 'field', direction: 'asc' })
 
-  useEffect(() => setPage(1), [pageSize])
+  const term = search.trim().toLocaleUpperCase('pt-BR')
+  const filtered = useMemo(() => report.duplicates.filter(dup => {
+    if (!term) return true
+    const records = dup.records.map(record => record.key + ' ' + record.name).join(' ')
+    const text = [dup.side, dup.fieldLabel, dup.normalizedValue, dup.count, records].join(' ').toLocaleUpperCase('pt-BR')
+    return text.includes(term)
+  }), [report.duplicates, search])
 
-  const pages = Math.max(1, Math.ceil(report.duplicates.length / pageSize))
-  const pageItems = report.duplicates.slice((page - 1) * pageSize, page * pageSize)
+  const sorted = useMemo(() => sortedBy(filtered, sort, (dup, key) => {
+    if (key === 'side') return dup.side
+    if (key === 'field') return dup.fieldLabel
+    if (key === 'value') return dup.normalizedValue
+    if (key === 'count') return dup.count
+    if (key === 'records') return dup.records.map(record => record.key + ' ' + record.name).join(' ')
+    return ''
+  }), [filtered, sort])
+
+  useEffect(() => setPage(1), [pageSize, search, sort.key, sort.direction])
+
+  const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
+  const pageItems = sorted.slice((page - 1) * pageSize, page * pageSize)
   const duplicateHint = profile.showDocumentValidity
     ? 'grupos duplicados em CPF/CNPJ ou IE.'
     : 'grupos duplicados nos campos de unicidade do perfil.'
@@ -926,28 +1036,46 @@ function DuplicatesView({ report, profile }: { report: ComparisonReport; profile
       <div className="section-head compact">
         <div>
           <h3>Duplicidades</h3>
-          <p>{number(report.duplicates.length)} {duplicateHint}</p>
+          <p>{number(filtered.length)} {duplicateHint}</p>
+        </div>
+      </div>
+
+      <div className="table-toolbar searchable-toolbar">
+        <div className="screen-search inline-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Pesquisar em todos os dados de duplicidade…"
+            aria-label="Pesquisar duplicidades"
+          />
         </div>
         <PageSizeSelect value={pageSize} onChange={setPageSize} />
       </div>
 
-      {report.duplicates.length === 0 ? (
-        <div className="empty-state">Nenhuma duplicidade identificada nos campos mapeados.</div>
+      {filtered.length === 0 ? (
+        <div className="empty-state">{term ? 'Nenhuma duplicidade encontrada para a pesquisa.' : 'Nenhuma duplicidade identificada nos campos mapeados.'}</div>
       ) : (
         <>
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Lado</th><th>Campo</th><th>Valor</th><th>Qtd.</th><th>Registros envolvidos</th></tr>
+                <tr>
+                  <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Campo" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Valor" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Qtd." sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Registros envolvidos" sortKey="records" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                </tr>
               </thead>
               <tbody>
-                {pageItems.map((dup, i) => (
-                  <tr key={`${dup.side}-${dup.fieldId}-${dup.normalizedValue}-${i}`}>
-                    <td><strong>{dup.side}</strong></td>
+                {pageItems.map((dup, index) => (
+                  <tr key={dup.side + '-' + dup.fieldId + '-' + dup.normalizedValue + '-' + index}>
+                    <td>{dup.side}</td>
                     <td>{dup.fieldLabel}</td>
                     <td className="mono">{dup.normalizedValue}</td>
                     <td>{dup.count}</td>
-                    <td>{dup.records.map(r => `${r.key}${r.name ? ` · ${r.name}` : ''}`).join(' | ')}</td>
+                    <td>{dup.records.map(record => record.key + (record.name ? ' · ' + record.name : '')).join(' | ')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -972,22 +1100,58 @@ function MissingView({
   const [pageSize, setPageSize] = useState(20)
   const [originPage, setOriginPage] = useState(1)
   const [targetPage, setTargetPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [originSort, setOriginSort] = useState<SortState>({ key: 'code', direction: 'asc' })
+  const [targetSort, setTargetSort] = useState<SortState>({ key: 'code', direction: 'asc' })
 
-  const missing = report.clients.filter(client => !client.found)
-  const originPages = Math.max(1, Math.ceil(missing.length / pageSize))
-  const targetPages = Math.max(1, Math.ceil(report.targetOnly.length / pageSize))
-  const originItems = missing.slice((originPage - 1) * pageSize, originPage * pageSize)
-  const targetItems = report.targetOnly.slice((targetPage - 1) * pageSize, targetPage * pageSize)
+  const term = search.trim().toLocaleUpperCase('pt-BR')
+  const missing = useMemo(() => report.clients.filter(client => !client.found).filter(client => {
+    if (!term) return true
+    const raw = Object.values(client.originRow).join(' ')
+    return (client.key + ' ' + client.name + ' ' + raw).toLocaleUpperCase('pt-BR').includes(term)
+  }), [report.clients, search])
+
+  const targetOnly = useMemo(() => report.targetOnly.filter(client => {
+    if (!term) return true
+    return (client.key + ' ' + client.name + ' ' + Object.values(client.row).join(' ')).toLocaleUpperCase('pt-BR').includes(term)
+  }), [report.targetOnly, search])
+
+  const sortedMissing = useMemo(() => sortedBy(missing, originSort, (client, key) => {
+    if (key === 'code') return client.key
+    if (key === 'name') return client.name
+    if (key === 'inactive') return client.originInactive
+    if (key === 'status') return client.status
+    return ''
+  }), [missing, originSort])
+
+  const sortedTargetOnly = useMemo(() => sortedBy(targetOnly, targetSort, (client, key) => {
+    if (key === 'code') return client.key
+    if (key === 'name') return client.name
+    return ''
+  }), [targetOnly, targetSort])
+
+  const originPages = Math.max(1, Math.ceil(sortedMissing.length / pageSize))
+  const targetPages = Math.max(1, Math.ceil(sortedTargetOnly.length / pageSize))
+  const originItems = sortedMissing.slice((originPage - 1) * pageSize, originPage * pageSize)
+  const targetItems = sortedTargetOnly.slice((targetPage - 1) * pageSize, targetPage * pageSize)
 
   useEffect(() => {
     setOriginPage(1)
     setTargetPage(1)
-  }, [pageSize])
+  }, [pageSize, search, originSort.key, originSort.direction, targetSort.key, targetSort.direction])
 
   return (
     <div className="missing-view">
-      <div className="table-toolbar">
-        <span>Registros por página</span>
+      <div className="table-toolbar searchable-toolbar">
+        <div className="screen-search inline-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Pesquisar código, nome ou qualquer campo importado…"
+            aria-label="Pesquisar registros não importados"
+          />
+        </div>
         <PageSizeSelect value={pageSize} onChange={setPageSize} />
       </div>
 
@@ -996,13 +1160,19 @@ function MissingView({
           <div className="section-head compact">
             <div>
               <h3>Origem não localizada no destino</h3>
-              <p>{number(missing.length)} registros.</p>
+              <p>{number(sortedMissing.length)} registros.</p>
             </div>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Código</th><th>{profile.recordLabel}</th><th>Origem inativa</th><th>Resultado</th><th></th></tr>
+                <tr>
+                  <SortableHeader label="Código" sortKey="code" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                  <SortableHeader label={profile.recordLabel} sortKey="name" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Origem inativa" sortKey="inactive" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                  <SortableHeader label="Resultado" sortKey="status" sort={originSort} onSort={key => setOriginSort(current => nextSort(current, key))} />
+                  <th>Ação</th>
+                </tr>
               </thead>
               <tbody>
                 {originItems.map(client => (
@@ -1012,12 +1182,13 @@ function MissingView({
                     <td>{client.originInactive ? 'Sim' : 'Não'}</td>
                     <td><StatusBadge status={client.status} /></td>
                     <td>
-                      <button className="link-button" onClick={() => onOpenClient(client)}>Analisar</button>
+                      <button type="button" className="link-button" onClick={() => onOpenClient(client)}>Analisar</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {!originItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
           </div>
           <Pagination page={originPage} pages={originPages} onChange={setOriginPage} />
         </section>
@@ -1026,12 +1197,17 @@ function MissingView({
           <div className="section-head compact">
             <div>
               <h3>Somente no destino</h3>
-              <p>{number(report.targetOnly.length)} registros.</p>
+              <p>{number(sortedTargetOnly.length)} registros.</p>
             </div>
           </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Código</th><th>{profile.recordLabel}</th></tr></thead>
+              <thead>
+                <tr>
+                  <SortableHeader label="Código" sortKey="code" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                  <SortableHeader label={profile.recordLabel} sortKey="name" sort={targetSort} onSort={key => setTargetSort(current => nextSort(current, key))} />
+                </tr>
+              </thead>
               <tbody>
                 {targetItems.map(client => (
                   <tr key={client.key}>
@@ -1041,6 +1217,7 @@ function MissingView({
                 ))}
               </tbody>
             </table>
+            {!targetItems.length && <div className="empty-state">Nenhum registro encontrado.</div>}
           </div>
           <Pagination page={targetPage} pages={targetPages} onChange={setTargetPage} />
         </section>
