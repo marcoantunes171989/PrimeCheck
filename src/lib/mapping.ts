@@ -8,6 +8,13 @@ const GENERIC_TOKENS = new Set([
   'FLG','IND','FLAG','CAMPO','INFO','INFORMACAO',
 ])
 
+const CONVENIO_FIELD_IDS = new Set([
+  'empresaConvenio',
+  'conveniado',
+  'statusConvenio',
+  'limiteConvenio',
+])
+
 const compact = (value: string) =>
   normalizeHeader(value)
     .split('_')
@@ -37,6 +44,22 @@ const tokenSimilarity = (a: string, b: string) => {
   return union ? intersection / union : 0
 }
 
+const remainderIsGeneric = (full: string, part: string) => {
+  const fullTokens = normalizeHeader(full).split('_').filter(Boolean)
+  const partTokens = normalizeHeader(part).split('_').filter(Boolean)
+  if (!fullTokens.length || !partTokens.length || fullTokens.length <= partTokens.length) return false
+
+  if (fullTokens.slice(0, partTokens.length).join('_') === partTokens.join('_')) {
+    return fullTokens.slice(partTokens.length).every(token => GENERIC_TOKENS.has(token))
+  }
+
+  if (fullTokens.slice(-partTokens.length).join('_') === partTokens.join('_')) {
+    return fullTokens.slice(0, fullTokens.length - partTokens.length).every(token => GENERIC_TOKENS.has(token))
+  }
+
+  return false
+}
+
 const scoreHeader = (header: string, aliases: string[]) => {
   const h = normalizeHeader(header)
   const hc = compact(header)
@@ -56,35 +79,22 @@ const scoreHeader = (header: string, aliases: string[]) => {
       continue
     }
 
-    if (
-      h.endsWith(`_${alias}`) ||
-      h.startsWith(`${alias}_`) ||
-      alias.endsWith(`_${h}`) ||
-      alias.startsWith(`${h}_`)
-    ) {
+    if (remainderIsGeneric(h, alias) || remainderIsGeneric(alias, h)) {
       best = Math.max(best, 90)
       continue
     }
 
-    if (h.includes(alias) || alias.includes(h)) {
-      best = Math.max(best, Math.min(86, 66 + Math.min(h.length, alias.length) / 2))
-    }
-
-    if (hc && ac && (hc.includes(ac) || ac.includes(hc))) {
-      best = Math.max(best, 84)
-    }
-
     const similarity = tokenSimilarity(header, rawAlias)
     if (similarity >= 0.75) best = Math.max(best, 88)
-    else if (similarity >= 0.5) best = Math.max(best, 78)
   }
 
   return best
 }
 
-const bestHeader = (headers: string[], aliases: string[]) => {
+const pickBestHeader = (headers: string[], aliases: string[]) => {
   let best = ''
   let score = 0
+  let ambiguous = false
 
   for (const header of headers) {
     if (header.startsWith('__primecheck_')) continue
@@ -93,21 +103,82 @@ const bestHeader = (headers: string[], aliases: string[]) => {
     if (current > score) {
       score = current
       best = header
+      ambiguous = false
+      continue
+    }
+
+    // Se duas colunas alcançam exatamente a mesma melhor pontuação,
+    // não é seguro escolher apenas pela ordem em que aparecem no arquivo.
+    if (current > 0 && current === score && header !== best) {
+      ambiguous = true
     }
   }
 
-  return score >= 60 ? best : ''
+  return score >= 60 && !ambiguous ? { header: best, score } : { header: '', score: 0 }
 }
 
-export const autoMap = (origin: Dataset, target: Dataset): FieldMapping[] =>
-  CHECKLIST_FIELDS.map(field => ({
+const duplicateBase = (header: string) =>
+  normalizeHeader(header.replace(/__\d+$/, ''))
+
+const hasAmbiguousDuplicate = (headers: string[], selected: string) => {
+  if (!selected) return false
+  const base = duplicateBase(selected)
+  return headers.filter(header => duplicateBase(header) === base).length > 1
+}
+
+const isBareTokenHeader = (header: string, token: string) => {
+  const tokens = duplicateBase(header).split('_').filter(Boolean)
+  return tokens.length === 1 && tokens[0] === token
+}
+
+const assignHeaders = (headers: string[]) => {
+  const claimed = new Map<string, Array<{ fieldId: string; score: number }>>()
+
+  CHECKLIST_FIELDS.forEach(field => {
+    const picked = pickBestHeader(headers, [field.label, ...field.aliases])
+    if (!picked.header) return
+
+    if (CONVENIO_FIELD_IDS.has(field.id) && isBareTokenHeader(picked.header, 'CONVENIO')) return
+    if (field.id === 'pessoaTipo' && isBareTokenHeader(picked.header, 'EMPRESA')) return
+    if (CONVENIO_FIELD_IDS.has(field.id) && hasAmbiguousDuplicate(headers, picked.header)) return
+
+    const list = claimed.get(picked.header) ?? []
+    list.push({ fieldId: field.id, score: picked.score })
+    claimed.set(picked.header, list)
+  })
+
+  const assigned = new Map<string, string>()
+
+  claimed.forEach((candidates, header) => {
+    const ranked = [...candidates].sort((a, b) => b.score - a.score)
+    if (ranked.length === 1) {
+      assigned.set(ranked[0].fieldId, header)
+      return
+    }
+
+    // Só vincula automaticamente quando um campo vence o outro com folga.
+    // Empate ou disputa próxima permanece para confirmação manual.
+    if (ranked[0].score >= ranked[1].score + 10) {
+      assigned.set(ranked[0].fieldId, header)
+    }
+  })
+
+  return assigned
+}
+
+export const autoMap = (origin: Dataset, target: Dataset): FieldMapping[] => {
+  const originAssigned = assignHeaders(origin.headers)
+  const targetAssigned = assignHeaders(target.headers)
+
+  return CHECKLIST_FIELDS.map(field => ({
     fieldId: field.id,
-    originHeader: bestHeader(origin.headers, [field.label, ...field.aliases]),
-    targetHeader: bestHeader(target.headers, [field.label, ...field.aliases]),
+    originHeader: originAssigned.get(field.id) ?? '',
+    targetHeader: targetAssigned.get(field.id) ?? '',
   }))
+}
 
 export const detectStatusHeader = (dataset: Dataset) =>
-  bestHeader(dataset.headers, RECORD_STATUS_ALIASES)
+  pickBestHeader(dataset.headers, RECORD_STATUS_ALIASES).header
 
 export const mappingCoverage = (mapping: FieldMapping[]) => {
   const both = mapping.filter(m => m.originHeader && m.targetHeader).length

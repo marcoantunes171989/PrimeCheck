@@ -15,7 +15,14 @@ import {
   asText,
   hasReplacementCharacter,
   isInactiveValue,
+  normalizeAddress,
+  normalizeAddressNumber,
+  normalizeAlphanumericDocument,
+  normalizeClientName,
   normalizeForField,
+  normalizeLooseText,
+  normalizeText,
+  onlyDigits,
   validateCpfCnpj,
 } from './normalizers'
 import { detectStatusHeader } from './mapping'
@@ -60,23 +67,135 @@ const compareDocument = (origin: CellValue, target: CellValue): Pick<ComparisonF
   }
 }
 
+const LOOSE_TEXT_FIELDS = new Set([
+  'apelido',
+  'endereco',
+  'complemento',
+  'bairro',
+  'cidade',
+  'contato',
+  'observacao',
+  'condicaoPagamento',
+])
+
+const TRUNCATION_FIELDS = new Set([
+  'nome',
+  'apelido',
+  'endereco',
+  'complemento',
+  'contato',
+  'observacao',
+  'bairro',
+  'cidade',
+])
+
+const comparableText = (field: FieldDefinition, value: CellValue) => {
+  if (field.id === 'nome') return normalizeClientName(value)
+  if (field.id === 'endereco') return normalizeAddress(value)
+  if (field.id === 'numeroEndereco') return normalizeAddressNumber(value)
+  if (LOOSE_TEXT_FIELDS.has(field.id)) return normalizeLooseText(value)
+  return normalizeForField(value, field)
+}
+
+const isTruncatedValue = (originNormalized: string, targetNormalized: string) => {
+  if (!originNormalized || !targetNormalized) return false
+  if (targetNormalized.length < 12) return false
+  if (originNormalized === targetNormalized) return false
+  if (!originNormalized.startsWith(targetNormalized)) return false
+  return originNormalized.length - targetNormalized.length >= 3
+}
+
 const compareField = (field: FieldDefinition, origin: CellValue, target: CellValue): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
   if (field.kind === 'document') return compareDocument(origin, target)
 
   const originText = asText(origin)
   const targetText = asText(target)
+
+  if (field.id === 'nome') {
+    const originName = normalizeClientName(origin)
+    const targetName = normalizeClientName(target)
+    if (originName && originName === targetName) {
+      return { status: 'CONFORME', reason: 'Nome equivalente após normalização de acentos, pontuação, espaços e sufixo de código.' }
+    }
+  }
+
+  if (field.id === 'endereco') {
+    if (normalizeAddress(origin) === normalizeAddress(target)) {
+      return { status: 'CONFORME', reason: 'Endereço equivalente após normalização de pontuação e Nº/N°.' }
+    }
+  }
+
+  if (field.id === 'complemento' || field.id === 'bairro' || field.id === 'cidade') {
+    if (normalizeLooseText(origin) === normalizeLooseText(target)) {
+      return { status: 'CONFORME', reason: 'Endereço equivalente após normalização de pontuação e Nº/N°.' }
+    }
+  }
+
+  if (field.id === 'numeroEndereco') {
+    const oNumber = normalizeAddressNumber(origin)
+    const tNumber = normalizeAddressNumber(target)
+    if (oNumber === tNumber) {
+      return { status: 'CONFORME', reason: 'Número de endereço equivalente após normalizar Nº/N°/No e pontuação.' }
+    }
+  }
+
+  if (field.id === 'estadoCivil') {
+    const o = normalizeText(origin)
+    const t = normalizeText(target)
+    if ((o === '0' && t === 'SOLTEIRO') || (o === 'SOLTEIRO' && t === '0')) {
+      return { status: 'CONFORME', reason: 'Regra local aplicada: código 0 corresponde a Solteiro.' }
+    }
+  }
+
+  if (field.id === 'statusCheque' || field.id === 'statusConvenio') {
+    const o = normalizeText(origin)
+    const t = normalizeText(target)
+    if ((o === '0' && !t) || (o === '1' && t === '1')) {
+      return { status: 'CONFORME', reason: 'Regra local aplicada: 0 corresponde a vazio e 1 corresponde a 1.' }
+    }
+  }
+
+  if (field.id === 'empresaConvenio') {
+    const o = normalizeText(origin)
+    const t = normalizeText(target)
+    if (o === '0' && !t) {
+      return { status: 'CONFORME', reason: 'Regra local aplicada: código de convênio 0 corresponde a ausência de empresa convênio.' }
+    }
+  }
   if (hasReplacementCharacter(target)) {
     return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
   }
 
-  const o = normalizeForField(origin, field)
-  const t = normalizeForField(target, field)
+  if (field.id === 'rg') {
+    const oRg = normalizeAlphanumericDocument(origin)
+    const tRg = normalizeAlphanumericDocument(target)
+
+    if (oRg === tRg) {
+      return { status: 'CONFORME', reason: 'RG equivalente após remover máscara, pontuação e espaços.' }
+    }
+
+    if (oRg.endsWith('X') && oRg.slice(0, -1) === tRg) {
+      return { status: 'DIVERGENTE', reason: 'RG na origem possui dígito verificador X e o destino não preservou esse caractere.' }
+    }
+  }
+
+  if (field.id === 'cep') {
+    const oCep = onlyDigits(origin)
+    const tCep = onlyDigits(target)
+
+    if (oCep === tCep) {
+      return { status: 'CONFORME', reason: 'CEP equivalente após remover máscara e caracteres de formatação.' }
+    }
+  }
+
+  const o = comparableText(field, origin)
+  const t = comparableText(field, target)
   if (o === t) return { status: 'CONFORME', reason: 'Valores equivalentes após normalização.' }
 
   if (!originText && !targetText) return { status: 'CONFORME', reason: 'Campo vazio nos dois arquivos.' }
 
   if (!originText && targetText) {
-    if (field.kind === 'ie' && ['ISENTO','ISENTA'].includes(t)) {
+    if (field.kind === 'ie' && t === 'ISENTO') {
       return { status: 'ATENÇÃO', reason: 'Origem sem inscrição estadual e destino preenchido automaticamente como ISENTO. Confirmar regra da conversão.' }
     }
     return { status: 'ATENÇÃO', reason: 'Origem sem informação e destino preenchido. Confirmar regra/default aplicado na conversão.' }
@@ -84,12 +203,15 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
 
   if (originText && !targetText) return { status: 'DIVERGENTE', reason: 'Existe informação na origem, mas o campo está vazio no destino.' }
 
-  if (field.id === 'rg' && /X$/i.test(originText.replace(/\W/g,'')) && !/X$/i.test(targetText.replace(/\W/g,''))) {
-    return { status: 'DIVERGENTE', reason: 'RG na origem possui dígito verificador X e o destino não preservou esse caractere.' }
-  }
-
   if (field.id === 'contato' && targetText.length < originText.length && targetText.length <= 35 && originText.startsWith(targetText)) {
     return { status: 'DIVERGENTE', reason: `Possível truncamento: origem possui ${originText.length} caracteres e destino ${targetText.length}.` }
+  }
+
+  if (TRUNCATION_FIELDS.has(field.id) && isTruncatedValue(o, t)) {
+    return {
+      status: 'DIVERGENTE',
+      reason: `Possível truncamento: origem possui ${originText.length} caracteres e destino ${targetText.length}.`,
+    }
   }
 
   return { status: 'DIVERGENTE', reason: 'Valores diferentes após normalização; revisar conversão.' }
@@ -111,7 +233,37 @@ const createFieldResult = (
   map: FieldMapping | undefined,
   originRow: Record<string, CellValue>,
   targetRow: Record<string, CellValue> | undefined,
+  allMappings: Map<string, FieldMapping>,
 ): ComparisonFieldResult => {
+  if (field.id === 'pessoaTipo' && map?.originHeader && targetRow) {
+    const documentMap = allMappings.get('cpfCnpj')
+    const targetDocument = documentMap?.targetHeader
+      ? asText(targetRow[documentMap.targetHeader])
+      : ''
+
+    if (targetDocument) {
+      const normalizedDocument = validateCpfCnpj(targetDocument).normalized
+      const inferredTarget = normalizedDocument.length === 11
+        ? 'F'
+        : normalizedDocument.length === 14
+          ? 'J'
+          : ''
+
+      if (inferredTarget) {
+        const originValue = asText(originRow[map.originHeader])
+        const compared = compareField(field, originValue, inferredTarget)
+        return {
+          fieldId: field.id,
+          fieldLabel: field.label,
+          group: field.group,
+          originValue,
+          targetValue: inferredTarget === 'F' ? 'PF (inferido pelo CPF)' : 'PJ (inferido pelo CNPJ)',
+          ...compared,
+        }
+      }
+    }
+  }
+
   if (!map?.originHeader || !map?.targetHeader) {
     return {
       fieldId: field.id,
@@ -250,7 +402,7 @@ export const compareDatasets = (origin: Dataset, target: Dataset, mapping: Field
       }
     }
 
-    const fields = CHECKLIST_FIELDS.map(field => createFieldResult(field, mapIndex.get(field.id), originRow, targetRow))
+    const fields = CHECKLIST_FIELDS.map(field => createFieldResult(field, mapIndex.get(field.id), originRow, targetRow, mapIndex))
     const divergentCount = fields.filter(f => f.status === 'DIVERGENTE').length
     const attentionCount = fields.filter(f => f.status === 'ATENÇÃO').length
     const status: Severity = divergentCount ? 'DIVERGENTE' : attentionCount ? 'ATENÇÃO' : 'CONFORME'

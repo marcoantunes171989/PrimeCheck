@@ -19,9 +19,12 @@ export default function MappingPanel({ mapping, originHeaders, targetHeaders, on
     <section className="panel mapping-panel">
       <div className="section-head">
         <div>
-          <span className="eyebrow">ETAPA 2</span>
+          <div className="mapping-title-line">
+            <span className="eyebrow">ETAPA 2</span>
+            <span className="mapping-profile-badge">Perfil local reativado</span>
+          </div>
           <h2>Mapeamento dos campos</h2>
-          <p>Revise o mapeamento automático. Se algum campo não for identificado, selecione manualmente a coluna correta antes de executar a homologação.</p>
+          <p>O vínculo automático prioriza os mesmos nomes e regras usados na validação local. Colunas genéricas ou ambíguas, como “Convênio”, permanecem como Não mapeado para seleção manual.</p>
         </div>
         <div className="coverage">
           <strong>{coverage.both}/{coverage.total}</strong>
@@ -33,6 +36,7 @@ export default function MappingPanel({ mapping, originHeaders, targetHeaders, on
         <span><i className="dot dot-green" /> Origem e destino mapeados</span>
         <span><i className="dot dot-yellow" /> Mapeamento parcial</span>
         <span><i className="dot dot-gray" /> Não identificado</span>
+        <span className="mapping-safe-note">Colunas genéricas de Convênio e EMPRESA não são vinculadas automaticamente.</span>
       </div>
 
       <div className="table-wrap">
