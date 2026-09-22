@@ -7837,3 +7837,32 @@ table {
     display: none !important;
   }
 }
+
+
+/* =========================================================
+   Filtros — estrutura visual estável sem resultados
+   ========================================================= */
+
+/*
+ * Pesquisas e filtros nunca substituem a estrutura da tela por um painel vazio.
+ * Quando não há correspondências, o tbody fica sem linhas e esta superfície
+ * preserva a área visual da tabela para evitar saltos/refluxo de layout.
+ */
+.stable-filter-table-wrap {
+  min-height: 176px;
+  background: #fff;
+}
+
+.stable-filter-list {
+  min-height: 204px;
+}
+
+@media (max-width: 760px) {
+  .stable-filter-table-wrap {
+    min-height: 148px;
+  }
+
+  .stable-filter-list {
+    min-height: 168px;
+  }
+}
