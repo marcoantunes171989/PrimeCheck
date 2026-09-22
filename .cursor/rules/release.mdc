@@ -29,6 +29,13 @@ solicitação → desenvolvimento → branch → build/typecheck → commit → 
 
 - Nunca trocar a Production Branch da Vercel: deve permanecer `main`.
 - Preview pode ser usado como etapa intermediária de validação técnica, mas não encerra a tarefa por padrão.
+- Após cada tarefa liberada e integrada à `main`, confirmar explicitamente que a Vercel iniciou o deployment de produção do commit atual.
+- Se o deployment automático não for criado, permanecer travado ou falhar antes de iniciar o build, executar uma tentativa explícita de deploy/retry de produção.
+- Quando não houver ação direta de redeploy disponível, é permitido criar exatamente um commit vazio em `main`, reutilizando a mesma árvore do commit aprovado, com mensagem `chore: force deployment de produção na Vercel`, exclusivamente para redisparar a integração GitHub → Vercel.
+- Nunca alterar arquivos somente para forçar deployment.
+- Nunca criar uma sequência de commits vazios. Se a tentativa for bloqueada por `build-rate-limit`, quota, indisponibilidade da Vercel ou outro bloqueio externo, registrar a produção como bloqueada e encerrar as tentativas daquela tarefa.
+- Se o deployment entrar em `Pending` ou `Building`, acompanhar até `Ready` ou falha antes de emitir o relatório final, sempre que o estado puder ser consultado na execução atual.
+- Depois de `Ready`, executar smoke test da URL oficial sempre que tecnicamente possível.
 - A URL oficial de validação após cada tarefa é a produção:
   https://prime-check-nine.vercel.app
 
