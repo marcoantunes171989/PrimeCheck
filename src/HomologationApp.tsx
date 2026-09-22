@@ -1955,10 +1955,14 @@ function DuplicatesView({
   report,
   profile,
   initialFieldId,
+  initialSearch = '',
+  initialSide = 'TODOS',
 }: {
   report: ComparisonReport
   profile: EntityProfile
   initialFieldId?: string
+  initialSearch?: string
+  initialSide?: 'TODOS' | 'ORIGEM' | 'DESTINO'
 }) {
   const pageSize = 20
   const [page, setPage] = useState(1)
@@ -2039,10 +2043,11 @@ function DuplicatesView({
   useEffect(() => setPage(1), [search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
 
   useEffect(() => {
-    if (!initialFieldId) return
-    setFieldFilter(initialFieldId)
+    setFieldFilter(initialFieldId || 'TODOS')
+    setSearch(initialSearch)
+    setSideFilter(initialSide)
     setPage(1)
-  }, [initialFieldId])
+  }, [initialFieldId, initialSearch, initialSide])
 
   useEffect(() => {
     const handleAfterPrint = () => {
