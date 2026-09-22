@@ -1664,6 +1664,12 @@ function DuplicatesView({
   const [search, setSearch] = useState('')
   const [fieldFilter, setFieldFilter] = useState('TODOS')
   const [sideFilter, setSideFilter] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
+  const [duplicateColumnFilters, setDuplicateColumnFilters] = useState({
+    category: '',
+    value: '',
+    count: '',
+    codes: '',
+  })
   const [sort, setSort] = useState<SortState>({ key: 'count', direction: 'desc' })
   const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set())
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
@@ -1679,27 +1685,38 @@ function DuplicatesView({
   }, [report.duplicates])
 
   const term = search.trim().toLocaleUpperCase('pt-BR')
-  const filtered = useMemo(() => report.duplicates.filter(dup => {
-    if (fieldFilter !== 'TODOS' && dup.fieldId !== fieldFilter) return false
-    if (sideFilter !== 'TODOS' && dup.side !== sideFilter) return false
-    if (!term) return true
-    const records = dup.records.flatMap(record => [
-      record.key,
-      record.name,
-      record.rawValue,
-      ...record.extras.flatMap(extra => [extra.id, extra.label, extra.value]),
-    ]).join(' ')
-    const text = [
-      dup.side,
-      dup.fieldLabel,
-      dup.fieldGroup,
-      dup.category,
-      dup.normalizedValue,
-      dup.count,
-      records,
-    ].join(' ').toLocaleUpperCase('pt-BR')
-    return text.includes(term)
-  }), [report.duplicates, search, fieldFilter, sideFilter])
+  const filtered = useMemo(() => {
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
+    return report.duplicates.filter(dup => {
+      if (fieldFilter !== 'TODOS' && dup.fieldId !== fieldFilter) return false
+      if (sideFilter !== 'TODOS' && dup.side !== sideFilter) return false
+      if (!contains(dup.category, duplicateColumnFilters.category)) return false
+      if (!contains(dup.normalizedValue, duplicateColumnFilters.value)) return false
+      if (!contains(dup.count, duplicateColumnFilters.count)) return false
+      const codes = dup.records.map(record => record.key).filter(Boolean).join(' ')
+      if (!contains(codes, duplicateColumnFilters.codes)) return false
+
+      if (!term) return true
+      const records = dup.records.flatMap(record => [
+        record.key,
+        record.name,
+        record.rawValue,
+        ...record.extras.flatMap(extra => [extra.id, extra.label, extra.value]),
+      ]).join(' ')
+      const text = [
+        dup.side,
+        dup.fieldLabel,
+        dup.fieldGroup,
+        dup.category,
+        dup.normalizedValue,
+        dup.count,
+        records,
+      ].join(' ').toLocaleUpperCase('pt-BR')
+      return text.includes(term)
+    })
+  }, [report.duplicates, search, fieldFilter, sideFilter, duplicateColumnFilters])
 
   const sorted = useMemo(() => sortedBy(filtered, sort, (dup, key) => {
     if (key === 'side') return dup.side
@@ -1712,7 +1729,7 @@ function DuplicatesView({
     return ''
   }), [filtered, sort])
 
-  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, sort.key, sort.direction])
+  useEffect(() => setPage(1), [pageSize, search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
 
   useEffect(() => {
     if (!initialFieldId) return
@@ -1773,6 +1790,10 @@ function DuplicatesView({
     fieldFilter === 'TODOS'
       ? 'Todos os campos'
       : fieldOptions.find(([fieldId]) => fieldId === fieldFilter)?.[1] || fieldFilter,
+    duplicateColumnFilters.category ? 'Tipo: ' + duplicateColumnFilters.category : '',
+    duplicateColumnFilters.value ? 'Valor: ' + duplicateColumnFilters.value : '',
+    duplicateColumnFilters.count ? 'Quantidade: ' + duplicateColumnFilters.count : '',
+    duplicateColumnFilters.codes ? 'Códigos: ' + duplicateColumnFilters.codes : '',
     term ? 'Pesquisa: ' + search.trim() : '',
   ].filter(Boolean).join(' · ')
 
