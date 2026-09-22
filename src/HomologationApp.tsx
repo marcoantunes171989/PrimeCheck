@@ -55,6 +55,13 @@ const nextSort = (current: SortState, key: string): SortState =>
     ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
     : { key, direction: 'asc' }
 
+const toggleStringSet = (current: Set<string>, id: string) => {
+  const next = new Set(current)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  return next
+}
+
 function SortableHeader({
   label,
   sortKey,
@@ -133,7 +140,11 @@ function App({
   const [duplicateFieldFocus, setDuplicateFieldFocus] = useState<string | undefined>()
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
+  const [selectedClientKeys, setSelectedClientKeys] = useState<Set<string>>(new Set())
+  const [reviewedClientKeys, setReviewedClientKeys] = useState<Set<string>>(new Set())
+  const [clientPrintSelected, setClientPrintSelected] = useState(false)
   const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<string>>(new Set())
+  const [reviewedIssueKeys, setReviewedIssueKeys] = useState<Set<string>>(new Set())
   const [issuePrintItems, setIssuePrintItems] = useState<IssuePrintItem[]>([])
   const [focusedFieldId, setFocusedFieldId] = useState<string | undefined>()
   const [selectedOccurrenceKey, setSelectedOccurrenceKey] = useState<string | null>(null)
@@ -208,7 +219,10 @@ function App({
   }, [])
 
   useEffect(() => {
+    setSelectedClientKeys(new Set())
+    setReviewedClientKeys(new Set())
     setSelectedIssueKeys(new Set())
+    setReviewedIssueKeys(new Set())
   }, [report?.generatedAt])
 
   const coverage = useMemo(() => mappingCoverage(mapping), [mapping])
@@ -467,6 +481,26 @@ function App({
         onNext: () => goToOccurrence(occurrenceIndex + 1),
       }
     : undefined
+
+  const currentClientPage = pageSlice(sortedClients)
+  const currentClientKeys = currentClientPage.map(client => client.key)
+  const selectedClients = sortedClients.filter(client => selectedClientKeys.has(client.key))
+  const allCurrentClientsSelected = currentClientKeys.length > 0
+    && currentClientKeys.every(key => selectedClientKeys.has(key))
+
+  const toggleCurrentClientPage = () => {
+    setSelectedClientKeys(current => {
+      const next = new Set(current)
+      if (allCurrentClientsSelected) currentClientKeys.forEach(key => next.delete(key))
+      else currentClientKeys.forEach(key => next.add(key))
+      return next
+    })
+  }
+
+  const requestClientPrint = (onlySelected: boolean) => {
+    setClientPrintSelected(onlySelected)
+    window.setTimeout(() => window.print(), 80)
+  }
 
   const currentIssuePage = pageSlice(sortedIssues)
   const currentIssueKeys = currentIssuePage.map(item => occurrenceKeyOf(item.client.key, item.field.fieldId))
