@@ -29,7 +29,7 @@ export default function Sidebar({
   enabledWorkspaceModules,
   hasWorkspaceData,
 }: Props) {
-  const [openGroups, setOpenGroups] = useState<Set<WorkspaceGroupId>>(new Set(['partners', 'structure', 'products']))
+  const [openGroup, setOpenGroup] = useState<WorkspaceGroupId | null>(null)
 
   const enabledSet = useMemo(() => new Set(enabledWorkspaceModules), [enabledWorkspaceModules])
 
@@ -38,24 +38,14 @@ export default function Sidebar({
     const id = active.slice(5)
     const group = WORKSPACE_GROUPS.find(item => item.modules.includes(id as never))
     if (!group) return
-    setOpenGroups(current => {
-      const next = new Set(current)
-      next.add(group.id)
-      return next
-    })
+    setOpenGroup(group.id)
   }, [active])
 
   const toggleGroup = (id: WorkspaceGroupId) => {
-    setOpenGroups(current => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setOpenGroup(current => current === id ? null : id)
   }
 
   const fixedItems = [
-    { id: 'homologacao', label: 'Comparação', helper: 'Origem × destino', icon: '⇄' },
     { id: 'cnpj', label: 'Validação CNPJ', helper: 'Consulta e dígitos', icon: '✓' },
     { id: 'ie', label: 'Validação I.E.', helper: '27 UFs', icon: '▦' },
   ]
@@ -105,7 +95,7 @@ export default function Sidebar({
               .map(id => WORKSPACE_MODULES.find(module => module.id === id))
               .filter((module): module is NonNullable<typeof module> => Boolean(module))
             const enabledCount = modules.filter(module => enabledSet.has(module.id)).length
-            const isOpen = openGroups.has(group.id)
+            const isOpen = openGroup === group.id
             const activeInside = modules.some(module => active === `data:${module.id}`)
 
             return (
@@ -116,7 +106,14 @@ export default function Sidebar({
                 <button
                   type="button"
                   className="sidebar-group-toggle"
-                  onClick={() => toggleGroup(group.id)}
+                  onClick={() => {
+                    if (collapsed) {
+                      onToggle()
+                      setOpenGroup(group.id)
+                    } else {
+                      toggleGroup(group.id)
+                    }
+                  }}
                   aria-expanded={isOpen}
                   title={collapsed ? group.label : undefined}
                 >

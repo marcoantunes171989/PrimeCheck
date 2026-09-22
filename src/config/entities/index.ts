@@ -4,6 +4,7 @@ import { scoreHeader } from '../../lib/mapping'
 import { clientProfile } from './client'
 import { supplierProfile } from './supplier'
 import { productProfile } from './product'
+import { WORKSPACE_ENTITY_PROFILES } from '../workspaceModules'
 
 export const ENTITY_PROFILES: EntityProfile[] = [
   clientProfile,
@@ -11,8 +12,13 @@ export const ENTITY_PROFILES: EntityProfile[] = [
   productProfile,
 ]
 
+const ALL_ENTITY_PROFILES: EntityProfile[] = [
+  ...ENTITY_PROFILES,
+  ...WORKSPACE_ENTITY_PROFILES,
+]
+
 export const getEntityProfile = (id: string): EntityProfile =>
-  ENTITY_PROFILES.find(profile => profile.id === id) ?? clientProfile
+  ALL_ENTITY_PROFILES.find(profile => profile.id === id) ?? clientProfile
 
 const WEAK_HEADERS = new Set([
   'CODIGO', 'NOME', 'DESCRICAO', 'STATUS', 'SITUACAO', 'VALOR', 'TIPO',

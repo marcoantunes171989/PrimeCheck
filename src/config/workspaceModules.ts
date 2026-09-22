@@ -2,7 +2,7 @@ import { clientProfile } from './entities/client'
 import { supplierProfile } from './entities/supplier'
 import { productProfile } from './entities/product'
 import { normalizeHeader } from '../lib/normalizers'
-import type { ImportedFile } from '../types'
+import type { EntityProfile, FieldDefinition, ImportedFile } from '../types'
 
 export type WorkspaceModuleId =
   | 'clients'
@@ -372,6 +372,66 @@ const headerMatches = (header: string, aliases: string[]) => {
   )
 }
 
+const hasAnyHeader = (file: ImportedFile, aliases: string[]) =>
+  file.headers.some(header => headerMatches(header, aliases))
+
+const fileNameSuggestsModule = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
+  const name = normalizeHeader(file.name + ' ' + (file.sheetName ?? ''))
+  const tokens = [module.label, module.singular, ...module.signals]
+    .map(normalizeHeader)
+    .filter(token => token.length >= 5)
+  return tokens.some(token => name.includes(token))
+}
+
+const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
+  const productCode = hasAnyHeader(file, ['COD_PRODUTO', 'CODIGO_PRODUTO', 'COD_ITEM', 'ID_PRODUTO'])
+  const moduleNameHint = fileNameSuggestsModule(file, module)
+
+  switch (module.id) {
+    case 'clients':
+      return hasAnyHeader(file, ['COD_CLIENTE', 'CLIENTE_CODIGO', 'CODIGO_CLIENTE', 'DES_CLIENTE'])
+        || moduleNameHint
+    case 'suppliers':
+      return hasAnyHeader(file, ['COD_FORNECEDOR', 'COD_FORNEC', 'COD_FORN', 'DES_FORNECEDOR', 'NOME_FORNECEDOR'])
+        || moduleNameHint
+    case 'carriers':
+      return hasAnyHeader(file, ['COD_TRANSPORTADORA', 'COD_TRANSP', 'DES_TRANSPORTADORA', 'NOME_TRANSPORTADORA'])
+        || moduleNameHint
+    case 'sections':
+      return hasAnyHeader(file, ['COD_SECAO', 'DES_SECAO', 'CODIGO_SECAO'])
+    case 'groups':
+      return hasAnyHeader(file, ['COD_GRUPO', 'DES_GRUPO', 'CODIGO_GRUPO'])
+    case 'subgroups':
+      return hasAnyHeader(file, ['COD_SUBGRUPO', 'DES_SUBGRUPO', 'CODIGO_SUBGRUPO', 'SUB_GRUPO'])
+    case 'products':
+      return productCode || hasAnyHeader(file, ['DES_PRODUTO', 'DES_REDUZIDA', 'COD_BARRA_PRINCIPAL']) || moduleNameHint
+    case 'productStore':
+      return productCode && hasAnyHeader(file, ['COD_LOJA', 'CODIGO_LOJA', 'PRODUTO_LOJA', 'TAB_PRODUTO_LOJA'])
+    case 'barcodes':
+      return productCode && hasAnyHeader(file, ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
+    case 'productSupplier':
+      return productCode && hasAnyHeader(file, ['COD_FORNECEDOR', 'CODIGO_FORNECEDOR', 'REFERENCIA_FORNECEDOR'])
+    case 'similarProducts':
+      return productCode && hasAnyHeader(file, ['COD_PRODUTO_SIMILAR', 'COD_SIMILAR', 'PRODUTO_SIMILAR'])
+    case 'ncm':
+      return hasAnyHeader(file, ['NCM', 'COD_NCM'])
+    case 'cest':
+      return hasAnyHeader(file, ['CEST', 'COD_CEST'])
+    case 'ibpt':
+      return hasAnyHeader(file, ['IBPT', 'CHAVE_IBPT', 'ALIQUOTA_NACIONAL', 'ALIQ_NACIONAL'])
+    case 'ibscbs':
+      return hasAnyHeader(file, ['IBS', 'CBS', 'IBS_CBS', 'CST_IBS_CBS', 'ALIQUOTA_IBS', 'ALIQUOTA_CBS'])
+    case 'taxBenefit':
+      return hasAnyHeader(file, ['BENEFICIO_FISCAL', 'COD_BENEFICIO', 'CBENEF'])
+    case 'recipes':
+      return hasAnyHeader(file, ['RECEITA', 'FICHA_TECNICA', 'INGREDIENTE', 'COD_RECEITA'])
+    case 'nutrition':
+      return hasAnyHeader(file, ['NUTRICIONAL', 'VALOR_ENERGETICO', 'CALORIAS', 'PROTEINA', 'CARBOIDRATO'])
+    default:
+      return false
+  }
+}
+
 const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
   const headers = file.headers
   const signalHits = module.signals.filter(signal =>
@@ -380,16 +440,21 @@ const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinitio
   const fieldHits = module.fields.filter(item =>
     headers.some(header => headerMatches(header, item.aliases)),
   ).length
+  const nameHit = fileNameSuggestsModule(file, module)
+  const structuralMatch = moduleHasRequiredStructure(file, module)
 
-  const name = normalizeHeader(file.name + ' ' + (file.sheetName ?? ''))
-  const nameHit = module.signals.some(signal => {
-    const token = normalizeHeader(signal)
-    return token.length >= 5 && name.includes(token)
-  })
+  const score =
+    signalHits * 30 +
+    Math.min(45, fieldHits * 5) +
+    (nameHit ? 18 : 0) +
+    (structuralMatch ? 25 : 0)
 
-  const score = signalHits * 30 + Math.min(40, fieldHits * 4) + (nameHit ? 20 : 0)
-  const threshold = module.id === 'ncm' || module.id === 'cest' ? 30 : 38
-  return { score, matched: score >= threshold, fieldHits, signalHits }
+  return {
+    score,
+    matched: structuralMatch && (fieldHits >= 1 || nameHit),
+    fieldHits,
+    signalHits,
+  }
 }
 
 export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMatch[] =>
@@ -435,3 +500,120 @@ export const resolveModuleHeaders = (
     headers: [...new Set(resolvedFields.map(item => item.header))],
   }
 }
+
+
+const COMPARISON_META: Record<WorkspaceModuleId, {
+  keyFieldIds: string[]
+  nameFieldId: string
+  duplicateFieldIds: string[]
+  showDocumentValidity?: boolean
+}> = {
+  clients: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['cpfCnpj', 'ie'], showDocumentValidity: true },
+  suppliers: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['cpfCnpj', 'ie'], showDocumentValidity: true },
+  carriers: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['cpfCnpj', 'ie'], showDocumentValidity: true },
+  sections: { keyFieldIds: ['codigoSecao'], nameFieldId: 'descricaoSecao', duplicateFieldIds: ['codigoSecao'] },
+  groups: { keyFieldIds: ['codigoSecao', 'codigoGrupo'], nameFieldId: 'descricaoGrupo', duplicateFieldIds: ['codigoGrupo'] },
+  subgroups: { keyFieldIds: ['codigoSecao', 'codigoGrupo', 'codigoSubgrupo'], nameFieldId: 'descricaoSubgrupo', duplicateFieldIds: ['codigoSubgrupo'] },
+  products: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['codigoBarras'] },
+  productStore: { keyFieldIds: ['codigoLoja', 'codigoProduto'], nameFieldId: 'codigoProduto', duplicateFieldIds: [] },
+  barcodes: { keyFieldIds: ['codigoProduto', 'codigoBarras'], nameFieldId: 'codigoBarras', duplicateFieldIds: ['codigoBarras'] },
+  productSupplier: { keyFieldIds: ['codigoProduto', 'codigoFornecedor'], nameFieldId: 'fornecedor', duplicateFieldIds: [] },
+  similarProducts: { keyFieldIds: ['codigoProduto', 'codigoSimilar'], nameFieldId: 'descricaoSimilar', duplicateFieldIds: [] },
+  ncm: { keyFieldIds: ['ncm'], nameFieldId: 'descricao', duplicateFieldIds: ['ncm'] },
+  cest: { keyFieldIds: ['cest', 'ncm'], nameFieldId: 'descricao', duplicateFieldIds: ['cest'] },
+  ibpt: { keyFieldIds: ['ncm'], nameFieldId: 'ncm', duplicateFieldIds: [] },
+  ibscbs: { keyFieldIds: ['codigoProduto'], nameFieldId: 'codigoProduto', duplicateFieldIds: [] },
+  taxBenefit: { keyFieldIds: ['codigo'], nameFieldId: 'descricao', duplicateFieldIds: ['codigo'] },
+  recipes: { keyFieldIds: ['codigoReceita', 'codigoProduto'], nameFieldId: 'descricao', duplicateFieldIds: [] },
+  nutrition: { keyFieldIds: ['codigoProduto'], nameFieldId: 'codigoProduto', duplicateFieldIds: [] },
+}
+
+const inferFieldKind = (id: string): FieldDefinition['kind'] => {
+  const token = id.toLocaleLowerCase('pt-BR')
+  if (id === 'cpfCnpj') return 'document'
+  if (id === 'ie') return 'ie'
+  if (token.includes('telefone') || token.includes('celular') || token.includes('fax')) return 'phone'
+  if (token === 'uf') return 'state'
+  if (token.includes('data')) return 'date'
+  if (
+    token.includes('preco') ||
+    token.includes('custo') ||
+    token.includes('margem') ||
+    token.includes('aliq') ||
+    token === 'ibs' ||
+    token === 'cbs'
+  ) return 'money'
+  if (
+    token.includes('ativo') ||
+    token.includes('inativo') ||
+    token.includes('principal') ||
+    token.includes('envia') ||
+    token.includes('bebida') ||
+    token.includes('fora') ||
+    token.includes('vasilhame')
+  ) return 'boolean'
+  if (
+    token.includes('codigo') ||
+    token === 'ncm' ||
+    token === 'cest' ||
+    token === 'ex' ||
+    token === 'plu' ||
+    token === 'chave'
+  ) return 'code'
+  return 'text'
+}
+
+const moduleFieldGroup = (module: WorkspaceModuleDefinition) => {
+  if (module.group === 'partners') return 'Cadastro'
+  if (module.group === 'structure') return 'Estrutura'
+  if (module.group === 'products') return 'Produto'
+  return 'Fiscal e Conteúdo'
+}
+
+const baseProfileForModule = (moduleId: WorkspaceModuleId) => {
+  if (moduleId === 'clients') return clientProfile
+  if (moduleId === 'suppliers') return supplierProfile
+  if (moduleId === 'products') return productProfile
+  return undefined
+}
+
+export const getWorkspaceEntityProfile = (moduleId: WorkspaceModuleId): EntityProfile => {
+  const module = modules.find(item => item.id === moduleId)
+  if (!module) return clientProfile
+
+  const meta = COMPARISON_META[moduleId]
+  const base = baseProfileForModule(moduleId)
+  const baseFields = new Map(base?.fields.map(item => [item.id, item]) ?? [])
+
+  const fields: FieldDefinition[] = module.fields.map(item => {
+    const existing = baseFields.get(item.id)
+    return {
+      ...(existing ?? {
+        id: item.id,
+        label: item.label,
+        group: moduleFieldGroup(module),
+        kind: inferFieldKind(item.id),
+        aliases: item.aliases,
+      }),
+      aliases: [...new Set([item.label, ...item.aliases, ...(existing?.aliases ?? [])])],
+      requiredForMatch: meta.keyFieldIds.includes(item.id),
+    }
+  })
+
+  return {
+    id: 'workspace:' + module.id,
+    label: module.label,
+    description: module.description,
+    aliases: [module.label, module.singular, ...module.signals],
+    fields,
+    statusAliases: base?.statusAliases ?? ['INATIVO', 'FLG_INATIVO', 'ATIVO', 'FLG_ATIVO', 'STATUS', 'SITUACAO'],
+    nameFieldId: meta.nameFieldId,
+    recordLabel: module.singular,
+    showDocumentValidity: meta.showDocumentValidity ?? false,
+    duplicateFieldIds: meta.duplicateFieldIds,
+    ambiguousBareTokens: base?.ambiguousBareTokens ?? [],
+  }
+}
+
+export const WORKSPACE_ENTITY_PROFILES: EntityProfile[] =
+  modules.map(module => getWorkspaceEntityProfile(module.id))
