@@ -19,7 +19,16 @@ import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityP
 
 type Tab = 'overview' | 'dashboard' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
 type EntityMode = 'auto' | string
-type IssueOccurrence = { client: ClientComparison; field: ComparisonFieldResult }
+type IssueDuplicateInfo = {
+  count: number
+  normalizedValue: string
+}
+
+type IssueOccurrence = {
+  client: ClientComparison
+  field: ComparisonFieldResult
+  duplicate?: IssueDuplicateInfo
+}
 
 const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
@@ -120,6 +129,7 @@ function App({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'TODOS' | Severity>('TODOS')
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
+  const [issueDuplicateFilter, setIssueDuplicateFilter] = useState<'TODOS' | 'DUPLICADOS' | 'NAO_DUPLICADOS'>('TODOS')
   const [clientColumnFilters, setClientColumnFilters] = useState({
     code: '',
     name: '',
@@ -138,6 +148,8 @@ function App({
     reason: '',
   })
   const [duplicateFieldFocus, setDuplicateFieldFocus] = useState<string | undefined>()
+  const [duplicateSearchFocus, setDuplicateSearchFocus] = useState('')
+  const [duplicateSideFocus, setDuplicateSideFocus] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
   const [selectedClientKeys, setSelectedClientKeys] = useState<Set<string>>(new Set())
@@ -259,6 +271,7 @@ function App({
         setActiveTab(dashboardMode ? 'dashboard' : 'overview')
         setIssueFieldFilter('TODOS')
         setStatusFilter('TODOS')
+        setIssueDuplicateFilter('TODOS')
         setSearch('')
         setFocusedFieldId(undefined)
         setSelectedOccurrenceKey(null)
@@ -329,21 +342,50 @@ function App({
     })
   }, [report, search, statusFilter, clientColumnFilters])
 
-  const issues = useMemo(() => {
+  const originDuplicateLookup = useMemo(() => {
+    const lookup = new Map<string, IssueDuplicateInfo>()
+    if (!report) return lookup
+
+    for (const duplicate of report.duplicates) {
+      if (duplicate.side !== 'ORIGEM') continue
+      for (const record of duplicate.records) {
+        if (!record.key) continue
+        lookup.set(
+          `${record.key}::${duplicate.fieldId}`,
+          { count: duplicate.count, normalizedValue: duplicate.normalizedValue },
+        )
+      }
+    }
+    return lookup
+  }, [report])
+
+  const issueScope = useMemo<IssueOccurrence[]>(() => {
     if (!report) return []
-    const term = search.trim().toLocaleUpperCase('pt-BR')
     const restrictField = issueFieldFilter !== 'TODOS'
-    const contains = (value: unknown, filter: string) =>
-      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
 
     return report.clients.flatMap(client => {
       if (restrictField && !client.found) return []
       return client.fields
         .filter(field => field.status === 'DIVERGENTE' || field.status === 'ATENÇÃO')
-        .map(field => ({ client, field }))
+        .map(field => {
+          const duplicate = originDuplicateLookup.get(`${client.key}::${field.fieldId}`)
+          return { client, field, duplicate }
+        })
     }).filter(item => {
       if (restrictField && item.field.fieldId !== issueFieldFilter) return false
       if (statusFilter !== 'TODOS' && item.field.status !== statusFilter) return false
+      if (issueDuplicateFilter === 'DUPLICADOS' && !item.duplicate) return false
+      if (issueDuplicateFilter === 'NAO_DUPLICADOS' && item.duplicate) return false
+      return true
+    })
+  }, [report, issueFieldFilter, statusFilter, issueDuplicateFilter, originDuplicateLookup])
+
+  const issues = useMemo(() => {
+    const term = search.trim().toLocaleUpperCase('pt-BR')
+    const contains = (value: unknown, filter: string) =>
+      !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
+
+    return issueScope.filter(item => {
       if (!contains(item.client.key, issueColumnFilters.code)) return false
       if (!contains(item.client.name, issueColumnFilters.name)) return false
       if (!contains(item.field.originValue, issueColumnFilters.origin)) return false
@@ -351,10 +393,14 @@ function App({
       if (!contains(item.field.reason, issueColumnFilters.reason)) return false
 
       if (!term) return true
-      const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.group} ${item.field.originValue} ${item.field.targetValue} ${item.field.status} ${item.field.reason}`.toLocaleUpperCase('pt-BR')
+      const duplicateText = item.duplicate
+        ? ` DUPLICADO ${item.duplicate.count} ${item.duplicate.normalizedValue}`
+        : ' NAO DUPLICADO'
+      const text = `${item.client.key} ${item.client.name} ${item.field.fieldLabel} ${item.field.group} ${item.field.originValue} ${item.field.targetValue} ${item.field.status} ${item.field.reason}${duplicateText}`
+        .toLocaleUpperCase('pt-BR')
       return text.includes(term)
     })
-  }, [report, search, statusFilter, issueFieldFilter, issueColumnFilters])
+  }, [issueScope, search, issueColumnFilters])
 
   const issueFieldOptions = useMemo(() => {
     if (!report) return []
@@ -409,6 +455,7 @@ function App({
     setSearch('')
     setStatusFilter('TODOS')
     setIssueFieldFilter('TODOS')
+    setIssueDuplicateFilter('TODOS')
     setFocusedFieldId(undefined)
     setSelectedOccurrenceKey(null)
     setEntityMode('auto')
@@ -417,6 +464,7 @@ function App({
   const openFieldAnalysis = (fieldId: string, status: 'TODOS' | 'DIVERGENTE' | 'ATENÇÃO') => {
     setIssueFieldFilter(fieldId)
     setStatusFilter(status)
+    setIssueDuplicateFilter('TODOS')
     setSearch('')
     setPage(1)
     setActiveTab('issues')
@@ -426,12 +474,25 @@ function App({
     setActiveTab('fields')
     setIssueFieldFilter('TODOS')
     setStatusFilter('TODOS')
+    setIssueDuplicateFilter('TODOS')
     setSearch('')
     setPage(1)
   }
 
   const clearIssueFieldFilter = () => {
     setIssueFieldFilter('TODOS')
+    setPage(1)
+  }
+
+  const openDuplicates = (
+    fieldId?: string,
+    normalizedValue = '',
+    side: 'TODOS' | 'ORIGEM' | 'DESTINO' = 'TODOS',
+  ) => {
+    setDuplicateFieldFocus(fieldId)
+    setDuplicateSearchFocus(normalizedValue)
+    setDuplicateSideFocus(side)
+    setActiveTab('duplicates')
     setPage(1)
   }
 
@@ -468,10 +529,10 @@ function App({
       ? 'Atenção'
       : 'Divergências + Atenções'
   const analysisCountLabel = statusFilter === 'DIVERGENTE'
-    ? `${number(issues.length)} ${issues.length === 1 ? 'divergência encontrada' : 'divergências encontradas'}`
+    ? `${number(issueScope.length)} ${issueScope.length === 1 ? 'divergência encontrada' : 'divergências encontradas'}`
     : statusFilter === 'ATENÇÃO'
-      ? `${number(issues.length)} ${issues.length === 1 ? 'atenção encontrada' : 'atenções encontradas'}`
-      : `${number(issues.length)} ${issues.length === 1 ? 'ocorrência para revisão' : 'ocorrências para revisão'}`
+      ? `${number(issueScope.length)} ${issueScope.length === 1 ? 'atenção encontrada' : 'atenções encontradas'}`
+      : `${number(issueScope.length)} ${issueScope.length === 1 ? 'ocorrência para revisão' : 'ocorrências para revisão'}`
   const drawerFocusedFieldId = focusedFieldId ?? (issueFieldFilter !== 'TODOS' ? issueFieldFilter : undefined)
   const occurrenceNav = selectedClient && occurrenceIndex >= 0 && issues.length > 0
     ? {
@@ -539,6 +600,7 @@ function App({
       ? 'Todos os campos'
       : resultProfile.fields.find(field => field.id === issueFieldFilter)?.label || issueFieldFilter,
     statusFilter === 'TODOS' ? 'Divergências e atenções' : statusFilter,
+    issueDuplicateFilter === 'DUPLICADOS' ? 'Somente duplicados' : issueDuplicateFilter === 'NAO_DUPLICADOS' ? 'Sem duplicidade' : '',
     search.trim() ? 'Pesquisa: ' + search.trim() : '',
   ].filter(Boolean).join(' · ')
 
@@ -750,7 +812,22 @@ function App({
             </div>
 
             <nav className="tabs">
-              {tabs.map(tab => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  className={activeTab === tab.id ? 'active' : ''}
+                  onClick={() => {
+                    if (tab.id === 'duplicates') {
+                      setDuplicateFieldFocus(undefined)
+                      setDuplicateSearchFocus('')
+                      setDuplicateSideFocus('TODOS')
+                    }
+                    setActiveTab(tab.id)
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </nav>
 
             {activeTab !== 'overview' && activeTab !== 'dashboard' && activeTab !== 'diagnosis' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
@@ -777,6 +854,17 @@ function App({
                   <option value="CONFORME">Conforme</option>
                   <option value="NÃO IMPORTADO">Não importado</option>
                 </select>
+                {activeTab === 'issues' && (
+                  <select
+                    value={issueDuplicateFilter}
+                    onChange={e => setIssueDuplicateFilter(e.target.value as typeof issueDuplicateFilter)}
+                    aria-label="Filtrar por duplicidade na origem"
+                  >
+                    <option value="TODOS">Todos · duplicidade</option>
+                    <option value="DUPLICADOS">Somente duplicados</option>
+                    <option value="NAO_DUPLICADOS">Sem duplicidade</option>
+                  </select>
+                )}
                 <span className="page-size-fixed">20 por página</span>
               </div>
             )}
@@ -794,10 +882,7 @@ function App({
                 report={report}
                 profile={resultProfile}
                 onOpenIssue={(client, field) => openRecord(client, field.fieldId)}
-                onOpenDuplicates={fieldId => {
-                  setDuplicateFieldFocus(fieldId)
-                  setActiveTab('duplicates')
-                }}
+                onOpenDuplicates={fieldId => openDuplicates(fieldId)}
               />
             )}
             {activeTab === 'clients' && (
@@ -1044,7 +1129,10 @@ function App({
                   <div className="section-head compact issues-section-head">
                     <div>
                       <h3>Divergências e atenções</h3>
-                      <p>{number(issues.length)} ocorrências no filtro atual.</p>
+                      <p>
+                        {number(issues.length)} {issues.length === 1 ? 'registro encontrado' : 'registros encontrados'}
+                        {issues.length !== issueScope.length ? ` · ${number(issueScope.length)} no contexto da análise` : ' no contexto atual'}.
+                      </p>
                     </div>
                     <div className="issue-print-actions">
                       <span className="issue-selection-count">
@@ -1057,6 +1145,7 @@ function App({
                           setSearch('')
                           setIssueFieldFilter('TODOS')
                           setStatusFilter('TODOS')
+                          setIssueDuplicateFilter('TODOS')
                           setIssueColumnFilters({ code: '', name: '', origin: '', target: '', reason: '' })
                         }}
                       >
@@ -1097,147 +1186,156 @@ function App({
                     </div>
                   </div>
 
-                  {issues.length === 0 ? (
-                    <div className="empty-state">Nenhuma ocorrência no filtro atual.</div>
-                  ) : (
-                    <>
-                      <div className="table-wrap">
-                        <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
-                          <thead>
-                            <tr>
-                              <th className="issue-select-col">
+                  <div className="table-wrap">
+                    <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
+                      <thead>
+                        <tr>
+                          <th className="issue-select-col">
+                            <input
+                              type="checkbox"
+                              checked={allCurrentIssuesSelected}
+                              onChange={toggleCurrentIssuePage}
+                              aria-label="Selecionar ocorrências da página"
+                            />
+                          </th>
+                          <SortableHeader label="Código" sortKey="code" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Campo" sortKey="field" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Origem" sortKey="origin" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
+                          <th>Análise</th>
+                          <th>Ação</th>
+                        </tr>
+                        <tr className="column-filter-row">
+                          <th />
+                          <th><input value={issueColumnFilters.code} onChange={e => setIssueColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                          <th><input value={issueColumnFilters.name} onChange={e => setIssueColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                          <th>
+                            <select value={issueFieldFilter} onChange={e => setIssueFieldFilter(e.target.value)}>
+                              <option value="TODOS">Todos os campos</option>
+                              {issueFieldOptions.map(field => (
+                                <option key={field.fieldId} value={field.fieldId}>{field.fieldLabel}</option>
+                              ))}
+                            </select>
+                          </th>
+                          <th><input value={issueColumnFilters.origin} onChange={e => setIssueColumnFilters(current => ({ ...current, origin: e.target.value }))} placeholder="Origem…" /></th>
+                          <th><input value={issueColumnFilters.target} onChange={e => setIssueColumnFilters(current => ({ ...current, target: e.target.value }))} placeholder="Destino…" /></th>
+                          <th>
+                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
+                              <option value="TODOS">Todos</option>
+                              <option value="DIVERGENTE">Divergente</option>
+                              <option value="ATENÇÃO">Atenção</option>
+                            </select>
+                          </th>
+                          <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
+                          <th />
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentIssuePage.length === 0 ? (
+                          <tr className="table-empty-row">
+                            <td colSpan={10}>
+                              <div className="inline-empty-state">
+                                <strong>Nenhum registro encontrado.</strong>
+                                <span>A análise, o campo selecionado e os filtros permanecem ativos. Altere a pesquisa para visualizar registros novamente.</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : currentIssuePage.map((item, idx) => {
+                          const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
+                          const highlight = issueFieldFilter !== 'TODOS'
+                          const fieldDefinition = resultProfile.fields.find(field => field.id === item.field.fieldId)
+                          const showCharacterCount = fieldDefinition?.kind === 'text'
+                          return (
+                            <tr
+                              key={`${item.client.key}-${item.field.fieldId}-${idx}`}
+                              className={[
+                                selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : '',
+                                reviewedIssueKeys.has(occurrenceKey) ? 'row-reviewed' : '',
+                              ].filter(Boolean).join(' ')}
+                            >
+                              <td className="issue-select-col">
                                 <input
                                   type="checkbox"
-                                  checked={allCurrentIssuesSelected}
-                                  onChange={toggleCurrentIssuePage}
-                                  aria-label="Selecionar ocorrências da página"
+                                  checked={selectedIssueKeys.has(occurrenceKey)}
+                                  onChange={() => toggleIssueSelection(occurrenceKey)}
+                                  aria-label={`Selecionar ${item.client.key} · ${item.field.fieldLabel}`}
                                 />
-                              </th>
-                              <SortableHeader label="Código" sortKey="code" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Campo" sortKey="field" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Origem" sortKey="origin" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Destino" sortKey="target" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Status" sortKey="status" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
-                              <th>Análise</th>
-                              <th>Ação</th>
-                            </tr>
-                            <tr className="column-filter-row">
-                              <th />
-                              <th><input value={issueColumnFilters.code} onChange={e => setIssueColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
-                              <th><input value={issueColumnFilters.name} onChange={e => setIssueColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
-                              <th>
-                                <select value={issueFieldFilter} onChange={e => setIssueFieldFilter(e.target.value)}>
-                                  <option value="TODOS">Todos os campos</option>
-                                  {issueFieldOptions.map(field => (
-                                    <option key={field.fieldId} value={field.fieldId}>{field.fieldLabel}</option>
-                                  ))}
-                                </select>
-                              </th>
-                              <th><input value={issueColumnFilters.origin} onChange={e => setIssueColumnFilters(current => ({ ...current, origin: e.target.value }))} placeholder="Origem…" /></th>
-                              <th><input value={issueColumnFilters.target} onChange={e => setIssueColumnFilters(current => ({ ...current, target: e.target.value }))} placeholder="Destino…" /></th>
-                              <th>
-                                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
-                                  <option value="TODOS">Todos</option>
-                                  <option value="DIVERGENTE">Divergente</option>
-                                  <option value="ATENÇÃO">Atenção</option>
-                                </select>
-                              </th>
-                              <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
-                              <th />
-                              <th />
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {currentIssuePage.map((item, idx) => {
-                              const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
-                              const highlight = issueFieldFilter !== 'TODOS'
-                              const fieldDefinition = resultProfile.fields.find(field => field.id === item.field.fieldId)
-                              const showCharacterCount = fieldDefinition?.kind === 'text'
-                              return (
-                                <tr
-                                  key={`${item.client.key}-${item.field.fieldId}-${idx}`}
-                                  className={[
-                                    selectedIssueKeys.has(occurrenceKey) ? 'issue-row-selected' : '',
-                                    reviewedIssueKeys.has(occurrenceKey) ? 'row-reviewed' : '',
-                                  ].filter(Boolean).join(' ')}
+                              </td>
+                              <td className="mono">{item.client.key}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="link-button left"
+                                  onClick={() => {
+                                    setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                    openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                  }}
                                 >
-                                  <td className="issue-select-col">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedIssueKeys.has(occurrenceKey)}
-                                      onChange={() => toggleIssueSelection(occurrenceKey)}
-                                      aria-label={`Selecionar ${item.client.key} · ${item.field.fieldLabel}`}
-                                    />
-                                  </td>
-                                  <td className="mono">{item.client.key}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="link-button left"
-                                      onClick={() => {
-                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
-                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
-                                      }}
-                                    >
-                                      {item.client.name || '—'}
-                                    </button>
-                                  </td>
-                                  <td>
-                                    <strong>{item.field.fieldLabel}</strong>
-                                    <small className="block-muted">{item.field.group}</small>
-                                    {item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}
-                                  </td>
-                                  <td>
-                                    <IssueValueCell
-                                      label="Origem"
-                                      value={item.field.originValue}
-                                      status={item.field.status}
-                                      highlight={highlight}
-                                      showCharacterCount={showCharacterCount}
-                                    />
-                                  </td>
-                                  <td>
-                                    <IssueValueCell
-                                      label="Destino"
-                                      value={item.field.targetValue}
-                                      status={item.field.status}
-                                      highlight={highlight}
-                                      showCharacterCount={showCharacterCount}
-                                    />
-                                  </td>
-                                  <td><StatusBadge status={item.field.status} /></td>
-                                  <td className="reason-cell">{item.field.reason}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className={'review-chip ' + (reviewedIssueKeys.has(occurrenceKey) ? 'done' : '')}
-                                      onClick={() => setReviewedIssueKeys(current => toggleStringSet(current, occurrenceKey))}
-                                    >
-                                      {reviewedIssueKeys.has(occurrenceKey) ? '✓ Analisado' : 'Marcar analisado'}
-                                    </button>
-                                  </td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="analysis-action-button"
-                                      onClick={() => {
-                                        setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
-                                        openRecord(item.client, item.field.fieldId, occurrenceKey)
-                                      }}
-                                    >
-                                      Abrir análise
-                                    </button>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
-                    </>
+                                  {item.client.name || '—'}
+                                </button>
+                              </td>
+                              <td>
+                                <strong>{item.field.fieldLabel}</strong>
+                                <small className="block-muted">{item.field.group}</small>
+                                {item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}
+                              </td>
+                              <td>
+                                <IssueValueCell
+                                  label="Origem"
+                                  value={item.field.originValue}
+                                  status={item.field.status}
+                                  highlight={highlight}
+                                  showCharacterCount={showCharacterCount}
+                                  duplicate={item.duplicate}
+                                  onOpenDuplicate={item.duplicate
+                                    ? () => openDuplicates(item.field.fieldId, item.duplicate!.normalizedValue, 'ORIGEM')
+                                    : undefined}
+                                />
+                              </td>
+                              <td>
+                                <IssueValueCell
+                                  label="Destino"
+                                  value={item.field.targetValue}
+                                  status={item.field.status}
+                                  highlight={highlight}
+                                  showCharacterCount={showCharacterCount}
+                                />
+                              </td>
+                              <td><StatusBadge status={item.field.status} /></td>
+                              <td className="reason-cell">{item.field.reason}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className={'review-chip ' + (reviewedIssueKeys.has(occurrenceKey) ? 'done' : '')}
+                                  onClick={() => setReviewedIssueKeys(current => toggleStringSet(current, occurrenceKey))}
+                                >
+                                  {reviewedIssueKeys.has(occurrenceKey) ? '✓ Analisado' : 'Marcar analisado'}
+                                </button>
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="analysis-action-button"
+                                  onClick={() => {
+                                    setReviewedIssueKeys(current => new Set(current).add(occurrenceKey))
+                                    openRecord(item.client, item.field.fieldId, occurrenceKey)
+                                  }}
+                                >
+                                  Abrir análise
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {sortedIssues.length > 0 && (
+                    <Pagination page={page} pages={pageCount(sortedIssues)} onChange={setPage} />
                   )}
                 </div>
 
@@ -1256,6 +1354,8 @@ function App({
                 report={report}
                 profile={resultProfile}
                 initialFieldId={duplicateFieldFocus}
+                initialSearch={duplicateSearchFocus}
+                initialSide={duplicateSideFocus}
               />
             )}
             {activeTab === 'missing' && <MissingView report={report} profile={resultProfile} onOpenClient={client => openRecord(client)} />}
@@ -1445,12 +1545,16 @@ function IssueValueCell({
   status,
   highlight,
   showCharacterCount = false,
+  duplicate,
+  onOpenDuplicate,
 }: {
   label: string
   value: string
   status: Severity
   highlight: boolean
   showCharacterCount?: boolean
+  duplicate?: IssueDuplicateInfo
+  onOpenDuplicate?: () => void
 }) {
   const tone = highlight
     ? status === 'DIVERGENTE'
@@ -1469,6 +1573,16 @@ function IssueValueCell({
         <span className="issue-char-count">
           {length} {length === 1 ? 'caractere' : 'caracteres'}
         </span>
+      )}
+      {duplicate && onOpenDuplicate && (
+        <button
+          type="button"
+          className="issue-duplicate-link"
+          onClick={onOpenDuplicate}
+          title="Abrir este valor na tela de duplicidades"
+        >
+          Duplicado · {number(duplicate.count)}x
+        </button>
       )}
     </div>
   )
@@ -1879,10 +1993,14 @@ function DuplicatesView({
   report,
   profile,
   initialFieldId,
+  initialSearch = '',
+  initialSide = 'TODOS',
 }: {
   report: ComparisonReport
   profile: EntityProfile
   initialFieldId?: string
+  initialSearch?: string
+  initialSide?: 'TODOS' | 'ORIGEM' | 'DESTINO'
 }) {
   const pageSize = 20
   const [page, setPage] = useState(1)
@@ -1963,10 +2081,11 @@ function DuplicatesView({
   useEffect(() => setPage(1), [search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
 
   useEffect(() => {
-    if (!initialFieldId) return
-    setFieldFilter(initialFieldId)
+    setFieldFilter(initialFieldId || 'TODOS')
+    setSearch(initialSearch)
+    setSideFilter(initialSide)
     setPage(1)
-  }, [initialFieldId])
+  }, [initialFieldId, initialSearch, initialSide])
 
   useEffect(() => {
     const handleAfterPrint = () => {
@@ -2140,158 +2259,161 @@ function DuplicatesView({
           <span className="page-size-fixed">20 por página</span>
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="empty-state">{term || fieldFilter !== 'TODOS' || sideFilter !== 'TODOS' ? 'Nenhuma duplicidade encontrada para a pesquisa.' : 'Nenhuma duplicidade identificada nos campos mapeados.'}</div>
-        ) : (
-          <>
-            <div className="table-wrap">
-              <table className="dup-table">
-                <thead>
-                  <tr>
-                    <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
-                    <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
-                    <th>Análise</th>
-                    <th>Ações</th>
-                  </tr>
-                  <tr className="column-filter-row">
-                    <th />
-                    <th>
-                      <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
-                        <option value="TODOS">Todos</option>
-                        <option value="ORIGEM">Origem</option>
-                        <option value="DESTINO">Destino</option>
-                      </select>
-                    </th>
-                    <th>
-                      <select value={fieldFilter} onChange={event => setFieldFilter(event.target.value)}>
-                        <option value="TODOS">Todos os campos</option>
-                        {fieldOptions.map(([fieldId, fieldLabel]) => (
-                          <option key={fieldId} value={fieldId}>{fieldLabel}</option>
-                        ))}
-                      </select>
-                    </th>
-                    <th><input value={duplicateColumnFilters.category} onChange={event => setDuplicateColumnFilters(current => ({ ...current, category: event.target.value }))} placeholder="Tipo…" /></th>
-                    <th><input value={duplicateColumnFilters.value} onChange={event => setDuplicateColumnFilters(current => ({ ...current, value: event.target.value }))} placeholder="Valor…" /></th>
-                    <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
-                    <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
-                    <th />
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageItems.map((dup, index) => {
-                    const rowId = rowIdOf(dup)
-                    const field = profile.fields.find(item => item.id === dup.fieldId)
-                    const monoValue = field ? monoKinds.has(field.kind) : true
-                    const open = openGroups.has(rowId)
-                    const reviewed = reviewedGroups.has(rowId)
-                    return (
-                      <Fragment key={rowId + '-' + index}>
-                        <tr className={[
-                          'dup-group-row',
-                          open ? 'is-open' : '',
-                          reviewed ? 'row-reviewed' : '',
-                        ].filter(Boolean).join(' ')}>
-                          <td className="selection-column">
-                            <input
-                              type="checkbox"
-                              checked={selectedGroups.has(rowId)}
-                              onChange={() => setSelectedGroups(current => toggleSet(current, rowId))}
-                            />
-                          </td>
-                          <td>
-                            <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
-                          </td>
-                          <td>
-                            <div className="dup-field">
-                              <strong>{dup.fieldLabel}</strong>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="dup-category">{dup.category}</span>
-                          </td>
-                          <td>
-                            <div className="dup-value">
-                              <span>Valor duplicado</span>
-                              <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="dup-count">
-                              <strong>{number(dup.count)}</strong>
-                              <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
-                            </span>
-                          </td>
-                          <td>
-                            <DuplicateCodeList
-                              codes={dup.records.map(record => record.key)}
-                              expanded={expandedCodes.has(rowId)}
-                              onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
-                            />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className={'review-chip ' + (reviewed ? 'done' : '')}
-                              onClick={() => setReviewedGroups(current => toggleSet(current, rowId))}
-                            >
-                              {reviewed ? '✓ Analisado' : 'Marcar analisado'}
-                            </button>
-                          </td>
-                          <td>
-                            <div className="dup-actions">
-                              <button
-                                type="button"
-                                className="button ghost compact-button"
-                                onClick={() => toggleGroup(rowId)}
-                                aria-expanded={open}
-                              >
-                                {open ? 'Ocultar' : 'Ver registros'}
-                              </button>
-                              <button
-                                type="button"
-                                className="dup-print-group"
-                                onClick={() => requestPrint(rowId)}
-                                aria-label={'Imprimir grupo duplicado de ' + dup.fieldLabel}
-                              >
-                                Imprimir grupo
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {open && (
-                          <tr className="dup-expand-row">
-                            <td colSpan={9}>
-                              <DuplicateGroupDetails
-                                groupId={rowId}
-                                fieldId={dup.fieldId}
-                                fieldLabel={dup.fieldLabel}
-                                normalizedValue={dup.normalizedValue}
-                                nameLabel={nameLabel}
-                                records={dup.records}
-                                codesExpanded={expandedCodes.has(rowId + '::details')}
-                                onToggleCodes={() => setExpandedCodes(current => toggleSet(current, rowId + '::details'))}
-                                recordsExpanded={expandedRecords.has(rowId)}
-                                onToggleRecords={() => setExpandedRecords(current => toggleSet(current, rowId))}
-                                monoValue={monoValue}
-                              />
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <Pagination page={safePage} pages={pages} onChange={setPage} />
-          </>
-        )}
+        <div className="table-wrap">
+          <table className="dup-table">
+            <thead>
+              <tr>
+                <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
+                <SortableHeader label="Lado" sortKey="side" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Campo duplicado" sortKey="field" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Tipo" sortKey="category" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Valor duplicado" sortKey="value" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Qtd. registros" sortKey="count" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <SortableHeader label="Códigos envolvidos" sortKey="codes" sort={sort} onSort={key => setSort(current => nextSort(current, key))} />
+                <th>Análise</th>
+                <th>Ações</th>
+              </tr>
+              <tr className="column-filter-row">
+                <th />
+                <th>
+                  <select value={sideFilter} onChange={event => setSideFilter(event.target.value as typeof sideFilter)}>
+                    <option value="TODOS">Todos</option>
+                    <option value="ORIGEM">Origem</option>
+                    <option value="DESTINO">Destino</option>
+                  </select>
+                </th>
+                <th>
+                  <select value={fieldFilter} onChange={event => setFieldFilter(event.target.value)}>
+                    <option value="TODOS">Todos os campos</option>
+                    {fieldOptions.map(([fieldId, fieldLabel]) => (
+                      <option key={fieldId} value={fieldId}>{fieldLabel}</option>
+                    ))}
+                  </select>
+                </th>
+                <th><input value={duplicateColumnFilters.category} onChange={event => setDuplicateColumnFilters(current => ({ ...current, category: event.target.value }))} placeholder="Tipo…" /></th>
+                <th><input value={duplicateColumnFilters.value} onChange={event => setDuplicateColumnFilters(current => ({ ...current, value: event.target.value }))} placeholder="Valor…" /></th>
+                <th><input value={duplicateColumnFilters.count} onChange={event => setDuplicateColumnFilters(current => ({ ...current, count: event.target.value }))} placeholder="Qtd." /></th>
+                <th><input value={duplicateColumnFilters.codes} onChange={event => setDuplicateColumnFilters(current => ({ ...current, codes: event.target.value }))} placeholder="Código…" /></th>
+                <th />
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={9}>
+                    <div className="inline-empty-state">
+                      <strong>Nenhuma duplicidade encontrada.</strong>
+                      <span>Os filtros e a estrutura da análise permanecem na tela. Altere a pesquisa para visualizar grupos novamente.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : pageItems.map((dup, index) => {
+                const rowId = rowIdOf(dup)
+                const field = profile.fields.find(item => item.id === dup.fieldId)
+                const monoValue = field ? monoKinds.has(field.kind) : true
+                const open = openGroups.has(rowId)
+                const reviewed = reviewedGroups.has(rowId)
+                return (
+                  <Fragment key={rowId + '-' + index}>
+                    <tr className={[
+                      'dup-group-row',
+                      open ? 'is-open' : '',
+                      reviewed ? 'row-reviewed' : '',
+                    ].filter(Boolean).join(' ')}>
+                      <td className="selection-column">
+                        <input
+                          type="checkbox"
+                          checked={selectedGroups.has(rowId)}
+                          onChange={() => setSelectedGroups(current => toggleSet(current, rowId))}
+                        />
+                      </td>
+                      <td>
+                        <span className={'dup-side dup-side-' + dup.side.toLowerCase()}>{dup.side}</span>
+                      </td>
+                      <td>
+                        <div className="dup-field">
+                          <strong>{dup.fieldLabel}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="dup-category">{dup.category}</span>
+                      </td>
+                      <td>
+                        <div className="dup-value">
+                          <span>Valor duplicado</span>
+                          <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="dup-count">
+                          <strong>{number(dup.count)}</strong>
+                          <span>{dup.count === 1 ? 'registro' : 'registros'}</span>
+                        </span>
+                      </td>
+                      <td>
+                        <DuplicateCodeList
+                          codes={dup.records.map(record => record.key)}
+                          expanded={expandedCodes.has(rowId)}
+                          onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={'review-chip ' + (reviewed ? 'done' : '')}
+                          onClick={() => setReviewedGroups(current => toggleSet(current, rowId))}
+                        >
+                          {reviewed ? '✓ Analisado' : 'Marcar analisado'}
+                        </button>
+                      </td>
+                      <td>
+                        <div className="dup-actions">
+                          <button
+                            type="button"
+                            className="button ghost compact-button"
+                            onClick={() => toggleGroup(rowId)}
+                            aria-expanded={open}
+                          >
+                            {open ? 'Ocultar' : 'Ver registros'}
+                          </button>
+                          <button
+                            type="button"
+                            className="dup-print-group"
+                            onClick={() => requestPrint(rowId)}
+                            aria-label={'Imprimir grupo duplicado de ' + dup.fieldLabel}
+                          >
+                            Imprimir grupo
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {open && (
+                      <tr className="dup-expand-row">
+                        <td colSpan={9}>
+                          <DuplicateGroupDetails
+                            groupId={rowId}
+                            fieldId={dup.fieldId}
+                            fieldLabel={dup.fieldLabel}
+                            normalizedValue={dup.normalizedValue}
+                            nameLabel={nameLabel}
+                            records={dup.records}
+                            codesExpanded={expandedCodes.has(rowId + '::details')}
+                            onToggleCodes={() => setExpandedCodes(current => toggleSet(current, rowId + '::details'))}
+                            recordsExpanded={expandedRecords.has(rowId)}
+                            onToggleRecords={() => setExpandedRecords(current => toggleSet(current, rowId))}
+                            monoValue={monoValue}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {sorted.length > 0 && <Pagination page={safePage} pages={pages} onChange={setPage} />}
       </div>
 
       <DuplicatePrintReport

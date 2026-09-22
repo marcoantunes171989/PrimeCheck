@@ -7199,3 +7199,99 @@ table {
 .sidebar-group-children button.active::before {
   display: none !important;
 }
+
+
+/* =========================================================
+   Divergências — pesquisa estável e vínculo com duplicidades
+   ========================================================= */
+
+.filters.filters-issues {
+  grid-template-columns: minmax(250px, 1fr) minmax(190px, 250px) 165px 185px 135px;
+}
+
+.issue-duplicate-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 3px 7px;
+  border: 1px solid #f0c894;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a4a08;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.issue-duplicate-link:hover {
+  border-color: var(--accent);
+  background: #fff0df;
+  color: #7c3905;
+}
+
+.issue-duplicate-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(243, 133, 37, .18);
+}
+
+.table-empty-row td {
+  padding: 0 !important;
+  background: #fff !important;
+}
+
+.inline-empty-state {
+  min-height: 128px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.inline-empty-state strong {
+  color: var(--primary);
+  font-size: 12px;
+}
+
+.inline-empty-state span {
+  max-width: 680px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1380px) {
+  .filters.filters-issues {
+    grid-template-columns: minmax(220px, 1fr) minmax(175px, 220px) 155px 170px;
+  }
+
+  .filters.filters-issues .page-size-fixed {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 1120px) {
+  .filters.filters-issues {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .filters.filters-issues {
+    grid-template-columns: 1fr;
+  }
+
+  .issue-duplicate-link {
+    white-space: normal;
+  }
+}
+
+@media print {
+  .issue-duplicate-link {
+    display: none !important;
+  }
+}
