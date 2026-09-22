@@ -29,6 +29,7 @@ export default function SearchableColumnSelect({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const listboxId = useId()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -62,9 +63,15 @@ export default function SearchableColumnSelect({
     const openUpward = spaceBelow < 220 && spaceAbove > spaceBelow
     const available = Math.max(150, Math.min(320, openUpward ? spaceAbove : spaceBelow))
 
+    const width = Math.min(Math.max(260, rect.width), Math.max(180, window.innerWidth - 16))
+    const left = Math.min(
+      Math.max(8, rect.left),
+      Math.max(8, window.innerWidth - width - 8),
+    )
+
     setMenuPosition({
-      left: Math.max(8, rect.left),
-      width: Math.max(260, Math.min(rect.width, window.innerWidth - 16)),
+      left,
+      width,
       top: openUpward ? undefined : rect.bottom + 6,
       bottom: openUpward ? viewportHeight - rect.top + 6 : undefined,
       maxHeight: available,
@@ -76,13 +83,22 @@ export default function SearchableColumnSelect({
 
     syncMenuPosition()
     const onViewportChange = () => syncMenuPosition()
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+      setQuery('')
+      setActiveIndex(0)
+    }
 
     window.addEventListener('resize', onViewportChange)
     window.addEventListener('scroll', onViewportChange, true)
+    document.addEventListener('pointerdown', onPointerDown)
 
     return () => {
       window.removeEventListener('resize', onViewportChange)
       window.removeEventListener('scroll', onViewportChange, true)
+      document.removeEventListener('pointerdown', onPointerDown)
     }
   }, [open])
 
@@ -135,13 +151,17 @@ export default function SearchableColumnSelect({
     if (event.key === 'Escape') {
       event.preventDefault()
       close()
+      return
     }
+
+    if (event.key === 'Tab') close()
   }
 
   const displayValue = open ? query : value
 
   const menu = open && menuPosition && createPortal(
     <div
+      ref={menuRef}
       className="column-combobox-menu"
       style={{
         left: menuPosition.left,
