@@ -409,6 +409,46 @@ function App({
       }
     : undefined
 
+  const currentIssuePage = pageSlice(sortedIssues)
+  const currentIssueKeys = currentIssuePage.map(item => occurrenceKeyOf(item.client.key, item.field.fieldId))
+  const selectedIssues = sortedIssues.filter(item =>
+    selectedIssueKeys.has(occurrenceKeyOf(item.client.key, item.field.fieldId)),
+  )
+  const allCurrentIssuesSelected = currentIssueKeys.length > 0
+    && currentIssueKeys.every(key => selectedIssueKeys.has(key))
+
+  const toggleIssueSelection = (key: string) => {
+    setSelectedIssueKeys(current => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const toggleCurrentIssuePage = () => {
+    setSelectedIssueKeys(current => {
+      const next = new Set(current)
+      if (allCurrentIssuesSelected) currentIssueKeys.forEach(key => next.delete(key))
+      else currentIssueKeys.forEach(key => next.add(key))
+      return next
+    })
+  }
+
+  const requestIssuePrint = (items: IssueOccurrence[]) => {
+    if (!items.length) return
+    setIssuePrintItems(items)
+    window.setTimeout(() => window.print(), 80)
+  }
+
+  const issuePrintFilterDescription = [
+    issueFieldFilter === 'TODOS'
+      ? 'Todos os campos'
+      : resultProfile.fields.find(field => field.id === issueFieldFilter)?.label || issueFieldFilter,
+    statusFilter === 'TODOS' ? 'Divergências e atenções' : statusFilter,
+    search.trim() ? 'Pesquisa: ' + search.trim() : '',
+  ].filter(Boolean).join(' · ')
+
   const hasFiles = origin.headers.length > 0 || target.headers.length > 0
 
   const homologationModeClass = report
