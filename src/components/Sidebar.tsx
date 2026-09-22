@@ -5,6 +5,8 @@ type Props = {
   active: string
   collapsed: boolean
   onToggle: () => void
+  pinned: boolean
+  onTogglePin: () => void
   onChange: (module: string) => void
   enabledWorkspaceModules: string[]
   hasWorkspaceData: boolean
@@ -25,6 +27,8 @@ export default function Sidebar({
   active,
   collapsed,
   onToggle,
+  pinned,
+  onTogglePin,
   onChange,
   enabledWorkspaceModules,
   hasWorkspaceData,
@@ -60,6 +64,18 @@ export default function Sidebar({
               <strong>PrimeCheck</strong>
               <span>Data Validation</span>
             </div>
+          )}
+          {!collapsed && (
+            <button
+              type="button"
+              className={'sidebar-pin ' + (pinned ? 'active' : '')}
+              onClick={onTogglePin}
+              aria-pressed={pinned}
+              aria-label={pinned ? 'Desafixar menu' : 'Fixar menu expandido'}
+              title={pinned ? 'Desafixar menu' : 'Fixar menu expandido'}
+            >
+              ⌾
+            </button>
           )}
           <button
             type="button"

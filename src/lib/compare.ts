@@ -12,6 +12,7 @@ import type {
   Severity,
 } from '../types'
 import { getEntityProfile } from '../config/entities'
+import { validateInscricaoEstadual, type UfCode } from '@br-validators/core/inscricao-estadual'
 import {
   asText,
   hasReplacementCharacter,
@@ -21,7 +22,9 @@ import {
   normalizeAlphanumericDocument,
   normalizeClientName,
   normalizeForField,
+  normalizeIE,
   normalizeLooseText,
+  normalizeState,
   normalizeText,
   onlyDigits,
   validateCpfCnpj,
@@ -46,25 +49,136 @@ const compareDocument = (origin: CellValue, target: CellValue): Pick<ComparisonF
   const t = validateCpfCnpj(target)
   const ov = o.normalized
   const tv = t.normalized
+  const targetStatus = t.status === 'AUSENTE'
+    ? 'destino vazio'
+    : `destino ${t.status.toLocaleLowerCase('pt-BR')}: ${t.detail}`
 
   if (ov === tv) {
-    if (o.status === 'VÁLIDO') return { status: 'CONFORME', reason: `${o.type} preservado no destino e válido.` }
-    if (o.status === 'AUSENTE') return { status: 'CONFORME', reason: 'Documento ausente em origem e destino.' }
-    return { status: 'ATENÇÃO', reason: `Documento preservado, porém inválido na origem: ${o.detail}` }
+    if (o.status === 'VÁLIDO') {
+      return {
+        status: 'CONFORME',
+        reason: `${o.type.replace('_ALFANUMERICO', ' alfanumérico')} válido na origem (${o.detail}) e preservado no destino. ${targetStatus}.`,
+      }
+    }
+    if (o.status === 'AUSENTE') return { status: 'CONFORME', reason: 'CPF/CNPJ ausente em origem e destino.' }
+    return {
+      status: 'ATENÇÃO',
+      reason: `AVISO: CPF/CNPJ preservado, porém inválido na origem (${o.detail}). ${targetStatus}. Revisar manualmente.`,
+    }
   }
 
   if (o.status === 'VÁLIDO') {
     return {
       status: 'DIVERGENTE',
-      reason: `ERRO: ${o.type.replace('_ALFANUMERICO',' alfanumérico')} válido na origem, mas o destino trouxe valor diferente${tv ? ` (${asText(target)})` : ' ou vazio'}. Documento válido deve ser preservado.`,
+      reason: `ERRO: ${o.type.replace('_ALFANUMERICO',' alfanumérico')} válido na origem (${o.detail}), mas o destino trouxe valor diferente${tv ? ` (${asText(target)})` : ' ou vazio'}. ${targetStatus}. Documento válido da origem deve ser preservado.`,
     }
   }
 
   return {
     status: 'ATENÇÃO',
     reason: o.status === 'AUSENTE'
-      ? `AVISO: CPF/CNPJ ausente na origem e destino trouxe ${tv ? 'valor/código interno' : 'vazio'}. Revisar a regra de geração, sem classificar como perda de documento válido.`
-      : `AVISO: CPF/CNPJ inválido na origem (${o.detail}) e destino está diferente. Revisar manualmente; não há documento válido de origem a preservar.`,
+      ? `AVISO: CPF/CNPJ ausente na origem e destino trouxe ${tv ? `valor (${asText(target)}); ${targetStatus}` : 'vazio'}. Revisar a regra de geração sem classificar como perda de documento válido.`
+      : `AVISO: CPF/CNPJ inválido na origem (${o.detail}) e destino ${tv ? `foi preenchido com valor diferente (${asText(target)}); ${targetStatus}` : 'ficou vazio'}. Revisar manualmente; não há documento válido de origem a preservar.`,
+  }
+}
+
+const IE_UFS: UfCode[] = [
+  'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
+  'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO',
+]
+const IE_UF_SET = new Set<string>(IE_UFS)
+
+type IeAssessment = {
+  normalized: string
+  status: 'VÁLIDA' | 'INVÁLIDA' | 'AUSENTE' | 'ISENTO' | 'NÃO VALIDADA'
+  detail: string
+}
+
+const assessIe = (value: CellValue, ufValue: CellValue): IeAssessment => {
+  const normalized = normalizeIE(value)
+  if (!normalized) {
+    return { normalized, status: 'AUSENTE', detail: 'Inscrição estadual não informada.' }
+  }
+  if (normalized === 'ISENTO') {
+    return { normalized, status: 'ISENTO', detail: 'Cadastro informado como ISENTO/ISENTA.' }
+  }
+
+  const uf = normalizeState(ufValue)
+  if (!IE_UF_SET.has(uf)) {
+    return {
+      normalized,
+      status: 'NÃO VALIDADA',
+      detail: `UF da inscrição estadual não identificada ou inválida (${uf || 'não informada'}).`,
+    }
+  }
+
+  try {
+    const result = validateInscricaoEstadual(asText(value), { uf: uf as UfCode })
+    return result.ok
+      ? { normalized, status: 'VÁLIDA', detail: `Inscrição estadual válida para a UF ${uf}.` }
+      : { normalized, status: 'INVÁLIDA', detail: result.message || `Inscrição estadual inválida para a UF ${uf}.` }
+  } catch {
+    return {
+      normalized,
+      status: 'NÃO VALIDADA',
+      detail: `Não foi possível validar a inscrição estadual para a UF ${uf}.`,
+    }
+  }
+}
+
+const compareInscricaoEstadual = (
+  origin: CellValue,
+  target: CellValue,
+  originUf: CellValue,
+  targetUf: CellValue,
+): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
+  const o = assessIe(origin, originUf)
+  const t = assessIe(target, targetUf)
+  const same = o.normalized === t.normalized
+
+  if (same) {
+    if (o.status === 'AUSENTE') {
+      return { status: 'CONFORME', reason: 'Inscrição estadual ausente em origem e destino.' }
+    }
+    if (o.status === 'VÁLIDA') {
+      return {
+        status: 'CONFORME',
+        reason: `Inscrição estadual válida na origem (${o.detail}) e preservada no destino. Destino: ${t.detail}`,
+      }
+    }
+    if (o.status === 'ISENTO') {
+      return { status: 'CONFORME', reason: 'Inscrição estadual ISENTO/ISENTA preservada no destino.' }
+    }
+    return {
+      status: 'ATENÇÃO',
+      reason: `AVISO: inscrição estadual preservada, porém ${o.status.toLocaleLowerCase('pt-BR')} na origem. ${o.detail} Destino: ${t.detail}`,
+    }
+  }
+
+  if (o.status === 'VÁLIDA') {
+    return {
+      status: 'DIVERGENTE',
+      reason: `ERRO: inscrição estadual válida na origem (${o.detail}), mas o destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail} O valor válido da origem deve ser preservado.`,
+    }
+  }
+
+  if (o.status === 'AUSENTE') {
+    return {
+      status: 'ATENÇÃO',
+      reason: `AVISO: inscrição estadual ausente na origem e destino ${t.normalized ? `foi preenchido com ${asText(target)}` : 'permaneceu vazio'}. Destino: ${t.detail}`,
+    }
+  }
+
+  if (o.status === 'ISENTO') {
+    return {
+      status: 'ATENÇÃO',
+      reason: `AVISO: origem informada como ISENTO/ISENTA e destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail}`,
+    }
+  }
+
+  return {
+    status: 'ATENÇÃO',
+    reason: `AVISO: inscrição estadual ${o.status.toLocaleLowerCase('pt-BR')} na origem (${o.detail}) e destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail} Revisar manualmente; não há IE válida de origem confirmada para preservar.`,
   }
 }
 
@@ -292,7 +406,15 @@ const createFieldResult = (
 
   const originValue = getMappedValue(originRow, map.originHeader)
   const targetValue = getMappedValue(targetRow, map.targetHeader)
-  const compared = compareField(field, originValue, targetValue)
+
+  const compared = field.kind === 'ie'
+    ? (() => {
+        const ufMap = allMappings.get('uf')
+        const originUf = ufMap?.originHeader ? getMappedValue(originRow, ufMap.originHeader) : ''
+        const targetUf = ufMap?.targetHeader ? getMappedValue(targetRow, ufMap.targetHeader) : ''
+        return compareInscricaoEstadual(originValue, targetValue, originUf, targetUf)
+      })()
+    : compareField(field, originValue, targetValue)
   return {
     fieldId: field.id,
     fieldLabel: field.label,
