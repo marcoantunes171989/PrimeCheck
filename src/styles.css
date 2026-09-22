@@ -7152,3 +7152,50 @@ table {
     font-size: 13px !important;
   }
 }
+
+
+/* =========================================================
+   Sidebar — destaque laranja homogêneo (padrão inicial)
+   ========================================================= */
+
+.sidebar-nav > button.active,
+.sidebar-group-children button.active,
+.sidebar-group.active-group > .sidebar-group-toggle {
+  background: rgba(243, 133, 37, .14) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(243, 133, 37, .34) !important;
+  box-shadow: inset 3px 0 0 #F38525 !important;
+}
+
+.sidebar-nav > button.active .sidebar-icon,
+.sidebar-group.active-group > .sidebar-group-toggle .sidebar-icon {
+  background: #F38525 !important;
+  color: #012E46 !important;
+}
+
+.sidebar-group-children button.active .sidebar-child-dot {
+  background: #F38525 !important;
+  opacity: 1 !important;
+}
+
+.sidebar-nav > button.active:hover,
+.sidebar-group-children button.active:hover,
+.sidebar-group.active-group > .sidebar-group-toggle:hover {
+  background: rgba(243, 133, 37, .20) !important;
+  color: #ffffff !important;
+  border-color: rgba(243, 133, 37, .42) !important;
+}
+
+.sidebar-nav > button.active strong,
+.sidebar-nav > button.active small,
+.sidebar-group.active-group > .sidebar-group-toggle strong,
+.sidebar-group.active-group > .sidebar-group-toggle small,
+.sidebar-group-children button.active span {
+  color: #ffffff !important;
+}
+
+.sidebar-nav > button.active::before,
+.sidebar-group.active-group > .sidebar-group-toggle::before,
+.sidebar-group-children button.active::before {
+  display: none !important;
+}
