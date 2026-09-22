@@ -998,6 +998,30 @@ function App({
                               <SortableHeader label="Motivo" sortKey="reason" sort={issueSort} onSort={key => setIssueSort(current => nextSort(current, key))} />
                               <th>Ação</th>
                             </tr>
+                            <tr className="column-filter-row">
+                              <th />
+                              <th><input value={issueColumnFilters.code} onChange={e => setIssueColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Código…" /></th>
+                              <th><input value={issueColumnFilters.name} onChange={e => setIssueColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Registro…" /></th>
+                              <th>
+                                <select value={issueFieldFilter} onChange={e => setIssueFieldFilter(e.target.value)}>
+                                  <option value="TODOS">Todos os campos</option>
+                                  {issueFieldOptions.map(field => (
+                                    <option key={field.fieldId} value={field.fieldId}>{field.fieldLabel}</option>
+                                  ))}
+                                </select>
+                              </th>
+                              <th><input value={issueColumnFilters.origin} onChange={e => setIssueColumnFilters(current => ({ ...current, origin: e.target.value }))} placeholder="Origem…" /></th>
+                              <th><input value={issueColumnFilters.target} onChange={e => setIssueColumnFilters(current => ({ ...current, target: e.target.value }))} placeholder="Destino…" /></th>
+                              <th>
+                                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
+                                  <option value="TODOS">Todos</option>
+                                  <option value="DIVERGENTE">Divergente</option>
+                                  <option value="ATENÇÃO">Atenção</option>
+                                </select>
+                              </th>
+                              <th><input value={issueColumnFilters.reason} onChange={e => setIssueColumnFilters(current => ({ ...current, reason: e.target.value }))} placeholder="Motivo…" /></th>
+                              <th />
+                            </tr>
                           </thead>
                           <tbody>
                             {currentIssuePage.map((item, idx) => {
