@@ -30,6 +30,32 @@ const tokenSet = (value: string) =>
       .filter(token => !GENERIC_TOKENS.has(token)),
   )
 
+const bigramSimilarity = (a: string, b: string) => {
+  const left = a.replace(/_/g, '')
+  const right = b.replace(/_/g, '')
+  if (!left || !right) return 0
+  if (left === right) return 1
+  if (left.length < 2 || right.length < 2) return 0
+
+  const leftPairs = new Map<string, number>()
+  for (let index = 0; index < left.length - 1; index += 1) {
+    const pair = left.slice(index, index + 2)
+    leftPairs.set(pair, (leftPairs.get(pair) ?? 0) + 1)
+  }
+
+  let matches = 0
+  for (let index = 0; index < right.length - 1; index += 1) {
+    const pair = right.slice(index, index + 2)
+    const available = leftPairs.get(pair) ?? 0
+    if (available > 0) {
+      matches += 1
+      leftPairs.set(pair, available - 1)
+    }
+  }
+
+  return (2 * matches) / ((left.length - 1) + (right.length - 1))
+}
+
 const tokenSimilarity = (a: string, b: string) => {
   const left = tokenSet(a)
   const right = tokenSet(b)
@@ -85,7 +111,21 @@ const scoreHeader = (header: string, aliases: string[]) => {
     }
 
     const similarity = tokenSimilarity(header, rawAlias)
-    if (similarity >= 0.75) best = Math.max(best, 88)
+    if (similarity >= 0.75) {
+      best = Math.max(best, 88)
+      continue
+    }
+    if (similarity >= 0.60) best = Math.max(best, 82)
+    else if (similarity >= 0.45) best = Math.max(best, 74)
+
+    const minLength = Math.min(h.length, alias.length)
+    if (minLength >= 5 && (h.includes(alias) || alias.includes(h))) {
+      best = Math.max(best, 84)
+    }
+
+    const textSimilarity = bigramSimilarity(hc || h, ac || alias)
+    if (textSimilarity >= 0.90) best = Math.max(best, 86)
+    else if (textSimilarity >= 0.82) best = Math.max(best, 80)
   }
 
   return best
@@ -114,7 +154,7 @@ const pickBestHeader = (headers: string[], aliases: string[]) => {
     }
   }
 
-  return score >= 60 && !ambiguous ? { header: best, score } : { header: '', score: 0 }
+  return score >= 80 && !ambiguous ? { header: best, score } : { header: '', score: 0 }
 }
 
 const duplicateBase = (header: string) =>
@@ -164,6 +204,30 @@ const assignHeaders = (headers: string[]) => {
   })
 
   return assigned
+}
+
+export interface HeaderSuggestion {
+  header: string
+  score: number
+}
+
+export const getHeaderSuggestions = (
+  headers: string[],
+  fieldId: string,
+  limit = 3,
+): HeaderSuggestion[] => {
+  const field = CHECKLIST_FIELDS.find(item => item.id === fieldId)
+  if (!field) return []
+
+  return headers
+    .filter(header => !header.startsWith('__primecheck_'))
+    .map(header => ({
+      header,
+      score: scoreHeader(header, [field.label, ...field.aliases]),
+    }))
+    .filter(item => item.score >= 60)
+    .sort((a, b) => b.score - a.score || a.header.localeCompare(b.header, 'pt-BR'))
+    .slice(0, limit)
 }
 
 export const autoMap = (origin: Dataset, target: Dataset): FieldMapping[] => {
