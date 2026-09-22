@@ -75,6 +75,11 @@ export const normalizeAlphanumericDocument = (value: CellValue) => asText(value)
   .toUpperCase()
   .replace(/[^A-Z0-9]/g, '')
 
+export const normalizeComparableCharacters = (value: CellValue) =>
+  stripAccents(asText(value))
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+
 export const normalizeCode = (value: CellValue) => {
   const raw = asText(value)
   if (!raw) return ''
@@ -88,7 +93,11 @@ export const normalizeText = (value: CellValue) => stripAccents(asText(value))
   .replace(/\s+/g, ' ')
   .trim()
 
-export const normalizePhone = (value: CellValue) => onlyDigits(value)
+export const normalizePhone = (value: CellValue) => {
+  const digits = onlyDigits(value)
+  if (/^0\d{10,11}$/.test(digits)) return digits.slice(1)
+  return digits
+}
 
 export const normalizeIE = (value: CellValue) => {
   const v = asText(value)
