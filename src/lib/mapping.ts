@@ -85,6 +85,7 @@ const scoreHeader = (header: string, aliases: string[]) => {
 const bestHeader = (headers: string[], aliases: string[]) => {
   let best = ''
   let score = 0
+  let ambiguous = false
 
   for (const header of headers) {
     if (header.startsWith('__primecheck_')) continue
@@ -93,10 +94,18 @@ const bestHeader = (headers: string[], aliases: string[]) => {
     if (current > score) {
       score = current
       best = header
+      ambiguous = false
+      continue
+    }
+
+    // Se duas colunas alcançam exatamente a mesma melhor pontuação,
+    // não é seguro escolher apenas pela ordem em que aparecem no arquivo.
+    if (current > 0 && current === score && header !== best) {
+      ambiguous = true
     }
   }
 
-  return score >= 60 ? best : ''
+  return score >= 60 && !ambiguous ? best : ''
 }
 
 const duplicateBase = (header: string) =>
