@@ -1,4 +1,4 @@
-import type { DuplicateRecord } from '../types'
+import type { DuplicateItem, DuplicateRecord } from '../types'
 
 export const PREFERRED_DUPLICATE_EXTRA_IDS = [
   'apelido',
@@ -10,6 +10,7 @@ export const PREFERRED_DUPLICATE_EXTRA_IDS = [
   'celular',
   'cidade',
   'uf',
+  'endereco',
   'pessoaTipo',
   'email',
   'codigoBarras',
@@ -99,3 +100,16 @@ export function recordValueMap(record: DuplicateRecord, ctx: DuplicateDisplayCon
 }
 
 export const sideLabel = (side: 'ORIGEM' | 'DESTINO') => (side === 'ORIGEM' ? 'Origem' : 'Destino')
+
+export function findDuplicateGroup(
+  items: readonly DuplicateItem[],
+  fieldId: string,
+  normalizedValue: string,
+  side: DuplicateItem['side'],
+) {
+  return items.find(item =>
+    item.side === side
+    && item.fieldId === fieldId
+    && item.normalizedValue === normalizedValue,
+  )
+}

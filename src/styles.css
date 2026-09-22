@@ -7536,3 +7536,304 @@ table {
     page-break-inside: avoid;
   }
 }
+
+
+/* =========================================================
+   Divergências — modal analítico de duplicidade
+   ========================================================= */
+
+.dup-analysis-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(1, 46, 70, .32);
+}
+
+.dup-analysis-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(95vw, 1000px);
+  max-width: 1000px;
+  max-height: 88vh;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  color: #111111;
+}
+
+.dup-analysis-chrome {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+
+.dup-analysis-chrome .icon-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(243, 133, 37, .22);
+}
+
+.dup-analysis-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.dup-analysis-capture {
+  padding: 22px 22px 8px;
+  background: #ffffff;
+}
+
+.dup-analysis-head {
+  padding-right: 44px;
+  margin-bottom: 16px;
+}
+
+.dup-analysis-head h2 {
+  margin: 4px 0 6px;
+  color: #012e46;
+  font-size: 22px;
+  letter-spacing: -.03em;
+}
+
+.dup-analysis-head p {
+  margin: 0;
+  max-width: 860px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dup-analysis-head p strong {
+  color: #111111;
+  font-weight: 800;
+}
+
+.dup-analysis-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dup-analysis-summary > div {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #f8fafb;
+}
+
+.dup-analysis-summary span {
+  display: block;
+  color: #6b7280;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.dup-analysis-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: #012e46;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dup-analysis-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.dup-analysis-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.dup-analysis-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dup-analysis-card-head span {
+  color: #f38525;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dup-analysis-card-head b {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eef4f7;
+  color: #012e46;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.dup-analysis-card h3 {
+  margin: 0 0 10px;
+  color: #012e46;
+  font-size: 14px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.dup-analysis-highlight {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid #f0c894;
+  border-radius: 9px;
+  background: #fff7ed;
+}
+
+.dup-analysis-highlight span {
+  display: block;
+  color: #9a4a08;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.dup-analysis-highlight strong {
+  display: block;
+  margin-top: 3px;
+  color: #7c3905;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.dup-analysis-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin: 0;
+}
+
+.dup-analysis-fields > div {
+  min-width: 0;
+}
+
+.dup-analysis-fields dt {
+  color: #6b7280;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.dup-analysis-fields dd {
+  margin: 2px 0 0;
+  color: #111111;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dup-analysis-empty {
+  display: grid;
+  gap: 6px;
+  padding: 22px 8px 28px;
+  text-align: center;
+}
+
+.dup-analysis-empty strong {
+  color: #012e46;
+  font-size: 13px;
+}
+
+.dup-analysis-empty span {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.dup-analysis-actions {
+  flex: 0 0 auto;
+  padding: 12px 16px 14px;
+  border-top: 1px solid #d1d5db;
+  background: #ffffff;
+}
+
+.dup-analysis-error {
+  margin: 0 0 8px;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dup-analysis-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dup-analysis-actions-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dup-analysis-actions .button:focus-visible,
+.issue-duplicate-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(243, 133, 37, .22);
+}
+
+@media (max-width: 900px) {
+  .dup-analysis-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .dup-analysis-overlay {
+    padding: 10px;
+  }
+
+  .dup-analysis-capture {
+    padding: 18px 14px 8px;
+  }
+
+  .dup-analysis-summary,
+  .dup-analysis-records,
+  .dup-analysis-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .dup-analysis-actions-row,
+  .dup-analysis-actions-end {
+    width: 100%;
+  }
+
+  .dup-analysis-actions-end .button,
+  .dup-analysis-actions-row .button {
+    flex: 1 1 160px;
+  }
+}
+
+@media print {
+  .dup-analysis-overlay {
+    display: none !important;
+  }
+}

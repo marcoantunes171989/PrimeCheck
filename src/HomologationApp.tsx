@@ -13,7 +13,8 @@ import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
 import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustment } from './lib/compare'
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
-import { buildRecordDisplayFields, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
+import DuplicateAnalysisModal, { type DuplicateAnalysisRequest } from './components/DuplicateAnalysisModal'
+import { buildRecordDisplayFields, findDuplicateGroup, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
 import { validateCpfCnpj } from './lib/normalizers'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
@@ -150,6 +151,7 @@ function App({
   const [duplicateFieldFocus, setDuplicateFieldFocus] = useState<string | undefined>()
   const [duplicateSearchFocus, setDuplicateSearchFocus] = useState('')
   const [duplicateSideFocus, setDuplicateSideFocus] = useState<'TODOS' | 'ORIGEM' | 'DESTINO'>('TODOS')
+  const [duplicateAnalysis, setDuplicateAnalysis] = useState<DuplicateAnalysisRequest | null>(null)
   const [clientSort, setClientSort] = useState<SortState>({ key: 'code', direction: 'asc' })
   const [issueSort, setIssueSort] = useState<SortState>({ key: 'field', direction: 'asc' })
   const [selectedClientKeys, setSelectedClientKeys] = useState<Set<string>>(new Set())
@@ -359,6 +361,16 @@ function App({
     return lookup
   }, [report])
 
+  const duplicateAnalysisGroup = useMemo(() => {
+    if (!report || !duplicateAnalysis) return null
+    return findDuplicateGroup(
+      report.duplicates,
+      duplicateAnalysis.fieldId,
+      duplicateAnalysis.normalizedValue,
+      duplicateAnalysis.side,
+    ) ?? null
+  }, [report, duplicateAnalysis])
+
   const issueScope = useMemo<IssueOccurrence[]>(() => {
     if (!report) return []
     const restrictField = issueFieldFilter !== 'TODOS'
@@ -494,6 +506,15 @@ function App({
     setDuplicateSideFocus(side)
     setActiveTab('duplicates')
     setPage(1)
+  }
+
+  const openDuplicateAnalysis = (
+    fieldId: string,
+    fieldLabel: string,
+    normalizedValue: string,
+    side: DuplicateAnalysisRequest['side'],
+  ) => {
+    setDuplicateAnalysis({ fieldId, fieldLabel, normalizedValue, side })
   }
 
   const openRecord = (client: ClientComparison, fieldId?: string, occurrenceKey?: string) => {
@@ -1292,7 +1313,12 @@ function App({
                                   showCharacterCount={showCharacterCount}
                                   duplicate={item.duplicate}
                                   onOpenDuplicate={item.duplicate
-                                    ? () => openDuplicates(item.field.fieldId, item.duplicate!.normalizedValue, 'ORIGEM')
+                                    ? () => openDuplicateAnalysis(
+                                      item.field.fieldId,
+                                      item.field.fieldLabel,
+                                      item.duplicate!.normalizedValue,
+                                      'ORIGEM',
+                                    )
                                     : undefined}
                                 />
                               </td>
@@ -1382,6 +1408,20 @@ function App({
         onApplyManualAdjustment={handleManualAdjustment}
         onRevertManualAdjustment={handleRevertManualAdjustment}
       />
+
+      {duplicateAnalysis && (
+        <DuplicateAnalysisModal
+          request={duplicateAnalysis}
+          group={duplicateAnalysisGroup}
+          nameLabel={resultProfile.fields.find(field => field.id === resultProfile.nameFieldId)?.label ?? resultProfile.recordLabel}
+          onClose={() => setDuplicateAnalysis(null)}
+          onOpenDuplicatesScreen={() => {
+            const target = duplicateAnalysis
+            setDuplicateAnalysis(null)
+            openDuplicates(target.fieldId, target.normalizedValue, target.side)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1579,7 +1619,8 @@ function IssueValueCell({
           type="button"
           className="issue-duplicate-link"
           onClick={onOpenDuplicate}
-          title="Abrir este valor na tela de duplicidades"
+          title="Analisar duplicidade"
+          aria-haspopup="dialog"
         >
           Duplicado · {number(duplicate.count)}x
         </button>
