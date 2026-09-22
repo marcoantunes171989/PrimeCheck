@@ -1,20 +1,62 @@
-type ModuleId = 'homologacao' | 'cnpj' | 'ie'
+import { useEffect, useMemo, useState } from 'react'
+import { WORKSPACE_GROUPS, WORKSPACE_MODULES, type WorkspaceGroupId } from '../config/workspaceModules'
 
 type Props = {
-  active: ModuleId
+  active: string
   collapsed: boolean
   onToggle: () => void
-  onChange: (module: ModuleId) => void
+  onChange: (module: string) => void
+  enabledWorkspaceModules: string[]
+  hasWorkspaceData: boolean
 }
 
 const Icon = ({ children }: { children: React.ReactNode }) => (
   <span className="sidebar-icon" aria-hidden="true">{children}</span>
 )
 
-export default function Sidebar({ active, collapsed, onToggle, onChange }: Props) {
-  const items: Array<{ id: ModuleId; label: string; icon: React.ReactNode; helper: string }> = [
-    { id: 'homologacao', label: 'Homologação', helper: 'Conversão de dados', icon: '⇄' },
-    { id: 'cnpj', label: 'Validação CNPJ', helper: 'Dígitos verificadores', icon: '✓' },
+const groupIcons: Record<WorkspaceGroupId, string> = {
+  partners: '◎',
+  structure: '⌘',
+  products: '▦',
+  fiscal: '◇',
+}
+
+export default function Sidebar({
+  active,
+  collapsed,
+  onToggle,
+  onChange,
+  enabledWorkspaceModules,
+  hasWorkspaceData,
+}: Props) {
+  const [openGroups, setOpenGroups] = useState<Set<WorkspaceGroupId>>(new Set(['partners', 'structure', 'products']))
+
+  const enabledSet = useMemo(() => new Set(enabledWorkspaceModules), [enabledWorkspaceModules])
+
+  useEffect(() => {
+    if (!active.startsWith('data:')) return
+    const id = active.slice(5)
+    const group = WORKSPACE_GROUPS.find(item => item.modules.includes(id as never))
+    if (!group) return
+    setOpenGroups(current => {
+      const next = new Set(current)
+      next.add(group.id)
+      return next
+    })
+  }, [active])
+
+  const toggleGroup = (id: WorkspaceGroupId) => {
+    setOpenGroups(current => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const fixedItems = [
+    { id: 'homologacao', label: 'Comparação', helper: 'Origem × destino', icon: '⇄' },
+    { id: 'cnpj', label: 'Validação CNPJ', helper: 'Consulta e dígitos', icon: '✓' },
     { id: 'ie', label: 'Validação I.E.', helper: '27 UFs', icon: '▦' },
   ]
 
@@ -40,10 +82,81 @@ export default function Sidebar({ active, collapsed, onToggle, onChange }: Props
           </button>
         </div>
 
-        <div className="sidebar-section-title">{!collapsed ? 'VALIDAÇÃO' : '•••'}</div>
+        <div className="sidebar-section-title">{!collapsed ? 'ARQUIVOS E DADOS' : '•••'}</div>
 
         <nav className="sidebar-nav">
-          {items.map(item => (
+          <button
+            type="button"
+            className={active === 'importacao' ? 'active' : ''}
+            onClick={() => onChange('importacao')}
+            title={collapsed ? 'Importação' : undefined}
+          >
+            <Icon>⇧</Icon>
+            {!collapsed && (
+              <span className="sidebar-item-copy">
+                <strong>Importação</strong>
+                <small>Até 5 arquivos</small>
+              </span>
+            )}
+          </button>
+
+          {WORKSPACE_GROUPS.map(group => {
+            const modules = group.modules
+              .map(id => WORKSPACE_MODULES.find(module => module.id === id))
+              .filter((module): module is NonNullable<typeof module> => Boolean(module))
+            const enabledCount = modules.filter(module => enabledSet.has(module.id)).length
+            const isOpen = openGroups.has(group.id)
+            const activeInside = modules.some(module => active === `data:${module.id}`)
+
+            return (
+              <div
+                className={'sidebar-group ' + (isOpen ? 'open ' : '') + (activeInside ? 'active-group' : '')}
+                key={group.id}
+              >
+                <button
+                  type="button"
+                  className="sidebar-group-toggle"
+                  onClick={() => toggleGroup(group.id)}
+                  aria-expanded={isOpen}
+                  title={collapsed ? group.label : undefined}
+                >
+                  <Icon>{groupIcons[group.id]}</Icon>
+                  {!collapsed && (
+                    <span className="sidebar-item-copy">
+                      <strong>{group.label}</strong>
+                      <small>{hasWorkspaceData ? `${enabledCount} disponíveis` : 'Aguardando importação'}</small>
+                    </span>
+                  )}
+                  {!collapsed && <span className="sidebar-group-chevron">{isOpen ? '⌃' : '⌄'}</span>}
+                </button>
+
+                {isOpen && (
+                  <div className="sidebar-group-children">
+                    {modules.map(module => {
+                      const enabled = enabledSet.has(module.id)
+                      return (
+                        <button
+                          type="button"
+                          key={module.id}
+                          className={active === `data:${module.id}` ? 'active' : ''}
+                          disabled={!enabled}
+                          onClick={() => enabled && onChange(`data:${module.id}`)}
+                          title={!enabled ? 'Importe um arquivo com campos deste módulo para habilitar' : module.label}
+                        >
+                          <span className="sidebar-child-dot" />
+                          <span>{module.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          <div className="sidebar-section-title sidebar-section-inline">{!collapsed ? 'VALIDAÇÃO' : '•••'}</div>
+
+          {fixedItems.map(item => (
             <button
               type="button"
               key={item.id}
