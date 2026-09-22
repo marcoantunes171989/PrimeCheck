@@ -3,33 +3,27 @@ import FileDropZone from './components/FileDropZone'
 import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
 import StatusBadge from './components/StatusBadge'
-import { CHECKLIST_FIELDS } from './config/checklist'
+import { ENTITY_PROFILES, detectEntityProfile, getEntityProfile } from './config/entities'
 import { buildDataset } from './lib/files'
 import { autoMap, mappingCoverage } from './lib/mapping'
 import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustment } from './lib/compare'
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import { validateCpfCnpj } from './lib/normalizers'
-import type { ClientComparison, ComparisonReport, FieldMapping, ImportedFile, Severity } from './types'
+import type { ClientComparison, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
 type Tab = 'overview' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
-
-const tabs: Array<{ id: Tab; label: string }> = [
-  { id: 'overview', label: 'Visão geral' },
-  { id: 'clients', label: 'Clientes' },
-  { id: 'issues', label: 'Divergências' },
-  { id: 'fields', label: 'Por campo' },
-  { id: 'duplicates', label: 'Duplicidades' },
-  { id: 'missing', label: 'Não importados' },
-]
+type EntityMode = 'auto' | string
 
 const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
+const plural = (profile: EntityProfile) => profile.label
 
 function App() {
   const [originFiles, setOriginFiles] = useState<ImportedFile[]>([])
   const [targetFiles, setTargetFiles] = useState<ImportedFile[]>([])
   const origin = useMemo(() => buildDataset(originFiles), [originFiles])
   const target = useMemo(() => buildDataset(targetFiles), [targetFiles])
+  const [entityMode, setEntityMode] = useState<EntityMode>('auto')
   const [mapping, setMapping] = useState<FieldMapping[]>([])
   const [report, setReport] = useState<ComparisonReport | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -41,25 +35,59 @@ function App() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
+  const detectionHeaders = useMemo(
+    () => [...new Set([...origin.headers, ...target.headers])],
+    [origin.headers, target.headers],
+  )
+  const detectionNames = useMemo(
+    () => [...origin.files, ...target.files].map(file => file.name),
+    [origin.files, target.files],
+  )
+  const detection = useMemo(
+    () => detectEntityProfile(detectionHeaders, detectionNames),
+    [detectionHeaders, detectionNames],
+  )
+  const profile = useMemo(
+    () => getEntityProfile(entityMode === 'auto' ? detection.profileId : entityMode),
+    [detection.profileId, entityMode],
+  )
+  const conservativeMapping = entityMode === 'auto' && detection.lowConfidence
+
   useEffect(() => {
     if (origin.headers.length && target.headers.length) {
-      setMapping(autoMap(origin, target))
+      setMapping(autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping }))
+      setReport(null)
+    } else {
+      setMapping([])
       setReport(null)
     }
-  }, [origin.headers.join('|'), target.headers.join('|')])
+  }, [origin.headers.join('|'), target.headers.join('|'), profile.id, conservativeMapping])
 
   useEffect(() => setPage(1), [search, statusFilter, activeTab, pageSize])
 
   const coverage = useMemo(() => mappingCoverage(mapping), [mapping])
   const keyMapping = mapping.find(m => m.fieldId === 'codigoInterno')
   const ready = origin.rows.length > 0 && target.rows.length > 0 && Boolean(keyMapping?.originHeader && keyMapping?.targetHeader)
+  const tabs: Array<{ id: Tab; label: string }> = [
+    { id: 'overview', label: 'Visão geral' },
+    { id: 'clients', label: plural(profile) },
+    { id: 'issues', label: 'Divergências' },
+    { id: 'fields', label: 'Por campo' },
+    { id: 'duplicates', label: 'Duplicidades' },
+    { id: 'missing', label: 'Não importados' },
+  ]
+
+  const remap = () => {
+    setMapping(autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping }))
+    setReport(null)
+  }
 
   const runComparison = () => {
     setBusy(true)
     setError('')
     window.setTimeout(() => {
       try {
-        const next = compareDatasets(origin, target, mapping)
+        const next = compareDatasets(origin, target, mapping, profile)
         setReport(next)
         setActiveTab('overview')
       } catch (e) {
@@ -117,6 +145,8 @@ function App() {
 
   const pageSlice = <T,>(items: T[]) => items.slice((page - 1) * pageSize, page * pageSize)
   const pageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / pageSize))
+  const resultProfile = report ? getEntityProfile(report.profileId) : profile
+  const showDocument = resultProfile.showDocumentValidity === true
 
   const clearAll = () => {
     setOriginFiles([])
@@ -126,7 +156,10 @@ function App() {
     setSelectedClient(null)
     setSearch('')
     setStatusFilter('TODOS')
+    setEntityMode('auto')
   }
+
+  const hasFiles = origin.headers.length > 0 || target.headers.length > 0
 
   return (
     <div className="app-shell">
@@ -146,10 +179,10 @@ function App() {
           <div>
             <span className="eyebrow">PRIMECHECK DATA VALIDATION</span>
             <h1>Compare. Valide. Homologue.</h1>
-            <p>Importe os arquivos de origem e destino. O PrimeCheck cruza os dados no próprio navegador, aplica regras de validação e evidencia tudo o que exige revisão.</p>
+            <p>Importe os arquivos de origem e destino. O PrimeCheck identifica o tipo de dado pelas colunas, cruza os registros no próprio navegador e evidencia o que exige revisão.</p>
           </div>
           <div className="flow-mini" aria-label="Fluxo da homologação">
-            <span className={originFiles.length ? 'done' : 'active'}>1. Importar</span>
+            <span className={originFiles.length || targetFiles.length ? 'done' : 'active'}>1. Importar</span>
             <i>→</i>
             <span className={mapping.length ? 'done' : ''}>2. Mapear</span>
             <i>→</i>
@@ -163,6 +196,45 @@ function App() {
               <strong>Seus dados não são enviados para banco de dados.</strong>
               <span>Os arquivos ficam somente na memória da aba enquanto a análise estiver aberta.</span>
             </div>
+
+            <section className="entity-type-card">
+              <div className="entity-type-copy">
+                <span className="eyebrow">TIPO DE DADOS</span>
+                <h2>O que esses arquivos representam?</h2>
+                <p>A detecção usa estrutura, nomes de colunas e aliases — não o nome do arquivo. Você pode confirmar ou alterar o perfil a qualquer momento.</p>
+              </div>
+              <label className="entity-type-select">
+                <span>Perfil de homologação</span>
+                <select
+                  value={entityMode}
+                  onChange={event => setEntityMode(event.target.value)}
+                  aria-label="Tipo de dados"
+                >
+                  <option value="auto">Detectar automaticamente</option>
+                  {ENTITY_PROFILES.map(item => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+              {hasFiles && (
+                <div className={`entity-detection ${detection.lowConfidence && entityMode === 'auto' ? 'low' : 'ok'}`}>
+                  {entityMode === 'auto' && detection.lowConfidence ? (
+                    <>
+                      <strong>Tipo de dados não identificado com segurança.</strong>
+                      <span>Selecione Clientes, Fornecedores ou Produtos para continuar com mais precisão.</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>Tipo identificado: {profile.label}</strong>
+                      <span>Confiança: {detection.confidence}%</span>
+                    </>
+                  )}
+                  {entityMode !== 'auto' && (
+                    <small>Seleção manual. A detecção automática sugeriu {getEntityProfile(detection.profileId).label} ({detection.confidence}%).</small>
+                  )}
+                </div>
+              )}
+            </section>
 
             <section className="import-grid">
               <FileDropZone
@@ -185,17 +257,18 @@ function App() {
               <section className="dataset-summary">
                 <div><span>Origem</span><strong>{number(origin.rows.length)}</strong><small>{origin.headers.length} colunas identificadas</small></div>
                 <div><span>Destino</span><strong>{number(target.rows.length)}</strong><small>{target.headers.length} colunas identificadas</small></div>
-                <div><span>Mapeáveis</span><strong>{coverage.both}</strong><small>de {coverage.total} campos do checklist</small></div>
+                <div><span>Mapeáveis</span><strong>{coverage.both}</strong><small>de {profile.fields.length} campos do perfil {profile.label}</small></div>
               </section>
             )}
 
             {origin.headers.length > 0 && target.headers.length > 0 && (
               <MappingPanel
+                profile={profile}
                 mapping={mapping}
                 originHeaders={origin.headers}
                 targetHeaders={target.headers}
                 onChange={setMapping}
-                onAutoMap={() => setMapping(autoMap(origin, target))}
+                onAutoMap={remap}
               />
             )}
 
@@ -203,8 +276,8 @@ function App() {
 
             <div className="run-bar">
               <div>
-                <strong>{ready ? 'Pronto para executar a homologação.' : 'Importe os dois lados e confirme a chave Código interno.'}</strong>
-                <span>{coverage.both} campos serão comparados automaticamente.</span>
+                <strong>{ready ? `Pronto para homologar ${profile.label.toLowerCase()}.` : 'Importe os dois lados e confirme a chave Código interno.'}</strong>
+                <span>{coverage.both} campos serão comparados automaticamente. Origem e destino não precisam ter a mesma quantidade de colunas.</span>
               </div>
               <button className="button primary large" disabled={!ready || busy} onClick={runComparison}>
                 {busy ? 'Processando…' : 'Executar homologação'}
@@ -217,7 +290,7 @@ function App() {
           <section className="results">
             <div className="results-head">
               <div>
-                <span className="eyebrow">RESULTADO DA HOMOLOGAÇÃO</span>
+                <span className="eyebrow">RESULTADO · {resultProfile.label.toUpperCase()}</span>
                 <h2>Análise concluída</h2>
                 <p>{number(report.summary.validTests)} comparações validáveis · {pct(report.summary.conformTests, report.summary.validTests)} de conformidade por teste.</p>
               </div>
@@ -243,7 +316,7 @@ function App() {
 
             {activeTab !== 'overview' && activeTab !== 'fields' && activeTab !== 'duplicates' && activeTab !== 'missing' && (
               <div className="filters">
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar código, nome, CPF/CNPJ, IE ou qualquer valor…" />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Pesquisar código, ${resultProfile.recordLabel.toLowerCase()} ou qualquer valor…`} />
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
                   <option value="TODOS">Todos os resultados</option>
                   <option value="DIVERGENTE">Divergente</option>
@@ -255,19 +328,39 @@ function App() {
               </div>
             )}
 
-            {activeTab === 'overview' && <Overview report={report} onOpenClient={setSelectedClient} />}
+            {activeTab === 'overview' && <Overview report={report} profile={resultProfile} onOpenClient={setSelectedClient} />}
             {activeTab === 'clients' && (
               <div className="panel">
-                <div className="section-head compact"><div><h3>Clientes</h3><p>{number(filteredClients.length)} registros no filtro atual.</p></div><button className="button ghost" onClick={() => exportClientsCsv(filteredClients)}>Exportar CSV filtrado</button></div>
+                <div className="section-head compact"><div><h3>{resultProfile.label}</h3><p>{number(filteredClients.length)} registros no filtro atual.</p></div><button className="button ghost" onClick={() => exportClientsCsv(filteredClients, `primecheck_${resultProfile.id}.csv`, resultProfile.recordLabel)}>Exportar CSV filtrado</button></div>
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Código</th><th>Cliente</th><th>Encontrado</th><th>Resultado</th><th>Divergências</th><th>Atenções</th><th>CPF/CNPJ origem</th><th>Validade</th><th></th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Código</th>
+                        <th>{resultProfile.recordLabel}</th>
+                        <th>Encontrado</th>
+                        <th>Resultado</th>
+                        <th>Divergências</th>
+                        <th>Atenções</th>
+                        {showDocument && <th>CPF/CNPJ origem</th>}
+                        {showDocument && <th>Validade</th>}
+                        <th></th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {pageSlice(filteredClients).map(client => {
                         const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
                         const validation = validateCpfCnpj(doc)
                         return <tr key={client.key}>
-                          <td className="mono">{client.key}</td><td><strong>{client.name || '—'}</strong></td><td>{client.found ? 'Sim' : 'Não'}</td><td><StatusBadge status={client.status} /></td><td>{client.divergentCount}</td><td>{client.attentionCount}</td><td className="mono">{doc || '—'}</td><td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td><td><button className="link-button" onClick={() => setSelectedClient(client)}>Analisar</button></td>
+                          <td className="mono">{client.key}</td>
+                          <td><strong>{client.name || '—'}</strong></td>
+                          <td>{client.found ? 'Sim' : 'Não'}</td>
+                          <td><StatusBadge status={client.status} /></td>
+                          <td>{client.divergentCount}</td>
+                          <td>{client.attentionCount}</td>
+                          {showDocument && <td className="mono">{doc || '—'}</td>}
+                          {showDocument && <td><span className={`validity ${validation.status === 'VÁLIDO' ? 'valid' : 'warn'}`}>{validation.status}</span></td>}
+                          <td><button className="link-button" onClick={() => setSelectedClient(client)}>Analisar</button></td>
                         </tr>
                       })}
                     </tbody>
@@ -282,7 +375,7 @@ function App() {
                 <div className="section-head compact"><div><h3>Divergências e atenções</h3><p>{number(issues.length)} ocorrências no filtro atual.</p></div></div>
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Código</th><th>Cliente</th><th>Campo</th><th>Origem</th><th>Destino</th><th>Status</th><th>Motivo</th><th>Ação</th></tr></thead>
+                    <thead><tr><th>Código</th><th>{resultProfile.recordLabel}</th><th>Campo</th><th>Origem</th><th>Destino</th><th>Status</th><th>Motivo</th><th>Ação</th></tr></thead>
                     <tbody>
                       {pageSlice(issues).map((item, idx) => <tr key={`${item.client.key}-${item.field.fieldId}-${idx}`}>
                         <td className="mono">{item.client.key}</td><td><button className="link-button left" onClick={() => setSelectedClient(item.client)}>{item.client.name || '—'}</button></td><td><strong>{item.field.fieldLabel}</strong><small className="block-muted">{item.field.group}</small>{item.field.manualAdjustment && <small className="block-muted text-warning">Ajustado manualmente</small>}</td><td>{item.field.originValue || '—'}</td><td>{item.field.targetValue || '—'}</td><td><StatusBadge status={item.field.status} /></td><td className="reason-cell">{item.field.reason}</td><td><button className="button secondary compact-button" onClick={() => setSelectedClient(item.client)}>Manutenção</button></td>
@@ -295,8 +388,8 @@ function App() {
             )}
 
             {activeTab === 'fields' && <FieldSummaryView report={report} />}
-            {activeTab === 'duplicates' && <DuplicatesView report={report} />}
-            {activeTab === 'missing' && <MissingView report={report} onOpenClient={setSelectedClient} />}
+            {activeTab === 'duplicates' && <DuplicatesView report={report} profile={resultProfile} />}
+            {activeTab === 'missing' && <MissingView report={report} profile={resultProfile} onOpenClient={setSelectedClient} />}
           </section>
         )}
       </main>
@@ -308,6 +401,8 @@ function App() {
 
       <ClientDrawer
         client={selectedClient}
+        recordLabel={resultProfile.recordLabel}
+        showDocumentValidity={showDocument}
         onClose={() => setSelectedClient(null)}
         onApplyManualAdjustment={handleManualAdjustment}
         onRevertManualAdjustment={handleRevertManualAdjustment}
@@ -355,7 +450,15 @@ function Pagination({
   )
 }
 
-function Overview({ report, onOpenClient }: { report: ComparisonReport; onOpenClient: (client: ClientComparison) => void }) {
+function Overview({
+  report,
+  profile,
+  onOpenClient,
+}: {
+  report: ComparisonReport
+  profile: EntityProfile
+  onOpenClient: (client: ClientComparison) => void
+}) {
   const critical = report.clients.filter(c => c.status === 'DIVERGENTE').sort((a,b) => b.divergentCount - a.divergentCount).slice(0, 8)
   const cpfField = report.fieldSummary.find(f => f.fieldId === 'cpfCnpj')
   const worstFields = [...report.fieldSummary].filter(f => f.divergent || f.attention).sort((a,b) => (b.divergent * 2 + b.attention) - (a.divergent * 2 + a.attention)).slice(0, 8)
@@ -370,30 +473,32 @@ function Overview({ report, onOpenClient }: { report: ComparisonReport; onOpenCl
       </div>
     </section>
     <section className="panel">
-      <div className="section-head compact"><div><h3>Registros prioritários</h3><p>Clientes com maior quantidade de divergências.</p></div></div>
+      <div className="section-head compact"><div><h3>Registros prioritários</h3><p>{profile.label} com maior quantidade de divergências.</p></div></div>
       <div className="priority-list">
         {critical.map(client => <button key={client.key} onClick={() => onOpenClient(client)}><span className="mono">{client.key}</span><div><strong>{client.name || 'Sem descrição'}</strong><small>{client.divergentCount} divergências · {client.attentionCount} atenções</small></div><span>→</span></button>)}
-        {!critical.length && <div className="empty-state">Nenhum cliente divergente. Excelente resultado.</div>}
+        {!critical.length && <div className="empty-state">Nenhum registro divergente. Excelente resultado.</div>}
       </div>
     </section>
-    <section className="panel wide insight-panel">
-      <div className="insight-icon">✓</div>
-      <div><span className="eyebrow">REGRA CPF/CNPJ</span><h3>Validação de documento incorporada</h3><p>CPF/CNPJ válido na origem e diferente no destino é classificado como erro. Documento ausente ou inválido na origem com valor gerado no destino é tratado como atenção.</p></div>
-      <div className="insight-stat"><strong>{cpfField ? cpfField.divergent : 0}</strong><span>erros de documento</span></div>
-    </section>
+    {profile.showDocumentValidity && (
+      <section className="panel wide insight-panel">
+        <div className="insight-icon">✓</div>
+        <div><span className="eyebrow">REGRA CPF/CNPJ</span><h3>Validação de documento incorporada</h3><p>CPF/CNPJ válido na origem e diferente no destino é classificado como erro. Documento ausente ou inválido na origem com valor gerado no destino é tratado como atenção.</p></div>
+        <div className="insight-stat"><strong>{cpfField ? cpfField.divergent : 0}</strong><span>erros de documento</span></div>
+      </section>
+    )}
   </div>
 }
 
 function FieldSummaryView({ report }: { report: ComparisonReport }) {
   return <div className="panel">
-    <div className="section-head compact"><div><h3>Comparação por campo</h3><p>Resumo completo do checklist de homologação.</p></div></div>
+    <div className="section-head compact"><div><h3>Comparação por campo</h3><p>Resumo completo do perfil de homologação.</p></div></div>
     <div className="table-wrap"><table><thead><tr><th>Grupo</th><th>Campo</th><th>Conformes</th><th>Divergentes</th><th>Atenções</th><th>Não validáveis</th><th>% conformidade</th></tr></thead><tbody>
       {report.fieldSummary.map(field => <tr key={field.fieldId}><td className="muted-cell">{field.group}</td><td><strong>{field.fieldLabel}</strong></td><td>{number(field.conform)}</td><td className="text-error">{number(field.divergent)}</td><td className="text-warning">{number(field.attention)}</td><td>{number(field.notValidatable)}</td><td><strong>{field.conformityPercent === null ? '—' : `${field.conformityPercent.toFixed(2).replace('.',',')}%`}</strong></td></tr>)}
     </tbody></table></div>
   </div>
 }
 
-function DuplicatesView({ report }: { report: ComparisonReport }) {
+function DuplicatesView({ report, profile }: { report: ComparisonReport; profile: EntityProfile }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
@@ -401,13 +506,16 @@ function DuplicatesView({ report }: { report: ComparisonReport }) {
 
   const pages = Math.max(1, Math.ceil(report.duplicates.length / pageSize))
   const pageItems = report.duplicates.slice((page - 1) * pageSize, page * pageSize)
+  const duplicateHint = profile.showDocumentValidity
+    ? 'grupos duplicados em CPF/CNPJ ou IE.'
+    : 'grupos duplicados nos campos de unicidade do perfil.'
 
   return (
     <div className="panel">
       <div className="section-head compact">
         <div>
           <h3>Duplicidades</h3>
-          <p>{number(report.duplicates.length)} grupos duplicados em CPF/CNPJ ou IE.</p>
+          <p>{number(report.duplicates.length)} {duplicateHint}</p>
         </div>
         <PageSizeSelect value={pageSize} onChange={setPageSize} />
       </div>
@@ -443,9 +551,11 @@ function DuplicatesView({ report }: { report: ComparisonReport }) {
 
 function MissingView({
   report,
+  profile,
   onOpenClient,
 }: {
   report: ComparisonReport
+  profile: EntityProfile
   onOpenClient: (client: ClientComparison) => void
 }) {
   const [pageSize, setPageSize] = useState(20)
@@ -481,7 +591,7 @@ function MissingView({
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Código</th><th>Cliente</th><th>Origem inativa</th><th>Resultado</th><th></th></tr>
+                <tr><th>Código</th><th>{profile.recordLabel}</th><th>Origem inativa</th><th>Resultado</th><th></th></tr>
               </thead>
               <tbody>
                 {originItems.map(client => (
@@ -510,7 +620,7 @@ function MissingView({
           </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Código</th><th>Cliente</th></tr></thead>
+              <thead><tr><th>Código</th><th>{profile.recordLabel}</th></tr></thead>
               <tbody>
                 {targetItems.map(client => (
                   <tr key={client.key}>

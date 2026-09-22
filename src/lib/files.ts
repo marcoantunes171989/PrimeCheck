@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { CHECKLIST_FIELDS, RECORD_STATUS_ALIASES } from '../config/checklist'
+import { ENTITY_PROFILES } from '../config/entities'
 import type { DataRow, Dataset, ImportedFile } from '../types'
 import { normalizeHeader, repairEncoding } from './normalizers'
 
@@ -8,10 +8,11 @@ const ACCEPTED = ['csv','txt','tsv','xls','xlsx','xlsm','xlsb','ods','fods']
 const DELIMITERS = [';', ',', '\t', '|']
 
 const HEADER_TOKENS = new Set(
-  [
-    ...CHECKLIST_FIELDS.flatMap(field => [field.label, ...field.aliases]),
-    ...RECORD_STATUS_ALIASES,
-  ].map(normalizeHeader),
+  ENTITY_PROFILES.flatMap(profile => [
+    ...profile.aliases,
+    ...profile.statusAliases,
+    ...profile.fields.flatMap(field => [field.label, ...field.aliases]),
+  ]).map(normalizeHeader),
 )
 
 const cleanRows = (rows: DataRow[]) =>
@@ -31,24 +32,38 @@ const sanitizeText = (value: unknown) =>
     .replace(/^ï»¿/, '')
     .trim()
 
+const decodeCandidateScore = (text: string) => {
+  const replacement = (text.match(/�/g) || []).length
+  const mojibake = (text.match(/(?:Ã.|Â.|â.|ï»¿)/g) || []).length
+  return replacement * 8 + mojibake
+}
+
 const decodeText = (buffer: ArrayBuffer) => {
-  const utf = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
-  const badUtf = (utf.match(/�/g) || []).length
-  const cleanedUtf = utf.replace(/^\uFEFF/, '').replace(/^ï»¿/, '')
+  const encodings = ['utf-8', 'windows-1252', 'iso-8859-1']
+  let best = ''
+  let bestScore = Number.POSITIVE_INFINITY
 
-  if (badUtf === 0) return repairEncoding(cleanedUtf)
-
-  try {
-    const win = new TextDecoder('windows-1252').decode(buffer)
-    const badWin = (win.match(/�/g) || []).length
-    return repairEncoding(
-      (badWin < badUtf ? win : utf)
+  for (const encoding of encodings) {
+    try {
+      const decoded = new TextDecoder(encoding, { fatal: false })
+        .decode(buffer)
         .replace(/^\uFEFF/, '')
-        .replace(/^ï»¿/, ''),
-    )
-  } catch {
-    return repairEncoding(cleanedUtf)
+        .replace(/^ï»¿/, '')
+      const score = decodeCandidateScore(decoded)
+      if (score < bestScore) {
+        best = decoded
+        bestScore = score
+      }
+    } catch {
+      continue
+    }
   }
+
+  if (!best) {
+    best = new TextDecoder('utf-8', { fatal: false }).decode(buffer).replace(/^\uFEFF/, '')
+  }
+
+  return repairEncoding(best)
 }
 
 type Matrix = string[][]
