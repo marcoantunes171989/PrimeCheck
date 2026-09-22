@@ -38,7 +38,7 @@ export default function App() {
         onChange={setModule}
       />
 
-      <div className="workspace-main">
+      <div className={`workspace-main ${module === 'homologacao' ? 'workspace-main-homologacao' : ''}`}>
         <div className="workspace-module-bar">
           <div>
             <span>PrimeCheck</span>
