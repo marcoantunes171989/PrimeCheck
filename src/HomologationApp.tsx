@@ -115,7 +115,10 @@ function App({
     name: '',
     found: 'TODOS',
     status: 'TODOS',
+    divergent: '',
+    attention: '',
     document: '',
+    validity: 'TODOS',
   })
   const [issueColumnFilters, setIssueColumnFilters] = useState({
     code: '',
@@ -275,8 +278,13 @@ function App({
       if (!contains(client.key, clientColumnFilters.code)) return false
       if (!contains(client.name, clientColumnFilters.name)) return false
 
+      if (!contains(client.divergentCount, clientColumnFilters.divergent)) return false
+      if (!contains(client.attentionCount, clientColumnFilters.attention)) return false
+
       const document = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
       if (!contains(document, clientColumnFilters.document)) return false
+      const validity = validateCpfCnpj(document).status
+      if (clientColumnFilters.validity !== 'TODOS' && validity !== clientColumnFilters.validity) return false
 
       if (!term) return true
       const fieldHit = client.fields.some(field =>
