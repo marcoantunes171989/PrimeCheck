@@ -15,8 +15,10 @@ import {
   asText,
   hasReplacementCharacter,
   isInactiveValue,
+  normalizeAlphanumericDocument,
   normalizeForField,
   normalizeText,
+  onlyDigits,
   validateCpfCnpj,
 } from './normalizers'
 import { detectStatusHeader } from './mapping'
@@ -120,6 +122,28 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
     return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
   }
 
+  if (field.id === 'rg') {
+    const oRg = normalizeAlphanumericDocument(origin)
+    const tRg = normalizeAlphanumericDocument(target)
+
+    if (oRg === tRg) {
+      return { status: 'CONFORME', reason: 'RG equivalente após remover máscara, pontuação e espaços.' }
+    }
+
+    if (oRg.endsWith('X') && oRg.slice(0, -1) === tRg) {
+      return { status: 'DIVERGENTE', reason: 'RG na origem possui dígito verificador X e o destino não preservou esse caractere.' }
+    }
+  }
+
+  if (field.id === 'cep') {
+    const oCep = onlyDigits(origin)
+    const tCep = onlyDigits(target)
+
+    if (oCep === tCep) {
+      return { status: 'CONFORME', reason: 'CEP equivalente após remover máscara e caracteres de formatação.' }
+    }
+  }
+
   const o = normalizeForField(origin, field)
   const t = normalizeForField(target, field)
   if (o === t) return { status: 'CONFORME', reason: 'Valores equivalentes após normalização.' }
@@ -134,10 +158,6 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
   }
 
   if (originText && !targetText) return { status: 'DIVERGENTE', reason: 'Existe informação na origem, mas o campo está vazio no destino.' }
-
-  if (field.id === 'rg' && /X$/i.test(originText.replace(/\W/g,'')) && !/X$/i.test(targetText.replace(/\W/g,''))) {
-    return { status: 'DIVERGENTE', reason: 'RG na origem possui dígito verificador X e o destino não preservou esse caractere.' }
-  }
 
   if (field.id === 'contato' && targetText.length < originText.length && targetText.length <= 35 && originText.startsWith(targetText)) {
     return { status: 'DIVERGENTE', reason: `Possível truncamento: origem possui ${originText.length} caracteres e destino ${targetText.length}.` }
