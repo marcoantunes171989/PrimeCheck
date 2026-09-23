@@ -154,7 +154,7 @@ export default function WorkspaceDataPage({
         ) : (
           <>
             <div className="workspace-data-table-wrap stable-filter-table-wrap">
-              <table className="workspace-data-table">
+              <table className="workspace-data-table analytic-report-table">
                 <thead>
                   <tr>
                     {resolved.fields.map(field => (

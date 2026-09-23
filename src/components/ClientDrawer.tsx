@@ -26,6 +26,11 @@ type Props = {
   onRevertManualAdjustment: (clientKey: string, fieldId: string) => void
 }
 
+const characterMeta = (value: string) => {
+  const count = Array.from(value || '').length
+  return `${count} ${count === 1 ? 'caractere' : 'caracteres'}`
+}
+
 export default function ClientDrawer({
   client,
   recordLabel = 'Registro',
@@ -167,10 +172,12 @@ export default function ClientDrawer({
               <div>
                 <span>Origem</span>
                 <strong>{focusedField.originValue || '—'}</strong>
+                {focusedField.originValue ? <small className="char-meta">{characterMeta(focusedField.originValue)}</small> : null}
               </div>
               <div>
                 <span>Destino</span>
                 <strong>{focusedField.targetValue || '—'}</strong>
+                {focusedField.targetValue ? <small className="char-meta">{characterMeta(focusedField.targetValue)}</small> : null}
               </div>
             </div>
             <div className="drawer-focus-reason">
@@ -221,10 +228,12 @@ export default function ClientDrawer({
                   <div>
                     <span>Origem</span>
                     <strong>{field.originValue || '—'}</strong>
+                    {field.originValue ? <small className="char-meta">{characterMeta(field.originValue)}</small> : null}
                   </div>
                   <div>
                     <span>{field.manualAdjustment ? 'Destino ajustado' : 'Destino'}</span>
                     <strong>{field.targetValue || '—'}</strong>
+                    {field.targetValue ? <small className="char-meta">{characterMeta(field.targetValue)}</small> : null}
                     {field.manualAdjustment && (
                       <small>
                         Original: {field.manualAdjustment.originalTargetValue || '—'}
@@ -233,7 +242,7 @@ export default function ClientDrawer({
                   </div>
                 </div>
 
-                <p>{field.reason}</p>
+                <p className="field-reason">{field.reason}</p>
 
                 {field.manualAdjustment?.note && (
                   <div className="manual-note">
