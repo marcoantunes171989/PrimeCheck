@@ -47,7 +47,7 @@ export default function App() {
       if (!active) return
 
       const session = loadWorkspaceSession()
-      const enabledModuleIds = new Set(analyzeWorkspaceFiles(files).map(match => match.module.id))
+      const enabledModuleIds = new Set<string>(analyzeWorkspaceFiles(files).map(match => match.module.id))
       const restoredVisited = session.visitedModuleIds.filter(moduleId => enabledModuleIds.has(moduleId))
       const activeWorkspaceModuleId = session.activeModule.startsWith('data:') || session.activeModule.startsWith('dashboard:')
         ? session.activeModule.slice(session.activeModule.indexOf(':') + 1)
