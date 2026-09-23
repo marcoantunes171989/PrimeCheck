@@ -29,6 +29,7 @@ export type NfceItem = {
   index: string
   code: string
   ean: string
+  eanTrib: string
   description: string
   ncm: string
   cest: string
@@ -272,6 +273,7 @@ export function parseNfceDetail(summary: NfceSummary): NfceDetail {
       index: det.getAttribute('nItem') || '',
       code: text(prod, 'cProd'),
       ean: text(prod, 'cEAN'),
+      eanTrib: text(prod, 'cEANTrib'),
       description: text(prod, 'xProd'),
       ncm: text(prod, 'NCM'),
       cest: text(prod, 'CEST'),
@@ -332,6 +334,12 @@ export const nfceSearchText = (item: NfceSummary) => [
   item.statusCode,
   item.statusMessage,
   item.environment,
+  item.issueDate,
+  formatNfceDate(item.issueDate),
+  String(item.total),
+  formatNfceMoney(item.total),
+  String(item.itemCount),
+  ...item.errors,
 ].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
 export const normalizeNfceSearch = (value: string) =>

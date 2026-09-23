@@ -4,6 +4,7 @@ import HomologationApp from './HomologationApp'
 import CnpjValidatorPage from './pages/CnpjValidatorPage'
 import IeValidatorPage from './pages/IeValidatorPage'
 import NfceValidatorPage from './pages/NfceValidatorPage'
+import NfceAnalyticsPage from './pages/NfceAnalyticsPage'
 import WorkspaceImportPage from './pages/WorkspaceImportPage'
 import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import InternalProductListPage from './pages/InternalProductListPage'
@@ -20,7 +21,20 @@ import {
   saveWorkspaceNavigation,
 } from './lib/workspaceStorage'
 
-type ModuleId = 'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | 'nfce' | `data:${string}` | `dashboard:${string}`
+type ModuleId =
+  | 'importacao'
+  | 'internal-products'
+  | 'homologacao'
+  | 'cnpj'
+  | 'ie'
+  | 'nfce'
+  | 'nfce:documents'
+  | 'nfce:overview'
+  | 'nfce:products'
+  | 'nfce:consumers'
+  | 'nfce:barcodes'
+  | `data:${string}`
+  | `dashboard:${string}`
 
 const staticModuleTitle: Record<'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | 'nfce', string> = {
   importacao: 'Importação e organização',
@@ -64,7 +78,11 @@ export default function App() {
       const session = loadWorkspaceSession()
       const enabledModuleIds = new Set<string>(analyzeWorkspaceFiles(files).map(match => match.module.id))
       const restoredVisited = session.visitedModuleIds.filter(moduleId => enabledModuleIds.has(moduleId))
-      const restoredModule = session.activeModule === 'nfce' ? 'nfce' : 'dashboard:general'
+      const restoredModule = session.activeModule === 'nfce'
+        ? 'nfce:documents'
+        : session.activeModule.startsWith('nfce:')
+          ? session.activeModule as ModuleId
+          : 'dashboard:general'
 
       setWorkspaceFiles(files)
       setVisitedWorkspaceModules(new Set(restoredVisited))
@@ -85,7 +103,7 @@ export default function App() {
 
   useEffect(() => {
     if (!workspaceStorageReady) return
-    if (module !== 'nfce' && module !== 'importacao' && !module.startsWith('data:') && !module.startsWith('dashboard:')) return
+    if (!module.startsWith('nfce:') && module !== 'nfce' && module !== 'importacao' && !module.startsWith('data:') && !module.startsWith('dashboard:')) return
 
     saveWorkspaceNavigation(module, [...visitedWorkspaceModules])
   }, [module, visitedWorkspaceModules, workspaceStorageReady])
@@ -156,11 +174,21 @@ export default function App() {
 
   const moduleTitle = module === 'dashboard:general'
     ? 'Dashboard Geral'
-    : module.startsWith('dashboard:')
-      ? 'Dashboard · ' + (activeWorkspaceModule?.label ?? 'Dados importados')
-      : module.startsWith('data:')
-        ? activeWorkspaceModule?.label ?? 'Dados importados'
-        : staticModuleTitle[module as keyof typeof staticModuleTitle]
+    : module === 'nfce:documents' || module === 'nfce'
+      ? 'Validação de NFC-e'
+      : module === 'nfce:overview'
+        ? 'NFC-e · Visão Geral'
+        : module === 'nfce:products'
+          ? 'NFC-e · Produtos mais vendidos'
+          : module === 'nfce:consumers'
+            ? 'NFC-e · Consumidores'
+            : module === 'nfce:barcodes'
+              ? 'NFC-e · Códigos curtos'
+              : module.startsWith('dashboard:')
+                ? 'Dashboard · ' + (activeWorkspaceModule?.label ?? 'Dados importados')
+                : module.startsWith('data:')
+                  ? activeWorkspaceModule?.label ?? 'Dados importados'
+                  : staticModuleTitle[module as keyof typeof staticModuleTitle]
 
   const openImportedModules = () => {
     const first = workspaceMatches[0]?.module.id
@@ -233,7 +261,11 @@ export default function App() {
         {module === 'homologacao' && <HomologationApp />}
         {module === 'cnpj' && <CnpjValidatorPage />}
         {module === 'ie' && <IeValidatorPage />}
-        {module === 'nfce' && <NfceValidatorPage />}
+        {(module === 'nfce' || module === 'nfce:documents') && <NfceValidatorPage />}
+        {module === 'nfce:overview' && <NfceAnalyticsPage view="overview" />}
+        {module === 'nfce:products' && <NfceAnalyticsPage view="products" />}
+        {module === 'nfce:consumers' && <NfceAnalyticsPage view="consumers" />}
+        {module === 'nfce:barcodes' && <NfceAnalyticsPage view="barcodes" />}
       </div>
     </div>
   )
