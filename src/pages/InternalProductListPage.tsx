@@ -123,6 +123,7 @@ export default function InternalProductListPage() {
   const [snapshot, setSnapshot] = useState<InternalProductSnapshot | null>(null)
   const [restoring, setRestoring] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const [error, setError] = useState('')
   const [globalSearch, setGlobalSearch] = useState('')
   const [codeSearch, setCodeSearch] = useState('')
@@ -217,52 +218,127 @@ export default function InternalProductListPage() {
   const hasSearch = Boolean(globalSearch || codeSearch || descriptionSearch)
 
   return (
-    <main className="internal-products-page">
-      <section className="workspace-data-head internal-products-head">
+    <main className="workspace-import-page internal-products-page">
+      <section className="workspace-import-hero">
         <div>
-          <span className="eyebrow">ARQUIVOS E DADOS</span>
+          <span className="eyebrow">ETAPA 1 · IMPORTAÇÃO</span>
           <h1>Lista de Produtos Internos</h1>
           <p>
-            Importe uma lista interna de produtos, pesquise por código ou descrição e ordene os dados
-            diretamente pela tabela.
+            Carregue o arquivo de produtos internos. O PrimeCheck identifica automaticamente as colunas
+            de código e descrição e mantém a lista disponível para consulta.
           </p>
         </div>
-        <div className="internal-products-head-actions">
+
+        <div className="workspace-import-hero-actions">
           <div className="workspace-storage-state">
             <i />
             <span>
               {restoring
                 ? 'Restaurando lista salva…'
                 : snapshot
-                  ? 'Lista salva neste navegador.'
+                  ? 'Lista de produtos salva neste navegador.'
                   : 'Nenhuma lista salva neste navegador.'}
             </span>
           </div>
-          <button
-            type="button"
-            className="button primary"
-            disabled={busy || restoring}
-            onClick={() => inputRef.current?.click()}
-          >
-            {busy ? 'Importando…' : snapshot ? 'Substituir arquivo' : 'Importar arquivo'}
-          </button>
-          <input
-            ref={inputRef}
-            hidden
-            type="file"
-            accept=".csv,.txt,.tsv,.xls,.xlsx,.xlsm,.xlsb,.ods,.fods"
-            onChange={event => {
-              const file = event.target.files?.[0]
-              if (file) void handleImport(file)
-              event.currentTarget.value = ''
-            }}
-          />
+          <div className="workspace-import-counter">
+            <strong>{snapshot ? '1/1' : '0/1'}</strong>
+            <span>{snapshot ? 'arquivo' : 'arquivos'}</span>
+          </div>
         </div>
       </section>
 
-      {error && <div className="internal-products-error">{error}</div>}
+      <section
+        className={'workspace-dropzone ' + (dragging ? 'dragging' : '')}
+        onDragOver={event => {
+          event.preventDefault()
+          if (!busy && !restoring) setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={event => {
+          event.preventDefault()
+          setDragging(false)
+          if (busy || restoring) return
+          const file = event.dataTransfer.files?.[0]
+          if (file) void handleImport(file)
+        }}
+        onClick={() => {
+          if (!busy && !restoring) inputRef.current?.click()
+        }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={event => {
+          if ((event.key === 'Enter' || event.key === ' ') && !busy && !restoring) {
+            inputRef.current?.click()
+          }
+        }}
+        aria-disabled={busy || restoring}
+      >
+        <input
+          ref={inputRef}
+          hidden
+          type="file"
+          accept=".csv,.txt,.tsv,.xls,.xlsx,.xlsm,.xlsb,.ods,.fods"
+          onChange={event => {
+            const file = event.target.files?.[0]
+            if (file) void handleImport(file)
+            event.currentTarget.value = ''
+          }}
+        />
+        <div className="workspace-drop-icon">⇧</div>
+        <strong>
+          {busy
+            ? 'Lendo e identificando o arquivo…'
+            : snapshot
+              ? 'Arraste um novo arquivo aqui ou clique para substituir'
+              : 'Arraste o arquivo aqui ou clique para selecionar'}
+        </strong>
+        <span>1 arquivo · CSV, TXT, TSV, XLS, XLSX, XLSM, XLSB e ODS</span>
+      </section>
 
-      {snapshot ? (
+      {error && (
+        <div className="workspace-import-errors">
+          <span>{error}</span>
+        </div>
+      )}
+
+      <section className="workspace-import-grid internal-products-import-grid">
+        {snapshot ? (
+          <article className="workspace-file-card internal-products-file-card">
+            <div className="workspace-file-head">
+              <div>
+                <span className="workspace-file-type">ARQUIVO IMPORTADO</span>
+                <strong title={snapshot.fileName}>{snapshot.fileName}</strong>
+                <small>
+                  {snapshot.rows.length.toLocaleString('pt-BR')} registros · {formatBytes(snapshot.size)}
+                </small>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => void clearInformation()}
+                aria-label={'Remover ' + snapshot.fileName}
+                title="Limpar informações importadas"
+              >
+                ×
+              </button>
+            </div>
+            <div className="workspace-file-modules">
+              <span>Código · {snapshot.codeHeaders.join(', ')}</span>
+              <span>Descrição · {snapshot.descriptionHeaders.join(', ')}</span>
+            </div>
+          </article>
+        ) : (
+          <div className="workspace-import-empty">
+            <strong>{restoring ? 'Restaurando lista salva…' : 'Nenhum arquivo importado.'}</strong>
+            <span>
+              Importe uma lista com uma coluna de código e outra de descrição para habilitar a consulta
+              de produtos internos.
+            </span>
+          </div>
+        )}
+      </section>
+
+      {snapshot && (
         <>
           <section className="internal-products-summary">
             <div>
@@ -413,25 +489,6 @@ export default function InternalProductListPage() {
             </div>
           </section>
         </>
-      ) : (
-        <section className="internal-products-empty">
-          <div className="workspace-drop-icon">▤</div>
-          <strong>{restoring ? 'Restaurando informações…' : 'Nenhuma lista de produtos importada.'}</strong>
-          <span>
-            Importe um arquivo CSV, XLS ou XLSX com uma coluna de código e outra de descrição.
-            A lista permanecerá salva neste navegador até você clicar em “Limpar informações”.
-          </span>
-          {!restoring && (
-            <button
-              type="button"
-              className="button primary"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-            >
-              Importar lista de produtos
-            </button>
-          )}
-        </section>
       )}
     </main>
   )
