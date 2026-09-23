@@ -6,7 +6,7 @@ import {
   type WorkspaceGroupId,
 } from '../config/workspaceModules'
 import { loadInternalProductList, type InternalProductSnapshot } from '../lib/internalProductStorage'
-import { loadNfceDocuments } from '../lib/workspaceStorage'
+import { initializeWorkspaceScope, loadNfceDocuments } from '../lib/workspaceStorage'
 import { formatNfceMoney, type NfceSummary } from '../lib/nfce'
 import type { ImportedFile } from '../types'
 import '../generalDashboard.css'
@@ -43,6 +43,7 @@ export default function GeneralDashboardPage({ files }: { files: ImportedFile[] 
   const refreshExtras = useCallback(async () => {
     setLoadingExtras(true)
     try {
+      await initializeWorkspaceScope()
       const [products, nfces] = await Promise.all([
         loadInternalProductList().catch(() => null),
         loadNfceDocuments().catch(() => []),
