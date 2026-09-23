@@ -1,8 +1,10 @@
 import type { FieldMapping, ImportedFile } from '../types'
+import type { NfceSummary } from './nfce'
 
 const DB_NAME = 'primecheck-local'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'workspace'
+const NFCE_STORE_NAME = 'nfce-xml'
 
 const LEGACY_IMPORTED_FILES_KEY = 'imported-files-v1'
 const LEGACY_WORKSPACE_SESSION_KEY = 'workspace-session-v1'
@@ -43,6 +45,9 @@ const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
     if (!db.objectStoreNames.contains(STORE_NAME)) {
       db.createObjectStore(STORE_NAME)
     }
+    if (!db.objectStoreNames.contains(NFCE_STORE_NAME)) {
+      db.createObjectStore(NFCE_STORE_NAME)
+    }
   }
 
   request.onsuccess = () => resolve(request.result)
@@ -52,12 +57,13 @@ const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
 const withStore = async <T>(
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>,
+  storeName = STORE_NAME,
 ) => {
   const db = await openDb()
   try {
     return await new Promise<T>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, mode)
-      const store = transaction.objectStore(STORE_NAME)
+      const transaction = db.transaction(storeName, mode)
+      const store = transaction.objectStore(storeName)
       const request = action(store)
 
       request.onsuccess = () => resolve(request.result)
@@ -353,5 +359,68 @@ export const clearWorkspaceFiles = async (): Promise<void> => {
   await withStore<undefined>(
     'readwrite',
     store => store.clear(),
+  )
+}
+
+
+const nfceKeyPrefix = () =>
+  activeWorkspaceScope ? `nfce-xml-v1:${activeWorkspaceScope}:` : ''
+
+const nfceKeyRange = () => {
+  const prefix = nfceKeyPrefix()
+  return prefix
+    ? IDBKeyRange.bound(prefix, prefix + '\uffff')
+    : null
+}
+
+export const loadNfceDocuments = async (): Promise<NfceSummary[]> => {
+  const range = nfceKeyRange()
+  if (!range || typeof window === 'undefined' || !('indexedDB' in window)) return []
+
+  try {
+    const stored = await withStore<NfceSummary[]>(
+      'readonly',
+      store => store.getAll(range),
+      NFCE_STORE_NAME,
+    )
+    return Array.isArray(stored)
+      ? stored.sort((left, right) => right.lastModified - left.lastModified)
+      : []
+  } catch {
+    return []
+  }
+}
+
+export const saveNfceDocuments = async (documents: NfceSummary[]): Promise<void> => {
+  const prefix = nfceKeyPrefix()
+  if (!prefix || documents.length === 0 || typeof window === 'undefined' || !('indexedDB' in window)) return
+
+  const db = await openDb()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(NFCE_STORE_NAME, 'readwrite')
+      const store = transaction.objectStore(NFCE_STORE_NAME)
+
+      documents.forEach(document => {
+        store.put(document, prefix + document.id)
+      })
+
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('Falha ao salvar XMLs NFC-e localmente.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Armazenamento local de XMLs interrompido.'))
+    })
+  } finally {
+    db.close()
+  }
+}
+
+export const clearNfceDocuments = async (): Promise<void> => {
+  const range = nfceKeyRange()
+  if (!range || typeof window === 'undefined' || !('indexedDB' in window)) return
+
+  await withStore<undefined>(
+    'readwrite',
+    store => store.delete(range),
+    NFCE_STORE_NAME,
   )
 }
