@@ -263,44 +263,222 @@ const CHECKLIST_FIELDS_BASE: FieldDefinition[] = [
   },
 ]
 
-const CLIENT_DATABASE_FIELDS: Record<string, string> = {
-  codigoInterno: 'CODIGO_INTERNO',
-  nome: 'NOME',
-  apelido: 'APELIDO',
-  cpfCnpj: 'CNPJ_CPF',
-  ie: 'INSCRICAO_ESTADUAL',
-  rg: 'RG',
-  pessoaTipo: 'FLAG_EMPRESA_CONVENIO',
-  limiteCheque: 'LIMITE_CHEQUE',
-  limiteConvenio: 'LIMITE_CONVENIO',
-  dataCadastro: 'DATA_CADASTRO',
-  endereco: 'ENDERECO',
-  numeroEndereco: 'NUMERO_ENDERECO',
-  complemento: 'COMPLEMENTO',
-  bairro: 'BAIRRO',
-  cidade: 'CIDADE',
-  uf: 'SIGLA',
-  cep: 'CEP',
-  telefone: 'NUMERO_TELEFONE',
-  celular: 'NUMERO_CELULAR',
-  fax: 'FAX',
-  contato: 'NOME_CONTATO',
-  dataNascimento: 'DATA_NASCIMENTO',
-  sexo: 'SEXO',
-  estadoCivil: 'ESTADO_CIVIL',
-  statusCheque: 'STATUS_PDV',
-  statusConvenio: 'STATUS_PDV_CONVENIO',
-  empresaConvenio: 'CODIGO_CONVENIO',
-  diaFechamento: 'DIA_FECHAMENTO',
-  conveniado: 'CONVENIO',
-  condicaoPagamento: 'CONDICAO_PAGAMENTO',
-  observacao: 'OBSERVACAO',
+const CLIENT_CHECKLIST_CONFIG: Record<string, {
+  checklistLabel: string
+  databaseField: string
+  aliases: string[]
+}> = {
+  codigoInterno: {
+    checklistLabel: 'Código interno',
+    databaseField: 'COD_CLIENTE',
+    aliases: ['COD_CLIENTE'],
+  },
+  nome: {
+    checklistLabel: 'Nome',
+    databaseField: 'DES_CLIENTE',
+    aliases: ['DES_CLIENTE'],
+  },
+  apelido: {
+    checklistLabel: 'Apelido',
+    databaseField: 'DES_FANTASIA',
+    aliases: ['DES_FANTASIA'],
+  },
+  cpfCnpj: {
+    checklistLabel: 'CNPJ/CPF',
+    databaseField: 'NUM_CGC',
+    aliases: ['NUM_CGC'],
+  },
+  ie: {
+    checklistLabel: 'IE',
+    databaseField: 'NUM_INSC_EST',
+    aliases: ['NUM_INSC_EST'],
+  },
+  rg: {
+    checklistLabel: 'RG',
+    databaseField: 'NUM_RG',
+    aliases: ['NUM_RG'],
+  },
+  pessoaTipo: {
+    checklistLabel: 'Pessoa Física ou Jurídica',
+    databaseField: 'FLG_EMPRESA',
+    aliases: ['FLG_EMPRESA'],
+  },
+  limiteConvenio: {
+    checklistLabel: 'Limite de convênio',
+    databaseField: 'VAL_LIMITE_CONV',
+    aliases: ['VAL_LIMITE_CONV'],
+  },
+  limiteCheque: {
+    checklistLabel: 'Limite de cheque',
+    databaseField: 'VAL_LIMITE_CREDITO',
+    aliases: ['VAL_LIMITE_CREDITO'],
+  },
+  dataCadastro: {
+    checklistLabel: 'Data de cadastro',
+    databaseField: 'DTA_CADASTRO',
+    aliases: ['DTA_CADASTRO'],
+  },
+  endereco: {
+    checklistLabel: 'Endereço',
+    databaseField: 'DES_ENDERECO',
+    aliases: ['DES_ENDERECO'],
+  },
+  numeroEndereco: {
+    checklistLabel: 'Número',
+    databaseField: 'NUM_ENDERECO',
+    aliases: ['NUM_ENDERECO'],
+  },
+  complemento: {
+    checklistLabel: 'Complemento',
+    databaseField: 'DES_COMPLEMENTO',
+    aliases: ['DES_COMPLEMENTO'],
+  },
+  bairro: {
+    checklistLabel: 'Bairro',
+    databaseField: 'DES_BAIRRO',
+    aliases: ['DES_BAIRRO'],
+  },
+  cidade: {
+    checklistLabel: 'Cidade',
+    databaseField: 'DES_CIDADE',
+    aliases: ['DES_CIDADE'],
+  },
+  uf: {
+    checklistLabel: 'Sigla',
+    databaseField: 'DES_SIGLA',
+    aliases: ['DES_SIGLA'],
+  },
+  cep: {
+    checklistLabel: 'CEP',
+    databaseField: 'NUM_CEP',
+    aliases: ['NUM_CEP'],
+  },
+  telefone: {
+    checklistLabel: 'Telefone',
+    databaseField: 'NUM_FONE',
+    aliases: ['NUM_FONE'],
+  },
+  celular: {
+    checklistLabel: 'Celular',
+    databaseField: 'NUM_CELULAR',
+    aliases: ['NUM_CELULAR'],
+  },
+  fax: {
+    checklistLabel: 'Fax',
+    databaseField: 'NUM_FAX',
+    aliases: ['NUM_FAX'],
+  },
+  contato: {
+    checklistLabel: 'Contato',
+    databaseField: 'DES_CONTATO',
+    aliases: ['DES_CONTATO'],
+  },
+  dataNascimento: {
+    checklistLabel: 'Data de nascimento',
+    databaseField: 'DTA_NASCIMENTO',
+    aliases: ['DTA_NASCIMENTO'],
+  },
+  sexo: {
+    checklistLabel: 'Sexo Masculino ou Feminino',
+    databaseField: 'FLG_SEXO',
+    aliases: ['FLG_SEXO'],
+  },
+  estadoCivil: {
+    checklistLabel: 'Estado civil',
+    databaseField: 'FLG_EST_CIVIL',
+    aliases: ['FLG_EST_CIVIL'],
+  },
+  statusCheque: {
+    checklistLabel: 'Status PDV',
+    databaseField: 'cod_status_pdv',
+    aliases: ['COD_STATUS_PDV'],
+  },
+  statusConvenio: {
+    checklistLabel: 'Status PDV convênio',
+    databaseField: 'COD_STATUS_PDV_CONV',
+    aliases: ['COD_STATUS_PDV_CONV'],
+  },
+  empresaConvenio: {
+    checklistLabel: 'Código convênio',
+    databaseField: 'cod_convenio',
+    aliases: ['COD_CONVENIO'],
+  },
+  diaFechamento: {
+    checklistLabel: 'Dia de Fechamento convênio',
+    databaseField: 'NUM_DIA_FECHA',
+    aliases: ['NUM_DIA_FECHA'],
+  },
+  conveniado: {
+    checklistLabel: 'Convênio',
+    databaseField: 'flg_convenio',
+    aliases: ['FLG_CONVENIO'],
+  },
+  condicaoPagamento: {
+    checklistLabel: 'Condição de pagamento',
+    databaseField: 'des_observacao',
+    aliases: ['DES_OBSERVACAO'],
+  },
+  observacao: {
+    checklistLabel: 'Observação',
+    databaseField: '',
+    aliases: [],
+  },
 }
 
-export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE.map(field => ({
-  ...field,
-  databaseField: CLIENT_DATABASE_FIELDS[field.id] ?? field.label,
-}))
+const CLIENT_CHECKLIST_ORDER = [
+  'codigoInterno',
+  'nome',
+  'apelido',
+  'cpfCnpj',
+  'ie',
+  'rg',
+  'pessoaTipo',
+  'limiteConvenio',
+  'limiteCheque',
+  'dataCadastro',
+  'endereco',
+  'numeroEndereco',
+  'complemento',
+  'bairro',
+  'cidade',
+  'uf',
+  'cep',
+  'telefone',
+  'celular',
+  'fax',
+  'contato',
+  'dataNascimento',
+  'sexo',
+  'estadoCivil',
+  'statusCheque',
+  'statusConvenio',
+  'empresaConvenio',
+  'diaFechamento',
+  'conveniado',
+  'condicaoPagamento',
+  'observacao',
+]
+
+const CLIENT_CHECKLIST_ORDER_INDEX = new Map(
+  CLIENT_CHECKLIST_ORDER.map((fieldId, index) => [fieldId, index]),
+)
+
+export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE
+  .map(field => {
+    const config = CLIENT_CHECKLIST_CONFIG[field.id]
+    return config
+      ? {
+          ...field,
+          checklistLabel: config.checklistLabel,
+          databaseField: config.databaseField,
+          aliases: config.aliases,
+        }
+      : field
+  })
+  .sort((left, right) =>
+    (CLIENT_CHECKLIST_ORDER_INDEX.get(left.id) ?? Number.MAX_SAFE_INTEGER)
+    - (CLIENT_CHECKLIST_ORDER_INDEX.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+  )
 
 export const RECORD_STATUS_ALIASES = [
   'INATIVO', 'FLG_INATIVO', 'IND_INATIVO', 'ATIVO', 'FLG_ATIVO',
