@@ -274,11 +274,6 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     [periodDocuments],
   )
 
-  const allDetails = useMemo(
-    () => authorizedDocuments.map(summary => ({ summary, detail: detailFor(summary) })),
-    [authorizedDocuments],
-  )
-
   const productRows = useMemo<ProductRow[]>(() => {
     const map = new Map<string, ProductRow & { couponIds: Set<string> }>()
 
@@ -435,6 +430,8 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       if (sortKey === 'description') result = collator.compare(left.description, right.description)
       else if (sortKey === 'code') result = collator.compare(left.code, right.code)
       else if (sortKey === 'barcode') result = collator.compare(left.barcode, right.barcode)
+      else if (sortKey === 'ncm') result = collator.compare(left.ncm, right.ncm)
+      else if (sortKey === 'cfop') result = collator.compare(left.cfop, right.cfop)
       else if (sortKey === 'value') result = left.value - right.value
       else if (sortKey === 'coupons') result = left.coupons - right.coupons
       else if (sortKey === 'lastIssueDate') result = timestamp(left.lastIssueDate) - timestamp(right.lastIssueDate)
@@ -474,6 +471,8 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       let result = 0
       if (sortKey === 'description') result = collator.compare(left.description, right.description)
       else if (sortKey === 'code') result = collator.compare(left.code, right.code)
+      else if (sortKey === 'ncm') result = collator.compare(left.ncm, right.ncm)
+      else if (sortKey === 'cfop') result = collator.compare(left.cfop, right.cfop)
       else if (sortKey === 'quantity') result = left.quantity - right.quantity
       else if (sortKey === 'value') result = left.value - right.value
       else if (sortKey === 'coupons') result = left.coupons - right.coupons
@@ -686,8 +685,8 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                     <th><SortButton label="Código" field="code" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     {view === 'products' && <th><SortButton label="Código de barras" field="barcode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>}
                     <th><SortButton label="Descrição" field="description" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                    <th>NCM</th>
-                    <th>CFOP</th>
+                    <th><SortButton label="NCM" field="ncm" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                    <th><SortButton label="CFOP" field="cfop" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Quantidade" field="quantity" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Valor" field="value" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Cupons" field="coupons" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
