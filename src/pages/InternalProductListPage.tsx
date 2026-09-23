@@ -136,11 +136,20 @@ export default function InternalProductListPage() {
 
   useEffect(() => {
     let active = true
-    void loadInternalProductList().then(stored => {
-      if (!active) return
-      setSnapshot(stored)
-      setRestoring(false)
-    })
+
+    void (async () => {
+      try {
+        const stored = await loadInternalProductList()
+        if (!active) return
+        setSnapshot(stored)
+      } catch (caught) {
+        if (!active) return
+        setError(caught instanceof Error ? caught.message : 'Não foi possível restaurar a lista salva para este IP.')
+      } finally {
+        if (active) setRestoring(false)
+      }
+    })()
+
     return () => { active = false }
   }, [])
 
@@ -260,8 +269,8 @@ export default function InternalProductListPage() {
               {restoring
                 ? 'Restaurando lista salva…'
                 : snapshot
-                  ? 'Lista de produtos salva neste navegador.'
-                  : 'Nenhuma lista salva neste navegador.'}
+                  ? 'Lista de produtos salva para este IP.'
+                  : 'Nenhuma lista de produtos salva para este IP.'}
             </span>
           </div>
           <div className="workspace-import-counter">

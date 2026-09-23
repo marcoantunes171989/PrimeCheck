@@ -54,7 +54,15 @@ export default function WorkspaceImportPage({
     const accepted: File[] = []
     const localErrors: string[] = []
 
+    const xmlFiles = incoming.filter(file => /\.xml$/i.test(file.name))
+    if (xmlFiles.length > 0) {
+      localErrors.push(
+        `${xmlFiles.length.toLocaleString('pt-BR')} arquivo(s) XML não foram importados nesta tela. Para NFC-e, use Validação > Validação NFC-e.`,
+      )
+    }
+
     for (const file of incoming) {
+      if (/\.xml$/i.test(file.name)) continue
       const willBeNew = !existingNames.has(file.name)
       if (willBeNew && existingNames.size >= MAX_FILES) {
         localErrors.push(`${file.name}: limite de ${MAX_FILES} arquivos atingido.`)

@@ -3,9 +3,11 @@ import Sidebar from './components/Sidebar'
 import HomologationApp from './HomologationApp'
 import CnpjValidatorPage from './pages/CnpjValidatorPage'
 import IeValidatorPage from './pages/IeValidatorPage'
+import NfceValidatorPage from './pages/NfceValidatorPage'
 import WorkspaceImportPage from './pages/WorkspaceImportPage'
 import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import InternalProductListPage from './pages/InternalProductListPage'
+import GeneralDashboardPage from './pages/GeneralDashboardPage'
 import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceModules'
 import type { ImportedFile } from './types'
 import {
@@ -18,18 +20,19 @@ import {
   saveWorkspaceNavigation,
 } from './lib/workspaceStorage'
 
-type ModuleId = 'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | `data:${string}` | `dashboard:${string}`
+type ModuleId = 'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | 'nfce' | `data:${string}` | `dashboard:${string}`
 
-const staticModuleTitle: Record<'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie', string> = {
+const staticModuleTitle: Record<'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | 'nfce', string> = {
   importacao: 'Importação e organização',
   'internal-products': 'Lista de Produtos Internos',
   homologacao: 'Homologação de conversão',
   cnpj: 'Validação de CNPJ',
   ie: 'Validação de Inscrição Estadual',
+  nfce: 'Validação de NFC-e',
 }
 
 export default function App() {
-  const [module, setModule] = useState<ModuleId>('importacao')
+  const [module, setModule] = useState<ModuleId>('dashboard:general')
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
     return !window.matchMedia('(min-width: 1100px)').matches
@@ -61,16 +64,11 @@ export default function App() {
       const session = loadWorkspaceSession()
       const enabledModuleIds = new Set<string>(analyzeWorkspaceFiles(files).map(match => match.module.id))
       const restoredVisited = session.visitedModuleIds.filter(moduleId => enabledModuleIds.has(moduleId))
-      const activeWorkspaceModuleId = session.activeModule.startsWith('data:') || session.activeModule.startsWith('dashboard:')
-        ? session.activeModule.slice(session.activeModule.indexOf(':') + 1)
-        : ''
-      const canRestoreActiveModule = files.length > 0
-        && activeWorkspaceModuleId
-        && enabledModuleIds.has(activeWorkspaceModuleId)
+      const restoredModule = session.activeModule === 'nfce' ? 'nfce' : 'dashboard:general'
 
       setWorkspaceFiles(files)
       setVisitedWorkspaceModules(new Set(restoredVisited))
-      setModule(canRestoreActiveModule ? session.activeModule as ModuleId : 'importacao')
+      setModule(restoredModule)
       setWorkspaceStorageMessage(files.length ? 'Dados, vínculos e homologações restaurados para este IP.' : 'Nenhum dado salvo para este IP.')
       setWorkspaceStorageReady(true)
     })()
@@ -87,7 +85,7 @@ export default function App() {
 
   useEffect(() => {
     if (!workspaceStorageReady) return
-    if (module !== 'importacao' && !module.startsWith('data:') && !module.startsWith('dashboard:')) return
+    if (module !== 'nfce' && module !== 'importacao' && !module.startsWith('data:') && !module.startsWith('dashboard:')) return
 
     saveWorkspaceNavigation(module, [...visitedWorkspaceModules])
   }, [module, visitedWorkspaceModules, workspaceStorageReady])
@@ -126,13 +124,13 @@ export default function App() {
     clearWorkspaceSession()
     setWorkspaceFiles([])
     setVisitedWorkspaceModules(new Set())
-    setModule('importacao')
+    setModule('dashboard:general')
     setWorkspaceStorageMessage('Dados importados, vínculos e homologações removidos.')
   }
 
   const changeModule = (next: ModuleId) => {
     setModule(next)
-    if (next.startsWith('data:') || next.startsWith('dashboard:')) {
+    if (next.startsWith('data:') || (next.startsWith('dashboard:') && next !== 'dashboard:general')) {
       const moduleId = next.slice(next.indexOf(':') + 1)
       setVisitedWorkspaceModules(current => {
         if (current.has(moduleId)) return current
@@ -156,11 +154,13 @@ export default function App() {
     ? getWorkspaceModule(activeWorkspaceModuleId)
     : undefined
 
-  const moduleTitle = module.startsWith('dashboard:')
-    ? 'Dashboard · ' + (activeWorkspaceModule?.label ?? 'Dados importados')
-    : module.startsWith('data:')
-      ? activeWorkspaceModule?.label ?? 'Dados importados'
-      : staticModuleTitle[module as keyof typeof staticModuleTitle]
+  const moduleTitle = module === 'dashboard:general'
+    ? 'Dashboard Geral'
+    : module.startsWith('dashboard:')
+      ? 'Dashboard · ' + (activeWorkspaceModule?.label ?? 'Dados importados')
+      : module.startsWith('data:')
+        ? activeWorkspaceModule?.label ?? 'Dados importados'
+        : staticModuleTitle[module as keyof typeof staticModuleTitle]
 
   const openImportedModules = () => {
     const first = workspaceMatches[0]?.module.id
@@ -192,6 +192,10 @@ export default function App() {
             <i /> Processamento local
           </div>
         </div>
+
+        {module === 'dashboard:general' && (
+          <GeneralDashboardPage files={workspaceFiles} />
+        )}
 
         {module === 'importacao' && (
           <WorkspaceImportPage
@@ -229,6 +233,7 @@ export default function App() {
         {module === 'homologacao' && <HomologationApp />}
         {module === 'cnpj' && <CnpjValidatorPage />}
         {module === 'ie' && <IeValidatorPage />}
+        {module === 'nfce' && <NfceValidatorPage />}
       </div>
     </div>
   )
