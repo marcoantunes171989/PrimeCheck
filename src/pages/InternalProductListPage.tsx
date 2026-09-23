@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatBytes, parseFile } from '../lib/files'
 import {
   clearInternalProductList,
@@ -120,6 +120,7 @@ const buildSnapshot = async (file: File): Promise<InternalProductSnapshot> => {
 
 export default function InternalProductListPage() {
   const inputRef = useRef<HTMLInputElement>(null)
+  const viewportRef = useRef<{ x: number; y: number } | null>(null)
   const [snapshot, setSnapshot] = useState<InternalProductSnapshot | null>(null)
   const [restoring, setRestoring] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -143,10 +144,25 @@ export default function InternalProductListPage() {
     return () => { active = false }
   }, [])
 
-  const clearSearch = () => {
+  const rememberViewport = () => {
+    if (typeof window === 'undefined') return
+    viewportRef.current = { x: window.scrollX, y: window.scrollY }
+  }
+
+  const clearSearch = (preserveViewport = true) => {
+    if (preserveViewport) rememberViewport()
     setGlobalSearch('')
     setCodeSearch('')
     setDescriptionSearch('')
+    setPage(1)
+  }
+
+  const updateSearch = (
+    setter: (value: string) => void,
+    value: string,
+  ) => {
+    rememberViewport()
+    setter(value)
     setPage(1)
   }
 
@@ -157,7 +173,7 @@ export default function InternalProductListPage() {
       const next = await buildSnapshot(file)
       await saveInternalProductList(next)
       setSnapshot(next)
-      clearSearch()
+      clearSearch(false)
       setSortKey('code')
       setSortDirection('asc')
     } catch (caught) {
@@ -171,7 +187,7 @@ export default function InternalProductListPage() {
     await clearInternalProductList()
     setSnapshot(null)
     setError('')
-    clearSearch()
+    clearSearch(false)
   }
 
   const changeSort = (key: SortKey) => {
@@ -211,8 +227,16 @@ export default function InternalProductListPage() {
     [filteredRows, safePage, pageSize],
   )
 
-  useEffect(() => {
-    setPage(1)
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport || typeof window === 'undefined') return
+
+    viewportRef.current = null
+    window.scrollTo({
+      left: viewport.x,
+      top: viewport.y,
+      behavior: 'auto',
+    })
   }, [globalSearch, codeSearch, descriptionSearch, pageSize])
 
   const hasSearch = Boolean(globalSearch || codeSearch || descriptionSearch)
@@ -366,7 +390,7 @@ export default function InternalProductListPage() {
                 <span aria-hidden="true">⌕</span>
                 <input
                   value={globalSearch}
-                  onChange={event => setGlobalSearch(event.target.value)}
+                  onChange={event => updateSearch(setGlobalSearch, event.target.value)}
                   placeholder="Pesquisar em código e descrição…"
                   aria-label="Pesquisar em todos os campos"
                 />
@@ -374,7 +398,11 @@ export default function InternalProductListPage() {
 
               <select
                 value={pageSize}
-                onChange={event => setPageSize(Number(event.target.value))}
+                onChange={event => {
+                  rememberViewport()
+                  setPageSize(Number(event.target.value))
+                  setPage(1)
+                }}
                 aria-label="Registros por página"
               >
                 <option value={50}>50 por página</option>
@@ -386,7 +414,7 @@ export default function InternalProductListPage() {
               <button
                 type="button"
                 className="button internal-products-clear-search"
-                onClick={clearSearch}
+                onClick={() => clearSearch()}
                 disabled={!hasSearch}
               >
                 Limpar pesquisa
@@ -430,7 +458,7 @@ export default function InternalProductListPage() {
                     <th>
                       <input
                         value={codeSearch}
-                        onChange={event => setCodeSearch(event.target.value)}
+                        onChange={event => updateSearch(setCodeSearch, event.target.value)}
                         placeholder="Buscar por código…"
                         aria-label="Buscar por código"
                       />
@@ -438,7 +466,7 @@ export default function InternalProductListPage() {
                     <th>
                       <input
                         value={descriptionSearch}
-                        onChange={event => setDescriptionSearch(event.target.value)}
+                        onChange={event => updateSearch(setDescriptionSearch, event.target.value)}
                         placeholder="Buscar por descrição…"
                         aria-label="Buscar por descrição"
                       />
