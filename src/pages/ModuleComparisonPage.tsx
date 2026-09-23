@@ -130,6 +130,7 @@ export default function ModuleComparisonPage({
     [resolved.files, targetName],
   )
   const profile = useMemo(() => getWorkspaceEntityProfile(module.id), [module.id])
+  const storageModuleId = module.id === 'clients' ? 'clients:checklist-v3' : module.id
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
@@ -146,8 +147,8 @@ export default function ModuleComparisonPage({
     ),
   )
   const persistedMapping = useMemo(
-    () => canCompare ? loadWorkspaceMapping(module.id, originName, targetName) : [],
-    [canCompare, module.id, originName, targetName],
+    () => canCompare ? loadWorkspaceMapping(storageModuleId, originName, targetName) : [],
+    [canCompare, storageModuleId, originName, targetName],
   )
   const comparisonDataSignature = useMemo(() => [
     ...originFiles.map(file => `origem:${file.id}:${file.rows.length}:${file.headers.length}`),
@@ -155,13 +156,13 @@ export default function ModuleComparisonPage({
   ].join('|'), [originFiles, targetFiles])
   const restoreCompletedReport = useMemo(
     () => canCompare && hasWorkspaceExecution(
-      module.id,
+      storageModuleId,
       originName,
       targetName,
       persistedMapping,
       comparisonDataSignature,
     ),
-    [canCompare, module.id, originName, targetName, persistedMapping, comparisonDataSignature],
+    [canCompare, storageModuleId, originName, targetName, persistedMapping, comparisonDataSignature],
   )
 
   const swap = () => {
@@ -286,12 +287,12 @@ export default function ModuleComparisonPage({
           dashboardMode={dashboardMode}
           initialMapping={persistedMapping}
           onMappingChange={nextMapping =>
-            saveWorkspaceMapping(module.id, originName, targetName, nextMapping)
+            saveWorkspaceMapping(storageModuleId, originName, targetName, nextMapping)
           }
           restoreCompletedReport={restoreCompletedReport}
           onComparisonExecuted={nextMapping =>
             saveWorkspaceExecution(
-              module.id,
+              storageModuleId,
               originName,
               targetName,
               nextMapping,
