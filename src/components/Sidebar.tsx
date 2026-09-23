@@ -64,6 +64,7 @@ const FIXED_FILES = [
 const VALIDATION_ITEMS = [
   { id: 'cnpj', label: 'Validação CNPJ', helper: 'Consulta e dígitos', icon: 'cnpj' as const },
   { id: 'ie', label: 'Validação I.E.', helper: '27 UFs', icon: 'ie' as const },
+  { id: 'nfce', label: 'Validação NFC-e', helper: 'XML, tags e DANFE', icon: 'fiscal' as const },
 ]
 
 const normalizeSearch = (value: string) =>
