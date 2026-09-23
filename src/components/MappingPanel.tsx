@@ -57,6 +57,8 @@ export default function MappingPanel({
 
       const haystack = [
         field.label,
+        field.checklistLabel ?? '',
+        field.databaseField ?? '',
         field.group,
         item?.originHeader ?? '',
         item?.targetHeader ?? '',
@@ -65,6 +67,8 @@ export default function MappingPanel({
       return haystack.includes(term)
     })
   }, [mapping, onlyPending, profile.fields, search])
+
+  const clientChecklistMode = profile.id === 'client' || profile.id === 'workspace:clients'
 
   return (
     <section className="panel mapping-panel">
@@ -129,8 +133,8 @@ export default function MappingPanel({
         <table className="mapping-table">
           <thead>
             <tr>
-              <th>Grupo</th>
-              <th>Campo homologado</th>
+              <th>{clientChecklistMode ? 'Check-list Homologação' : 'Grupo'}</th>
+              <th>{clientChecklistMode ? 'Campo no banco de dados' : 'Campo homologado'}</th>
               <th>Coluna origem</th>
               <th>Coluna destino</th>
               <th>Situação</th>
@@ -148,20 +152,23 @@ export default function MappingPanel({
                   ? 'partial'
                   : 'none'
 
-              const originSuggestions = !originHeader
+              const originSuggestions = !clientChecklistMode && !originHeader
                 ? getHeaderSuggestions(originHeaders, field)
                 : []
-              const targetSuggestions = !targetHeader
+              const targetSuggestions = !clientChecklistMode && !targetHeader
                 ? getHeaderSuggestions(targetHeaders, field)
                 : []
 
               return (
                 <tr key={field.id} className={'mapping-row ' + situation}>
-                  <td className="muted-cell">
-                    <span className="mapping-group">{field.group}</span>
+                  <td className={clientChecklistMode ? 'muted-cell mapping-checklist-cell' : 'muted-cell'}>
+                    {clientChecklistMode && <span className="mapping-checklist-mark" aria-hidden="true">✓</span>}
+                    <span className="mapping-group">
+                      {clientChecklistMode ? (field.checklistLabel ?? field.label) : field.group}
+                    </span>
                   </td>
-                  <td>
-                    <strong>{field.label}</strong>
+                  <td className={clientChecklistMode ? 'mapping-database-field' : undefined}>
+                    <strong>{clientChecklistMode ? (field.databaseField || '—') : field.label}</strong>
                     {field.requiredForMatch && <span className="required">chave</span>}
                   </td>
                   <td>
