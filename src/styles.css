@@ -8511,3 +8511,368 @@ footer {
     font-size: var(--fs-lg);
   }
 }
+
+/* =========================================================
+   Relatórios analíticos — compactação, enquadramento e Motivo
+   ========================================================= */
+
+.analytic-report-table,
+.records-table,
+.issues-table,
+.field-summary-table,
+.dup-table,
+.missing-table,
+.dashboard-field-table,
+.technical-diagnosis-table,
+.dup-record-table,
+.workspace-data-table {
+  width: 100%;
+  font-size: 12.5px;
+}
+
+.analytic-report-table th,
+.records-table th,
+.issues-table th,
+.field-summary-table th,
+.dup-table th,
+.missing-table th,
+.dashboard-field-table th,
+.technical-diagnosis-table th,
+.dup-record-table th,
+.workspace-data-table th {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  padding: 8px 8px;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.analytic-report-table td,
+.records-table td,
+.issues-table td,
+.field-summary-table td,
+.dup-table td,
+.missing-table td,
+.dashboard-field-table td,
+.technical-diagnosis-table td,
+.dup-record-table td,
+.workspace-data-table td {
+  font-size: 12.5px;
+  line-height: 1.4;
+  padding: 7px 8px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.analytic-report-table .status,
+.analytic-report-table .quick-kind,
+.analytic-report-table .quick-duplicate-status,
+.analytic-report-table .review-chip,
+.analytic-report-table .analysis-action-button,
+.analytic-report-table .map-state,
+.records-table .status,
+.issues-table .status,
+.missing-table .status,
+.technical-diagnosis-table .status {
+  font-size: 10.5px;
+}
+
+.issues-table {
+  min-width: 1120px;
+  table-layout: auto;
+}
+
+.issues-table .issue-select-col {
+  width: 36px;
+  min-width: 36px;
+}
+
+.issues-table th:nth-child(2),
+.issues-table td:nth-child(2) {
+  width: 78px;
+  max-width: 110px;
+  white-space: nowrap;
+}
+
+.issues-table th:nth-child(3),
+.issues-table td:nth-child(3) {
+  width: 15%;
+  min-width: 132px;
+}
+
+.issues-table th:nth-child(4),
+.issues-table td:nth-child(4) {
+  width: 11%;
+  min-width: 104px;
+}
+
+.issues-table th:nth-child(5),
+.issues-table td:nth-child(5),
+.issues-table th:nth-child(6),
+.issues-table td:nth-child(6) {
+  width: 13%;
+  min-width: 124px;
+  max-width: 240px;
+}
+
+.issues-table th:nth-child(7),
+.issues-table td:nth-child(7) {
+  width: 86px;
+  white-space: nowrap;
+}
+
+.issues-table th:nth-child(8),
+.issues-table td:nth-child(8),
+.issues-table .reason-cell,
+.technical-diagnosis-table .reason-cell,
+.reason-cell {
+  min-width: 240px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #3f4c56;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.issues-table .reason-cell {
+  width: 24%;
+  max-width: none;
+}
+
+.issues-table th:nth-child(9),
+.issues-table td:nth-child(9) {
+  width: 112px;
+}
+
+.issues-table th:nth-child(10),
+.issues-table td:nth-child(10) {
+  width: 98px;
+  white-space: nowrap;
+}
+
+.issue-value {
+  min-width: 0;
+  padding: 5px 7px;
+  border-radius: 7px;
+}
+
+.issue-value small {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+}
+
+.issue-value strong {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.issue-char-count,
+.char-meta {
+  display: inline-flex;
+  margin-top: 3px;
+  padding: 1px 6px;
+  border: 1px solid #d9e3e8;
+  border-radius: 999px;
+  background: #f7fafb;
+  color: #61717c;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.records-table {
+  min-width: 980px;
+}
+
+.records-table th:nth-child(2),
+.records-table td:nth-child(2) {
+  width: 86px;
+  white-space: nowrap;
+}
+
+.records-table th:nth-child(3),
+.records-table td:nth-child(3) {
+  min-width: 180px;
+}
+
+.field-summary-table,
+.dashboard-field-table {
+  min-width: 920px;
+}
+
+.missing-table {
+  min-width: 720px;
+}
+
+.missing-table th:nth-child(2),
+.missing-table td:nth-child(2) {
+  width: 90px;
+  white-space: nowrap;
+}
+
+.technical-diagnosis-table {
+  min-width: 1280px;
+}
+
+.technical-diagnosis-table th:nth-child(1),
+.technical-diagnosis-table td:nth-child(1) {
+  width: 36px;
+}
+
+.technical-diagnosis-table th:nth-child(2),
+.technical-diagnosis-table td:nth-child(2) {
+  width: 92px;
+}
+
+.technical-diagnosis-table th:nth-child(3),
+.technical-diagnosis-table td:nth-child(3) {
+  width: 12%;
+  min-width: 110px;
+}
+
+.technical-diagnosis-table th:nth-child(4),
+.technical-diagnosis-table td:nth-child(4) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.technical-diagnosis-table th:nth-child(5),
+.technical-diagnosis-table td:nth-child(5),
+.technical-diagnosis-table th:nth-child(6),
+.technical-diagnosis-table td:nth-child(6),
+.compare-value-cell {
+  width: 13%;
+  min-width: 120px;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+
+.technical-diagnosis-table th:nth-child(7),
+.technical-diagnosis-table td:nth-child(7) {
+  width: 92px;
+}
+
+.technical-diagnosis-table th:nth-child(8),
+.technical-diagnosis-table td:nth-child(8) {
+  width: 24%;
+  min-width: 240px;
+}
+
+.technical-diagnosis-table th:nth-child(9),
+.technical-diagnosis-table td:nth-child(9) {
+  width: 56px;
+}
+
+.dup-table {
+  min-width: 980px;
+}
+
+.column-filter-row input,
+.column-filter-row select {
+  min-height: 30px;
+  padding: 5px 7px;
+  font-size: 11px;
+}
+
+.field-reason,
+.drawer-focus-reason p,
+.field-compare p.field-reason {
+  margin: 8px 0 0;
+  color: #485761;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.drawer-focus-reason p {
+  font-size: 12px;
+}
+
+.drawer-focus-values span,
+.drawer-focus-reason span,
+.field-values span,
+.field-title > div span {
+  font-size: 10.5px;
+}
+
+.drawer-focus-values strong,
+.field-values strong {
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.field-values > div,
+.drawer-focus-values > div {
+  min-width: 0;
+  padding: 8px 9px;
+}
+
+@media (max-width: 1100px) {
+  .issues-table,
+  .technical-diagnosis-table {
+    min-width: 980px;
+  }
+
+  .issues-table .reason-cell,
+  .technical-diagnosis-table .reason-cell {
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 820px) {
+  .issues-table,
+  .technical-diagnosis-table,
+  .records-table,
+  .dup-table,
+  .field-summary-table,
+  .dashboard-field-table {
+    min-width: 860px;
+  }
+
+  .issues-table td:nth-child(5),
+  .issues-table td:nth-child(6),
+  .compare-value-cell {
+    max-width: 180px;
+  }
+}
+
+@media print {
+  .issue-print-table th,
+  .generic-print-table th,
+  .dup-print-synthetic-table th {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 5px 4px;
+  }
+
+  .issue-print-table td,
+  .generic-print-table td,
+  .dup-print-synthetic-table td {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 5px 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .issue-print-table th:nth-child(3),
+  .issue-print-table td:nth-child(3),
+  .issue-print-table th:nth-child(4),
+  .issue-print-table td:nth-child(4) {
+    width: 14%;
+  }
+
+  .issue-print-table th:nth-child(6),
+  .issue-print-table td:nth-child(6),
+  .issue-print-table .reason-cell {
+    width: 36%;
+    font-size: 11px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+}

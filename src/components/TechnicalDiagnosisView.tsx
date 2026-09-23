@@ -338,7 +338,7 @@ export default function TechnicalDiagnosisView({
         </div>
 
         <div className="table-wrap stable-filter-table-wrap">
-          <table className="technical-diagnosis-table">
+          <table className="technical-diagnosis-table analytic-report-table">
             <thead>
               <tr>
                 <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePage} aria-label="Selecionar página" /></th>
@@ -394,8 +394,8 @@ export default function TechnicalDiagnosisView({
                     <span className="mono">{item.code}</span>
                     <small className="block-muted">{item.name || '—'}</small>
                   </td>
-                  <td>{item.origin || '—'}</td>
-                  <td>{item.target || '—'}</td>
+                  <td className="compare-value-cell">{item.origin || '—'}</td>
+                  <td className="compare-value-cell">{item.target || '—'}</td>
                   <td>
                     {item.kind === 'DUPLICIDADE'
                       ? <span className="quick-duplicate-status">{item.status}</span>

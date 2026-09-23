@@ -967,7 +967,7 @@ function App({
                     </div>
                   </div>
                   <div className="table-wrap stable-filter-table-wrap">
-                    <table className="records-table">
+                    <table className="records-table analytic-report-table">
                       <thead>
                         <tr>
                           <th className="selection-column">
@@ -1208,7 +1208,7 @@ function App({
                   </div>
 
                   <div className="table-wrap stable-filter-table-wrap">
-                    <table className={fieldAnalysis ? 'issues-table issues-table-focused' : 'issues-table'}>
+                    <table className={fieldAnalysis ? 'issues-table issues-table-focused analytic-report-table' : 'issues-table analytic-report-table'}>
                       <thead>
                         <tr>
                           <th className="issue-select-col">
@@ -1259,8 +1259,7 @@ function App({
                         {currentIssuePage.map((item, idx) => {
                           const occurrenceKey = occurrenceKeyOf(item.client.key, item.field.fieldId)
                           const highlight = issueFieldFilter !== 'TODOS'
-                          const fieldDefinition = resultProfile.fields.find(field => field.id === item.field.fieldId)
-                          const showCharacterCount = fieldDefinition?.kind === 'text'
+                          const showCharacterCount = Boolean(item.field.originValue || item.field.targetValue)
                           return (
                             <tr
                               key={`${item.client.key}-${item.field.fieldId}-${idx}`}
@@ -1742,7 +1741,7 @@ function FieldSummaryView({
         </div>
 
         <div className="table-wrap stable-filter-table-wrap">
-          <table className="field-summary-table">
+          <table className="field-summary-table analytic-report-table">
             <thead>
               <tr>
                 <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePage} aria-label="Selecionar página" /></th>
@@ -2472,7 +2471,7 @@ function DuplicatesView({
 
         {reportMode === 'ANALITICO' ? (
           <div className="table-wrap stable-filter-table-wrap">
-            <table className="dup-table">
+            <table className="dup-table analytic-report-table">
             <thead>
               <tr>
                 <th className="selection-column"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Selecionar página" /></th>
@@ -2618,7 +2617,7 @@ function DuplicatesView({
           </div>
         ) : (
           <div className="table-wrap stable-filter-table-wrap">
-            <table className="dup-table dup-synthetic-table">
+            <table className="dup-table dup-synthetic-table analytic-report-table">
               <thead>
                 <tr>
                   <th>Lado</th>
@@ -2842,7 +2841,7 @@ function MissingView({
               </div>
             </div>
             <div className="table-wrap stable-filter-table-wrap">
-              <table className="missing-table">
+              <table className="missing-table analytic-report-table">
                 <thead>
                   <tr>
                     <th className="selection-column" />
@@ -2923,7 +2922,7 @@ function MissingView({
               </div>
             </div>
             <div className="table-wrap stable-filter-table-wrap">
-              <table className="missing-table">
+              <table className="missing-table analytic-report-table">
                 <thead>
                   <tr>
                     <th className="selection-column" />

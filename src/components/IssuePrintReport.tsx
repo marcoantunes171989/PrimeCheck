@@ -75,7 +75,7 @@ export default function IssuePrintReport({
               <td>{item.field.originValue || '—'}</td>
               <td>{item.field.targetValue || '—'}</td>
               <td><StatusBadge status={item.field.status} /></td>
-              <td>{item.field.reason}</td>
+              <td className="reason-cell">{item.field.reason}</td>
             </tr>
           ))}
         </tbody>

@@ -58,7 +58,7 @@ function DuplicateRecordTable({
 }) {
   return (
     <div className="dup-record-table-wrap">
-      <table id={listId} className="dup-record-table">
+      <table id={listId} className="dup-record-table analytic-report-table">
         <thead>
           <tr>
             {columns.map(column => (
