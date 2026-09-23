@@ -1158,3 +1158,150 @@
   overscroll-behavior: contain;
   scroll-behavior: smooth;
 }
+
+/* Lista NFC-e: pesquisa ampla, ordenação e agrupamento por emissão */
+.nfce-list-card .nfce-toolbar {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 11px;
+  padding: 16px 18px;
+}
+.nfce-toolbar-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.nfce-toolbar-heading h2 {
+  margin: 3px 0 0;
+  color: var(--primary);
+  font-size: var(--fs-xl);
+}
+.nfce-toolbar-heading > small {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: right;
+}
+.nfce-toolbar-search {
+  width: 100%;
+}
+.nfce-toolbar-search input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #c7d6df;
+  border-radius: 10px;
+  padding: 0 13px;
+  background: #fff;
+  color: #273845;
+  font-size: var(--fs-xs);
+  outline: none;
+}
+.nfce-toolbar-search input:focus {
+  border-color: #789fb4;
+  box-shadow: 0 0 0 3px rgba(1,46,70,.06);
+}
+.nfce-toolbar-controls {
+  display: flex;
+  align-items: end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.nfce-toolbar-controls label {
+  display: grid;
+  gap: 3px;
+}
+.nfce-toolbar-controls label > span {
+  color: #6d7a84;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.nfce-toolbar-controls select {
+  height: 38px;
+  min-width: 155px;
+  border: 1px solid #cbd8e0;
+  border-radius: 9px;
+  padding: 0 10px;
+  background: #fff;
+  color: #273845;
+  font-size: var(--fs-xs);
+}
+.nfce-sort-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #e0e7eb;
+  border-radius: 9px;
+  background: #f8fafb;
+  color: #667580;
+  font-size: 10px;
+}
+.nfce-toolbar-controls .button {
+  margin-left: auto;
+}
+.nfce-table thead th {
+  white-space: nowrap;
+}
+.nfce-table thead th > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 900;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.nfce-table thead th > button:hover,
+.nfce-table thead th > button.active {
+  color: var(--primary);
+}
+.nfce-table thead th > button span {
+  color: var(--accent);
+  font-size: 11px;
+}
+.nfce-date-group-row td {
+  padding: 8px 12px !important;
+  border-top: 1px solid #cfdde5;
+  border-bottom: 1px solid #dce6eb;
+  background: #eef5f8;
+}
+.nfce-date-group-row td > span {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+.nfce-date-group-row td > strong {
+  margin-left: 9px;
+  color: #6a7a84;
+  font-size: 9px;
+  font-weight: 700;
+}
+@media (max-width: 720px) {
+  .nfce-toolbar-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .nfce-toolbar-heading > small {
+    text-align: left;
+  }
+  .nfce-toolbar-controls {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .nfce-toolbar-controls select {
+    width: 100%;
+  }
+  .nfce-toolbar-controls .button {
+    margin-left: 0;
+  }
+}
