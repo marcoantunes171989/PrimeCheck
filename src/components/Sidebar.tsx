@@ -106,6 +106,21 @@ export default function Sidebar({
             )}
           </button>
 
+          <button
+            type="button"
+            className={active === 'internal-products' ? 'active' : ''}
+            onClick={() => onChange('internal-products')}
+            title={collapsed ? 'Lista de Produtos Internos' : undefined}
+          >
+            <Icon>▤</Icon>
+            {!collapsed && (
+              <span className="sidebar-item-copy">
+                <strong>Lista de Produtos Internos</strong>
+                <small>Código e descrição</small>
+              </span>
+            )}
+          </button>
+
           {WORKSPACE_GROUPS.map(group => {
             const modules = group.modules
               .map(id => WORKSPACE_MODULES.find(module => module.id === id))
