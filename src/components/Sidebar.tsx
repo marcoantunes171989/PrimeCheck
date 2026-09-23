@@ -277,8 +277,25 @@ export default function Sidebar({
   const showSearchField = (!compact && !mobile) || (mobile && mobileSearchOpen)
 
   const dashboardModules = useMemo(
-    () => WORKSPACE_MODULES.filter(module => module.group === 'partners'),
-    [],
+    () => [
+      {
+        id: 'general',
+        label: 'Geral',
+        singular: 'Visão Geral',
+        helper: 'Visão consolidada',
+        icon: 'chart' as IconName,
+        enabled: true,
+      },
+      ...WORKSPACE_MODULES
+        .filter(module => module.group === 'partners')
+        .map(module => ({
+          ...module,
+          helper: 'Dashboard gerencial',
+          icon: DASHBOARD_ICONS[module.id] ?? 'chart' as IconName,
+          enabled: module.enabled,
+        })),
+    ],
+    [enabledSet],
   )
 
   useEffect(() => {
@@ -348,7 +365,7 @@ export default function Sidebar({
   const visibleDashboards = useMemo(() => {
     if (!searching || dashboardsSectionMatched) return dashboardModules
     return dashboardModules.filter(module =>
-      matchesQuery(query, module.label, module.singular, 'Dashboard gerencial', 'DASHBOARDS', module.id),
+      matchesQuery(query, module.label, module.singular, module.helper, 'DASHBOARDS', module.id),
     )
   }, [dashboardModules, dashboardsSectionMatched, query, searching])
 
@@ -452,6 +469,7 @@ export default function Sidebar({
       return
     }
     if (!entry.enabled) return
+    if (!entry.groupId) setOpenGroup(null)
     onChange(entry.target)
     if (mobile) setMobileSearchOpen(false)
   }
@@ -563,11 +581,7 @@ export default function Sidebar({
           <small>{helper}</small>
         </span>
       )}
-      {!compact && (
-        <span className="sidebar-item-chevron" aria-hidden="true">
-          <Glyph name="chevronRight" />
-        </span>
-      )}
+
     </button>
   )
 
@@ -644,12 +658,12 @@ export default function Sidebar({
                 <span>{compact ? '' : 'DASHBOARDS'}</span>
               </div>
               {visibleDashboards.map(module => {
-                const enabled = enabledSet.has(module.id)
+                const enabled = module.enabled
                 return renderItem(
                   `dashboard:${module.id}`,
                   module.label,
-                  'Dashboard gerencial',
-                  DASHBOARD_ICONS[module.id] ?? 'chart',
+                  module.helper,
+                  module.icon,
                   {
                     disabled: !enabled,
                     title: !enabled
@@ -657,7 +671,11 @@ export default function Sidebar({
                       : compact
                         ? 'Dashboard · ' + module.label
                         : undefined,
-                    onClick: () => enabled && onChange(`dashboard:${module.id}`),
+                    onClick: () => {
+                      if (!enabled) return
+                      setOpenGroup(null)
+                      onChange(`dashboard:${module.id}`)
+                    },
                   },
                 )
               })}
@@ -673,7 +691,10 @@ export default function Sidebar({
 
               {visibleFixedFiles.map(item =>
                 renderItem(item.id, item.label, item.helper, item.icon, {
-                  onClick: () => onChange(item.id),
+                  onClick: () => {
+                    setOpenGroup(null)
+                    onChange(item.id)
+                  },
                 }),
               )}
 
@@ -760,7 +781,10 @@ export default function Sidebar({
               </div>
               {visibleValidation.map(item =>
                 renderItem(item.id, item.label, item.helper, item.icon, {
-                  onClick: () => onChange(item.id),
+                  onClick: () => {
+                    setOpenGroup(null)
+                    onChange(item.id)
+                  },
                 }),
               )}
             </section>
