@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import HomologationApp from '../HomologationApp'
 import {
+  getWorkspaceComparisonFileRole,
   getWorkspaceEntityProfile,
   resolveModuleHeaders,
   type WorkspaceModuleDefinition,
@@ -18,7 +19,14 @@ import {
 const normalizeName = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
 
-const pickInitialPair = (names: string[]) => {
+const pickInitialPair = (names: string[], moduleId: WorkspaceModuleDefinition['id']) => {
+  if (moduleId === 'sections') {
+    return {
+      origin: names.find(name => getWorkspaceComparisonFileRole('sections', name) === 'origin') ?? '',
+      target: names.find(name => getWorkspaceComparisonFileRole('sections', name) === 'target') ?? '',
+    }
+  }
+
   if (names.length < 2) return { origin: names[0] ?? '', target: '' }
 
   const originPattern = /(donaire|origem|legado|source|antigo|anterior)/
@@ -51,17 +59,38 @@ export default function ModuleComparisonPage({
   const [originName, setOriginName] = useState('')
   const [targetName, setTargetName] = useState('')
 
+  const originOptions = useMemo(
+    () => module.id === 'sections'
+      ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'origin')
+      : physicalNames,
+    [module.id, physicalNames],
+  )
+  const targetOptions = useMemo(
+    () => module.id === 'sections'
+      ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'target')
+      : physicalNames,
+    [module.id, physicalNames],
+  )
+  const sectionPairReady = module.id !== 'sections' || (originOptions.length > 0 && targetOptions.length > 0)
+
   useEffect(() => {
     const stored = loadWorkspaceComparisonSelection(module.id)
     const storedIsValid = Boolean(
       stored
       && physicalNames.includes(stored.originName)
       && physicalNames.includes(stored.targetName)
-      && stored.originName !== stored.targetName,
+      && stored.originName !== stored.targetName
+      && (
+        module.id !== 'sections'
+        || (
+          getWorkspaceComparisonFileRole('sections', stored.originName) === 'origin'
+          && getWorkspaceComparisonFileRole('sections', stored.targetName) === 'target'
+        )
+      ),
     )
     const pair = storedIsValid && stored
       ? { origin: stored.originName, target: stored.targetName }
-      : pickInitialPair(physicalNames)
+      : pickInitialPair(physicalNames, module.id)
     setOriginName(pair.origin)
     setTargetName(pair.target)
   }, [module.id, physicalNames.join('|')])
@@ -83,7 +112,18 @@ export default function ModuleComparisonPage({
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
-  const canCompare = Boolean(originName && targetName && originName !== targetName)
+  const canCompare = Boolean(
+    originName
+    && targetName
+    && originName !== targetName
+    && (
+      module.id !== 'sections'
+      || (
+        getWorkspaceComparisonFileRole('sections', originName) === 'origin'
+        && getWorkspaceComparisonFileRole('sections', targetName) === 'target'
+      )
+    ),
+  )
   const persistedMapping = useMemo(
     () => canCompare ? loadWorkspaceMapping(module.id, originName, targetName) : [],
     [canCompare, module.id, originName, targetName],
@@ -104,6 +144,7 @@ export default function ModuleComparisonPage({
   )
 
   const swap = () => {
+    if (module.id === 'sections') return
     setOriginName(targetName)
     setTargetName(originName)
   }
@@ -136,7 +177,7 @@ export default function ModuleComparisonPage({
             aria-label={'Arquivo de origem para ' + module.label}
           >
             <option value="">Selecione o arquivo de origem</option>
-            {physicalNames.map(name => (
+            {originOptions.map(name => (
               <option key={'origin-' + name} value={name} disabled={name === targetName}>
                 {name}
               </option>
@@ -149,9 +190,9 @@ export default function ModuleComparisonPage({
           type="button"
           className="comparison-swap"
           onClick={swap}
-          disabled={!originName || !targetName}
-          title="Trocar origem e destino"
-          aria-label="Trocar arquivo de origem e destino"
+          disabled={!originName || !targetName || module.id === 'sections'}
+          title={module.id === 'sections' ? 'Em Seções, o arquivo Intersolid é sempre o destino' : 'Trocar origem e destino'}
+          aria-label={module.id === 'sections' ? 'Origem e destino fixos para Seções' : 'Trocar arquivo de origem e destino'}
         >
           ⇄
         </button>
@@ -167,7 +208,7 @@ export default function ModuleComparisonPage({
             aria-label={'Arquivo de destino para ' + module.label}
           >
             <option value="">Selecione o arquivo de destino</option>
-            {physicalNames.map(name => (
+            {targetOptions.map(name => (
               <option key={'target-' + name} value={name} disabled={name === originName}>
                 {name}
               </option>
@@ -177,12 +218,14 @@ export default function ModuleComparisonPage({
         </div>
       </section>
 
-      {physicalNames.length < 2 ? (
+      {!sectionPairReady || physicalNames.length < 2 ? (
         <section className="comparison-pair-empty">
-          <strong>É necessário importar dois arquivos compatíveis com {module.label}.</strong>
+          <strong>É necessário importar os arquivos corretos para {module.label}.</strong>
           <span>
-            O PrimeCheck identificou {physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo.
-            Volte à Importação e carregue, por exemplo, a base de origem e a base convertida/destino.
+            {module.id === 'sections'
+              ? 'Use SECAO_[cliente].csv como origem e SECAO_intersolid.csv como destino. Somente os campos Código/Descrição da estrutura de Seções serão considerados.'
+              : `O PrimeCheck identificou ${physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo. Volte à Importação e carregue a base de origem e a base convertida/destino.`
+            }
           </span>
           <button type="button" className="button primary" onClick={onBackToImport}>
             Voltar para Importação
