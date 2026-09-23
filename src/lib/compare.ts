@@ -264,6 +264,10 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
   const originText = asText(origin)
   const targetText = asText(target)
 
+  if (hasReplacementCharacter(target)) {
+    return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
+  }
+
   if (!originText && !targetText) {
     return { status: 'CONFORME', reason: 'Campo vazio nos dois arquivos.' }
   }
@@ -332,10 +336,6 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
       return { status: 'CONFORME', reason: 'Regra local aplicada: código de convênio 0 corresponde a ausência de empresa convênio.' }
     }
   }
-  if (hasReplacementCharacter(target)) {
-    return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
-  }
-
   if (field.id === 'rg') {
     const oRg = normalizeAlphanumericDocument(origin)
     const tRg = normalizeAlphanumericDocument(target)
