@@ -413,15 +413,10 @@ const CLIENT_CHECKLIST_CONFIG: Record<string, {
     databaseField: 'flg_convenio',
     aliases: ['FLG_CONVENIO'],
   },
-  condicaoPagamento: {
-    checklistLabel: 'Condição de pagamento',
-    databaseField: 'des_observacao',
-    aliases: ['DES_OBSERVACAO'],
-  },
   observacao: {
     checklistLabel: 'Observação',
-    databaseField: '',
-    aliases: [],
+    databaseField: 'DES_OBSERVACAO',
+    aliases: ['DES_OBSERVACAO', 'OBSERVACAO'],
   },
 }
 
@@ -455,7 +450,6 @@ const CLIENT_CHECKLIST_ORDER = [
   'empresaConvenio',
   'diaFechamento',
   'conveniado',
-  'condicaoPagamento',
   'observacao',
 ]
 
@@ -464,6 +458,7 @@ const CLIENT_CHECKLIST_ORDER_INDEX = new Map(
 )
 
 export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE
+  .filter(field => field.id !== 'condicaoPagamento')
   .map(field => {
     const config = CLIENT_CHECKLIST_CONFIG[field.id]
     return config
