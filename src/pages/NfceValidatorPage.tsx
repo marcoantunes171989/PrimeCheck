@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   formatAccessKey,
   formatNfceDate,
@@ -824,23 +824,34 @@ export default function NfceValidatorPage() {
 
       <section className="nfce-list-card">
         <div className="nfce-toolbar">
-          <div>
-            <span className="eyebrow">DOCUMENTOS IMPORTADOS</span>
-            <h2>Lista de NFC-e</h2>
+          <div className="nfce-toolbar-heading">
+            <div>
+              <span className="eyebrow">DOCUMENTOS IMPORTADOS</span>
+              <h2>Lista de NFC-e</h2>
+            </div>
+            <small>20 registros por página · agrupamento automático por data de emissão</small>
           </div>
-          <div className="nfce-toolbar-actions">
+          <div className="nfce-toolbar-search">
             <input
               type="search"
               value={search}
               onChange={event => setSearch(event.target.value)}
-              placeholder="Pesquisar chave, número, emissor, CNPJ, protocolo..."
-              aria-label="Pesquisar NFC-e"
+              placeholder="Pesquisar em todos os campos: número, série, emissor, CNPJ/CPF, data, valor, status, chave, protocolo..."
+              aria-label="Pesquisar em todos os campos da NFC-e"
             />
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as NfceStatusFilter)}>
-              <option value="ALL">Todas</option>
-              <option value="AUTHORIZED">Autorizadas</option>
-              <option value="ISSUES">Com atenção</option>
-            </select>
+          </div>
+          <div className="nfce-toolbar-controls">
+            <label>
+              <span>Situação</span>
+              <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as NfceStatusFilter)}>
+                <option value="ALL">Todas</option>
+                <option value="AUTHORIZED">Autorizadas</option>
+                <option value="ISSUES">Com atenção</option>
+              </select>
+            </label>
+            <span className="nfce-sort-summary">
+              Ordenação: {sortKey === 'issueDate' ? 'Emissão' : sortKey === 'number' ? 'Nº / Série' : sortKey === 'issuer' ? 'Emissor' : sortKey === 'total' ? 'Valor' : sortKey === 'status' ? 'Status' : 'Chave'} {sortDirection === 'asc' ? '↑' : '↓'}
+            </span>
             {documents.length > 0 && (
               <button
                 className="button ghost"
@@ -865,30 +876,40 @@ export default function NfceValidatorPage() {
               <table className="nfce-table">
                 <thead>
                   <tr>
-                    <th>Nº / Série</th>
-                    <th>Emissor</th>
-                    <th>Emissão</th>
-                    <th>Valor</th>
-                    <th>Status</th>
-                    <th>Chave de acesso</th>
+                    <th><button type="button" className={sortKey === 'number' ? 'active' : ''} onClick={() => toggleSort('number')}>Nº / Série <span>{sortIndicator('number')}</span></button></th>
+                    <th><button type="button" className={sortKey === 'issuer' ? 'active' : ''} onClick={() => toggleSort('issuer')}>Emissor <span>{sortIndicator('issuer')}</span></button></th>
+                    <th><button type="button" className={sortKey === 'issueDate' ? 'active' : ''} onClick={() => toggleSort('issueDate')}>Emissão <span>{sortIndicator('issueDate')}</span></button></th>
+                    <th><button type="button" className={sortKey === 'total' ? 'active' : ''} onClick={() => toggleSort('total')}>Valor <span>{sortIndicator('total')}</span></button></th>
+                    <th><button type="button" className={sortKey === 'status' ? 'active' : ''} onClick={() => toggleSort('status')}>Status <span>{sortIndicator('status')}</span></button></th>
+                    <th><button type="button" className={sortKey === 'accessKey' ? 'active' : ''} onClick={() => toggleSort('accessKey')}>Chave de acesso <span>{sortIndicator('accessKey')}</span></button></th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {pageItems.map(item => (
-                    <tr
-                      key={item.id}
-                      className={item.id === activeDocumentId ? 'is-active' : ''}
-                      onDoubleClick={() => openDocument(item)}
-                    >
-                      <td><strong>{item.number || '—'}</strong><small>Série {item.series || '—'}</small></td>
-                      <td><strong>{item.issuerName || 'Não identificado'}</strong><small>{item.issuerDocument || item.fileName}</small></td>
-                      <td>{formatNfceDate(item.issueDate)}</td>
-                      <td><strong>{formatNfceMoney(item.total)}</strong><small>{item.itemCount} {item.itemCount === 1 ? 'item' : 'itens'}</small></td>
-                      <td><span className={'nfce-status ' + statusClass(item)}>{statusLabel(item)}</span></td>
-                      <td><code>{formatAccessKey(item.accessKey) || '—'}</code></td>
-                      <td><button className="button secondary nfce-open" type="button" onClick={() => openDocument(item)}>Abrir</button></td>
-                    </tr>
+                  {pageGroups.map(group => (
+                    <Fragment key={group.key}>
+                      <tr className="nfce-date-group-row">
+                        <td colSpan={7}>
+                          <span>{group.label}</span>
+                          <strong>{group.items.length} {group.items.length === 1 ? 'documento' : 'documentos'} nesta página</strong>
+                        </td>
+                      </tr>
+                      {group.items.map(item => (
+                        <tr
+                          key={item.id}
+                          className={item.id === activeDocumentId ? 'is-active' : ''}
+                          onDoubleClick={() => openDocument(item)}
+                        >
+                          <td><strong>{item.number || '—'}</strong><small>Série {item.series || '—'}</small></td>
+                          <td><strong>{item.issuerName || 'Não identificado'}</strong><small>{item.issuerDocument || item.fileName}</small></td>
+                          <td>{formatNfceDate(item.issueDate)}</td>
+                          <td><strong>{formatNfceMoney(item.total)}</strong><small>{item.itemCount} {item.itemCount === 1 ? 'item' : 'itens'}</small></td>
+                          <td><span className={'nfce-status ' + statusClass(item)}>{statusLabel(item)}</span></td>
+                          <td><code>{formatAccessKey(item.accessKey) || '—'}</code></td>
+                          <td><button className="button secondary nfce-open" type="button" onClick={() => openDocument(item)}>Abrir</button></td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
