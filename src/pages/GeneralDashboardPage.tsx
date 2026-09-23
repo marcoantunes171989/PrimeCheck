@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
   analyzeWorkspaceFiles,
   WORKSPACE_GROUPS,
@@ -208,7 +208,7 @@ export default function GeneralDashboardPage({ files }: { files: ImportedFile[] 
           <div className="coverage-content">
             <div
               className="coverage-ring"
-              style={{ '--coverage': `${coveragePercent}%` } as React.CSSProperties}
+              style={{ '--coverage': `${coveragePercent}%` } as CSSProperties}
               aria-label={`${coveragePercent}% dos módulos identificados`}
             >
               <div>
