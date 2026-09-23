@@ -197,6 +197,7 @@ export default function NfceValidatorPage() {
   const [selectedXmlKey, setSelectedXmlKey] = useState<string | null>(null)
   const [revealXmlKey, setRevealXmlKey] = useState<string | null>(null)
   const [storageReady, setStorageReady] = useState(false)
+  const [storageScoped, setStorageScoped] = useState(false)
   const [storageMessage, setStorageMessage] = useState('Restaurando XMLs salvos para este IP…')
 
   const detail = useMemo(() => selected ? parseNfceDetail(selected) : null, [selected])
@@ -209,11 +210,13 @@ export default function NfceValidatorPage() {
       if (!active) return
 
       if (!scope) {
+        setStorageScoped(false)
         setStorageMessage('Não foi possível identificar o IP atual. Os XMLs desta sessão não serão restaurados após fechar ou atualizar a página.')
         setStorageReady(true)
         return
       }
 
+      setStorageScoped(true)
       const stored = await loadNfceDocuments()
       if (!active) return
 
@@ -243,7 +246,7 @@ export default function NfceValidatorPage() {
   }, [search, statusFilter])
 
   const handleFiles = async (incoming: File[]) => {
-    if (!incoming.length || busy) return
+    if (!incoming.length || busy || !storageReady) return
 
     const existing = new Set(documents.map(item => `${item.fileName}:${item.size}:${item.lastModified}`))
     const accepted: File[] = []
@@ -281,8 +284,12 @@ export default function NfceValidatorPage() {
     setErrors(localErrors)
 
     try {
-      await saveNfceDocuments(parsed)
-      setStorageMessage(`${parsed.length.toLocaleString('pt-BR')} XML(s) salvo(s) localmente para este IP.`)
+      if (storageScoped) {
+        await saveNfceDocuments(parsed)
+        setStorageMessage(`${parsed.length.toLocaleString('pt-BR')} XML(s) salvo(s) localmente para este IP.`)
+      } else {
+        setStorageMessage('XMLs carregados somente nesta sessão porque o IP atual não pôde ser identificado.')
+      }
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'Falha no armazenamento local.'
       setErrors(current => [
@@ -431,11 +438,11 @@ export default function NfceValidatorPage() {
           setDragging(false)
           void handleFiles(Array.from(event.dataTransfer.files))
         }}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => storageReady && inputRef.current?.click()}
         role="button"
         tabIndex={0}
         onKeyDown={event => {
-          if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click()
+          if (storageReady && (event.key === 'Enter' || event.key === ' ')) inputRef.current?.click()
         }}
       >
         <input
@@ -451,7 +458,7 @@ export default function NfceValidatorPage() {
         />
         <div className="nfce-drop-icon">XML</div>
         <div>
-          <strong>{busy ? 'Processando arquivos NFC-e…' : 'Arraste os XMLs aqui ou clique para selecionar'}</strong>
+          <strong>{!storageReady ? 'Restaurando arquivos NFC-e…' : busy ? 'Processando arquivos NFC-e…' : 'Arraste os XMLs aqui ou clique para selecionar'}</strong>
           <span>Sem limite fixo no PrimeCheck · XML NFC-e modelo 65 · armazenamento local por IP</span>
         </div>
         {busy && (
