@@ -23,6 +23,7 @@ export interface FieldDefinition {
   id: string
   label: string
   group: string
+  checklistLabel?: string
   databaseField?: string
   aliases: string[]
   kind: 'text' | 'code' | 'document' | 'ie' | 'phone' | 'date' | 'money' | 'personType' | 'boolean' | 'sex' | 'state'
