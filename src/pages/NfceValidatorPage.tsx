@@ -183,6 +183,7 @@ const statusLabel = (item: NfceSummary) => {
 
 export default function NfceValidatorPage() {
   const inputRef = useRef<HTMLInputElement>(null)
+  const xmlTreeRef = useRef<HTMLDivElement>(null)
   const [documents, setDocuments] = useState<NfceSummary[]>([])
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -372,10 +373,20 @@ export default function NfceValidatorPage() {
   const revealXmlEntry = (entry: XmlSearchEntry) => {
     setSelectedXmlKey(entry.key)
     setRevealXmlKey(entry.key)
+
     window.requestAnimationFrame(() => {
-      document.getElementById(`nfce-xml-node-${entry.key}`)?.scrollIntoView({
+      const tree = xmlTreeRef.current
+      const target = document.getElementById(`nfce-xml-node-${entry.key}`)
+      if (!tree || !target) return
+
+      const treeRect = tree.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      const targetCenter = targetRect.top - treeRect.top + tree.scrollTop + targetRect.height / 2
+      const nextScrollTop = Math.max(0, targetCenter - tree.clientHeight / 2)
+
+      tree.scrollTo({
+        top: nextScrollTop,
         behavior: 'smooth',
-        block: 'center',
       })
     })
   }
@@ -743,7 +754,7 @@ export default function NfceValidatorPage() {
                     </div>
                   )}
 
-                  <div className="nfce-xml-tree">
+                  <div className="nfce-xml-tree" ref={xmlTreeRef}>
                     {rootElement && (
                       <XmlNode
                         element={rootElement}
