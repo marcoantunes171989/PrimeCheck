@@ -172,7 +172,12 @@ type AutoMapOptions = {
   allowGenericHeaders?: boolean
 }
 
-const assignHeaders = (headers: string[], profile: EntityProfile, options: AutoMapOptions = {}) => {
+const assignHeaders = (
+  headers: string[],
+  profile: EntityProfile,
+  options: AutoMapOptions = {},
+  side: 'origin' | 'target' = 'origin',
+) => {
   const claimed = new Map<string, Array<{ fieldId: string; score: number }>>()
   const guarded = new Map<string, string[]>()
   profile.ambiguousBareTokens.forEach(guard => {
@@ -184,6 +189,16 @@ const assignHeaders = (headers: string[], profile: EntityProfile, options: AutoM
   })
 
   profile.fields.forEach(field => {
+    if (side === 'origin' && field.originExactAliases?.length) {
+      const exact = new Set(field.originExactAliases.map(normalizeHeader))
+      const header = headers.find(item => exact.has(normalizeHeader(item)))
+      if (!header) return
+      const list = claimed.get(header) ?? []
+      list.push({ fieldId: field.id, score: 100 })
+      claimed.set(header, list)
+      return
+    }
+
     const picked = pickBestHeader(headers, [field.label, ...field.aliases])
     if (!picked.header) return
 
@@ -245,8 +260,8 @@ export const autoMap = (
   profile: EntityProfile,
   options: AutoMapOptions = {},
 ): FieldMapping[] => {
-  const originAssigned = assignHeaders(origin.headers, profile, options)
-  const targetAssigned = assignHeaders(target.headers, profile, options)
+  const originAssigned = assignHeaders(origin.headers, profile, options, 'origin')
+  const targetAssigned = assignHeaders(target.headers, profile, options, 'target')
 
   return profile.fields.map(field => ({
     fieldId: field.id,
