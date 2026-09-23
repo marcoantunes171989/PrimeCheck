@@ -407,8 +407,8 @@ export default function NfceValidatorPage() {
   }
 
   return (
-    <main className="module-page nfce-page">
-      <section className="module-hero nfce-hero">
+    <main className="workspace-import-page nfce-page">
+      <section className="workspace-import-hero nfce-hero">
         <div>
           <span className="eyebrow">VALIDAÇÃO NFC-e · XML MODELO 65</span>
           <h1>Validação de NFC-e</h1>
@@ -418,11 +418,11 @@ export default function NfceValidatorPage() {
           </p>
         </div>
         <div className="nfce-import-summary">
-          <div className="nfce-storage-state">
+          <div className="workspace-storage-state nfce-storage-state">
             <i />
             <span>{storageMessage}</span>
           </div>
-          <div className="nfce-import-counter">
+          <div className="workspace-import-counter nfce-import-counter">
             <strong>{documents.length.toLocaleString('pt-BR')}</strong>
             <span>XMLs carregados</span>
           </div>
@@ -430,7 +430,7 @@ export default function NfceValidatorPage() {
       </section>
 
       <section
-        className={'nfce-dropzone ' + (dragging ? 'dragging' : '')}
+        className={'workspace-dropzone nfce-dropzone ' + (dragging ? 'dragging' : '')}
         onDragOver={event => { event.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={event => {
@@ -456,10 +456,10 @@ export default function NfceValidatorPage() {
             event.currentTarget.value = ''
           }}
         />
-        <div className="nfce-drop-icon">XML</div>
+        <div className="workspace-drop-icon nfce-drop-icon">XML</div>
         <div>
           <strong>{!storageReady ? 'Restaurando arquivos NFC-e…' : busy ? 'Processando arquivos NFC-e…' : 'Arraste os XMLs aqui ou clique para selecionar'}</strong>
-          <span>Sem limite fixo no PrimeCheck · XML NFC-e modelo 65 · armazenamento local por IP</span>
+          <span>Arquivos XML exclusivamente · NFC-e modelo 65 · sem limite fixo no PrimeCheck · armazenamento local por IP</span>
         </div>
         {busy && (
           <div className="nfce-progress" aria-live="polite">
