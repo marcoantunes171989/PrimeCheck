@@ -327,7 +327,31 @@ function App({
   ]
 
   const remap = () => {
-    commitMapping(autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping }))
+    const automatic = autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping })
+    const currentByField = new Map(mapping.map(item => [item.fieldId, item]))
+    const next = automatic.map(item => {
+      const current = currentByField.get(item.fieldId)
+      const keepOrigin = Boolean(
+        current?.originManual
+        && current.originHeader
+        && origin.headers.includes(current.originHeader),
+      )
+      const keepTarget = Boolean(
+        current?.targetManual
+        && current.targetHeader
+        && target.headers.includes(current.targetHeader),
+      )
+
+      return {
+        ...item,
+        originHeader: keepOrigin ? current?.originHeader ?? '' : item.originHeader,
+        targetHeader: keepTarget ? current?.targetHeader ?? '' : item.targetHeader,
+        originManual: keepOrigin ? true : undefined,
+        targetManual: keepTarget ? true : undefined,
+      }
+    })
+
+    commitMapping(next)
     setReport(null)
   }
 
