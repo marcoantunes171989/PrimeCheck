@@ -9235,9 +9235,9 @@ footer {
 
 /* Lista de Produtos Internos */
 .internal-products-page {
-  width: min(1660px, calc(100% - 26px));
+  width: min(1540px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 15px 0 28px;
+  padding: 24px 0 36px;
 }
 
 .internal-products-head {
@@ -9281,6 +9281,7 @@ footer {
   display: grid;
   grid-template-columns: 150px minmax(220px, 1.35fr) minmax(180px, .9fr) minmax(220px, 1fr);
   gap: 8px;
+  margin-top: 10px;
   margin-bottom: 9px;
 }
 
@@ -9493,8 +9494,8 @@ footer {
 
 @media (max-width: 1099px) {
   .internal-products-page {
-    width: min(100% - 20px, 1660px);
-    padding: 17px 0 90px;
+    width: min(100% - 20px, 1540px);
+    padding: 17px 0 24px;
   }
 
   .internal-products-table-wrap {
