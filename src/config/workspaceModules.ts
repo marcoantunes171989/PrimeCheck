@@ -125,8 +125,8 @@ const modules: WorkspaceModuleDefinition[] = [
     description: 'Estrutura mercadológica de seções de produtos.',
     signals: ['COD_SECAO', 'DES_SECAO', 'SECAO'],
     fields: [
-      field('codigoSecao', 'Código seção', ['COD_SECAO', 'CODIGO_SECAO', 'ID_SECAO']),
-      field('descricaoSecao', 'Descrição seção', ['DES_SECAO', 'DESCRICAO_SECAO', 'SECAO']),
+      field('codigoSecao', 'Código seção', ['COD_SECAO', 'CODIGO_SECAO', 'ID_SECAO', 'CODIGO']),
+      field('descricaoSecao', 'Descrição seção', ['DES_SECAO', 'DESCRICAO_SECAO', 'SECAO', 'DESCRICAO']),
     ],
   },
   {
@@ -375,6 +375,30 @@ const headerMatches = (header: string, aliases: string[]) => {
 const hasAnyHeader = (file: ImportedFile, aliases: string[]) =>
   file.headers.some(header => headerMatches(header, aliases))
 
+const hasExactHeader = (file: ImportedFile, aliases: string[]) => {
+  const expected = new Set(normalized(aliases))
+  return file.headers.some(header => expected.has(normalizeHeader(header)))
+}
+
+export type WorkspaceComparisonFileRole = 'origin' | 'target' | null
+
+export const getWorkspaceComparisonFileRole = (
+  moduleId: WorkspaceModuleId,
+  fileName: string,
+): WorkspaceComparisonFileRole => {
+  if (moduleId !== 'sections') return null
+
+  const withoutExtension = fileName.replace(/\.[^.]+$/, '')
+  const token = normalizeHeader(withoutExtension)
+  if (!token.startsWith('SECAO_')) return null
+
+  const suffix = token.slice('SECAO_'.length)
+  if (!suffix) return null
+
+  if (suffix === 'INTERSOLID' || suffix === 'INTER_SOLID') return 'target'
+  return 'origin'
+}
+
 const fileNameSuggestsModule = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
   const name = normalizeHeader(file.name + ' ' + (file.sheetName ?? ''))
   const tokens = [module.label, module.singular, ...module.signals]
@@ -397,8 +421,14 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
     case 'carriers':
       return hasAnyHeader(file, ['COD_TRANSPORTADORA', 'COD_TRANSP', 'DES_TRANSPORTADORA', 'NOME_TRANSPORTADORA'])
         || moduleNameHint
-    case 'sections':
-      return hasAnyHeader(file, ['COD_SECAO', 'DES_SECAO', 'CODIGO_SECAO'])
+    case 'sections': {
+      const role = getWorkspaceComparisonFileRole('sections', file.name)
+      if (!role) return false
+
+      return role === 'target'
+        ? hasExactHeader(file, ['CODIGO']) && hasExactHeader(file, ['DESCRICAO'])
+        : hasExactHeader(file, ['COD_SECAO']) && hasExactHeader(file, ['DES_SECAO'])
+    }
     case 'groups':
       return hasAnyHeader(file, ['COD_GRUPO', 'DES_GRUPO', 'CODIGO_GRUPO'])
     case 'subgroups':
