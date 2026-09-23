@@ -189,8 +189,9 @@ const assignHeaders = (
   })
 
   profile.fields.forEach(field => {
-    if (side === 'origin' && field.originExactAliases?.length) {
-      const exact = new Set(field.originExactAliases.map(normalizeHeader))
+    const exactAliases = side === 'origin' ? field.originExactAliases : field.targetExactAliases
+    if (exactAliases !== undefined) {
+      const exact = new Set(exactAliases.map(normalizeHeader))
       const header = headers.find(item => exact.has(normalizeHeader(item)))
       if (!header) return
       const list = claimed.get(header) ?? []
