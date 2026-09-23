@@ -423,4 +423,95 @@ export const clearNfceDocuments = async (): Promise<void> => {
     store => store.delete(range),
     NFCE_STORE_NAME,
   )
+  clearNfceUiState()
+}
+
+export type NfceModalTab = 'danfe' | 'tags' | 'xml'
+export type NfceStatusFilter = 'ALL' | 'AUTHORIZED' | 'ISSUES'
+
+export type NfceUiState = {
+  selectedId: string | null
+  modalOpen: boolean
+  modalTab: NfceModalTab
+  listSearch: string
+  statusFilter: NfceStatusFilter
+  page: number
+  tagSearch: string
+  selectedXmlKey: string | null
+  expandedXmlKeys: string[]
+  xmlTreeScrollTop: number
+  modalScrollTop: number
+  pageScrollY: number
+}
+
+const NFCE_UI_KEY_PREFIX = 'nfce-ui-v1'
+
+const nfceUiKey = () =>
+  activeWorkspaceScope ? `${NFCE_UI_KEY_PREFIX}:${activeWorkspaceScope}` : ''
+
+const emptyNfceUiState = (): NfceUiState => ({
+  selectedId: null,
+  modalOpen: false,
+  modalTab: 'danfe',
+  listSearch: '',
+  statusFilter: 'ALL',
+  page: 1,
+  tagSearch: '',
+  selectedXmlKey: null,
+  expandedXmlKeys: ['0'],
+  xmlTreeScrollTop: 0,
+  modalScrollTop: 0,
+  pageScrollY: 0,
+})
+
+const asString = (value: unknown) => typeof value === 'string' ? value : ''
+const asNumber = (value: unknown, fallback = 0) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+export const loadNfceUiState = (): NfceUiState => {
+  const key = nfceUiKey()
+  if (!hasLocalStorage() || !key) return emptyNfceUiState()
+
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return emptyNfceUiState()
+
+    const parsed = JSON.parse(raw) as Partial<NfceUiState>
+    const modalTab = parsed.modalTab === 'tags' || parsed.modalTab === 'xml' ? parsed.modalTab : 'danfe'
+    const statusFilter = parsed.statusFilter === 'AUTHORIZED' || parsed.statusFilter === 'ISSUES'
+      ? parsed.statusFilter
+      : 'ALL'
+    const expandedXmlKeys = Array.isArray(parsed.expandedXmlKeys)
+      ? parsed.expandedXmlKeys.filter((value): value is string => typeof value === 'string' && value.length > 0)
+      : ['0']
+
+    return {
+      selectedId: typeof parsed.selectedId === 'string' && parsed.selectedId ? parsed.selectedId : null,
+      modalOpen: Boolean(parsed.modalOpen),
+      modalTab,
+      listSearch: asString(parsed.listSearch),
+      statusFilter,
+      page: Math.max(1, Math.floor(asNumber(parsed.page, 1))),
+      tagSearch: asString(parsed.tagSearch),
+      selectedXmlKey: typeof parsed.selectedXmlKey === 'string' && parsed.selectedXmlKey ? parsed.selectedXmlKey : null,
+      expandedXmlKeys: expandedXmlKeys.length ? expandedXmlKeys : ['0'],
+      xmlTreeScrollTop: Math.max(0, asNumber(parsed.xmlTreeScrollTop)),
+      modalScrollTop: Math.max(0, asNumber(parsed.modalScrollTop)),
+      pageScrollY: Math.max(0, asNumber(parsed.pageScrollY)),
+    }
+  } catch {
+    return emptyNfceUiState()
+  }
+}
+
+export const saveNfceUiState = (state: NfceUiState) => {
+  const key = nfceUiKey()
+  if (!hasLocalStorage() || !key) return
+  window.localStorage.setItem(key, JSON.stringify(state))
+}
+
+export const clearNfceUiState = () => {
+  const key = nfceUiKey()
+  if (!hasLocalStorage() || !key) return
+  window.localStorage.removeItem(key)
 }

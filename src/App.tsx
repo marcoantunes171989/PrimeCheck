@@ -64,10 +64,11 @@ export default function App() {
       const session = loadWorkspaceSession()
       const enabledModuleIds = new Set<string>(analyzeWorkspaceFiles(files).map(match => match.module.id))
       const restoredVisited = session.visitedModuleIds.filter(moduleId => enabledModuleIds.has(moduleId))
+      const restoredModule = session.activeModule === 'nfce' ? 'nfce' : 'dashboard:general'
 
       setWorkspaceFiles(files)
       setVisitedWorkspaceModules(new Set(restoredVisited))
-      setModule('dashboard:general')
+      setModule(restoredModule)
       setWorkspaceStorageMessage(files.length ? 'Dados, vínculos e homologações restaurados para este IP.' : 'Nenhum dado salvo para este IP.')
       setWorkspaceStorageReady(true)
     })()
@@ -84,7 +85,7 @@ export default function App() {
 
   useEffect(() => {
     if (!workspaceStorageReady) return
-    if (module !== 'importacao' && !module.startsWith('data:') && !module.startsWith('dashboard:')) return
+    if (module !== 'nfce' && module !== 'importacao' && !module.startsWith('data:') && !module.startsWith('dashboard:')) return
 
     saveWorkspaceNavigation(module, [...visitedWorkspaceModules])
   }, [module, visitedWorkspaceModules, workspaceStorageReady])

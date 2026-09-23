@@ -50,6 +50,9 @@ export type NfcePayment = {
 
 export type NfceDetail = NfceSummary & {
   issuerAddress: string
+  issuerFantasy: string
+  issuerIe: string
+  issuerPhone: string
   recipientAddress: string
   natureOperation: string
   items: NfceItem[]
@@ -156,6 +159,13 @@ export const formatNfceMoney = (value: number) =>
 
 export const formatAccessKey = (value: string) =>
   value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim()
+
+export const formatNfceDocument = (value: string) => {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 14) return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+  if (digits.length === 11) return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+  return value
+}
 
 export async function parseNfceFile(file: File): Promise<NfceSummary> {
   let rawXml = ''
@@ -290,6 +300,9 @@ export function parseNfceDetail(summary: NfceSummary): NfceDetail {
   return {
     ...summary,
     issuerAddress: joinAddress(first(emit, 'enderEmit')),
+    issuerFantasy: text(emit, 'xFant'),
+    issuerIe: text(emit, 'IE'),
+    issuerPhone: text(first(emit, 'enderEmit'), 'fone'),
     recipientAddress: joinAddress(first(dest, 'enderDest')),
     natureOperation: text(ide, 'natOp'),
     items,

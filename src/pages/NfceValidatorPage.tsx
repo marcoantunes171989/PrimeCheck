@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   formatAccessKey,
   formatNfceDate,
+  formatNfceDocument,
   formatNfceMoney,
   nfceSearchText,
   normalizeNfceSearch,
@@ -13,7 +14,12 @@ import {
   clearNfceDocuments,
   initializeWorkspaceScope,
   loadNfceDocuments,
+  loadNfceUiState,
   saveNfceDocuments,
+  saveNfceUiState,
+  type NfceModalTab,
+  type NfceStatusFilter,
+  type NfceUiState,
 } from '../lib/workspaceStorage'
 import '../nfce.css'
 
@@ -77,68 +83,122 @@ const buildXmlSearchEntries = (root: Element) => {
   return entries
 }
 
+const ancestorKeys = (key: string) => {
+  const parts = key.split('-')
+  const keys: string[] = []
+  for (let index = 1; index < parts.length; index += 1) {
+    keys.push(parts.slice(0, index).join('-'))
+  }
+  return keys
+}
+
+const copyPlainText = async (value: string) => {
+  try {
+    await navigator.clipboard.writeText(value)
+    return true
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = value
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    return ok
+  }
+}
+
 const XmlNode = ({
   element,
   path,
   nodeKey,
   searchQuery,
   selectedKey,
-  revealKey,
+  expandedKeys,
+  copiedKey,
   depth = 0,
+  onToggle,
+  onCopyValue,
 }: {
   element: Element
   path: string
   nodeKey: string
   searchQuery: string
   selectedKey: string | null
-  revealKey: string | null
+  expandedKeys: Set<string>
+  copiedKey: string | null
   depth?: number
+  onToggle: (key: string) => void
+  onCopyValue: (key: string, value: string) => void
 }) => {
   const children = Array.from(element.children)
   const name = elementName(element)
   const value = directText(element)
   const attributes = Array.from(element.attributes)
   const empty = children.length === 0 && !value
-  const [open, setOpen] = useState(depth === 0)
-  const revealsThisBranch = Boolean(revealKey && (revealKey === nodeKey || revealKey.startsWith(nodeKey + '-')))
-  const expanded = children.length > 0 && (open || revealsThisBranch)
+  const expanded = children.length > 0 && expandedKeys.has(nodeKey)
   const matched = Boolean(searchQuery && elementOwnSearchText(element, path).includes(searchQuery))
   const selected = selectedKey === nodeKey
 
+  const handleRowClick = () => {
+    if (children.length) onToggle(nodeKey)
+  }
+
+  const handleRowKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!children.length) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onToggle(nodeKey)
+    }
+  }
+
+  const handleCopy = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onCopyValue(nodeKey, value)
+  }
+
   return (
     <div className="nfce-xml-node" id={`nfce-xml-node-${nodeKey}`}>
-      <button
-        type="button"
+      <div
         className={[
           'nfce-xml-node-head',
+          children.length ? 'is-branch' : 'is-leaf',
           matched ? 'is-match' : '',
           selected ? 'is-selected' : '',
         ].filter(Boolean).join(' ')}
-        onClick={() => children.length && setOpen(current => !current)}
-        style={{ paddingLeft: `${10 + depth * 16}px` }}
+        style={{ paddingLeft: `${12 + depth * 16}px` }}
+        role={children.length ? 'button' : undefined}
+        tabIndex={children.length ? 0 : undefined}
         aria-expanded={children.length ? expanded : undefined}
         title={path}
+        onClick={handleRowClick}
+        onKeyDown={handleRowKeyDown}
       >
-        <span className="nfce-xml-chevron">{children.length ? (expanded ? '⌄' : '›') : '·'}</span>
-        <span className="nfce-xml-tag-preview">
-          {empty ? (
-            <code>&lt;{name} /&gt;</code>
-          ) : children.length ? (
-            <code>&lt;{name}&gt;</code>
-          ) : (
-            <>
-              <code>&lt;{name}&gt;</code>
-              <strong className="nfce-xml-value">{value}</strong>
-              <code>&lt;/{name}&gt;</code>
-            </>
-          )}
+        <span className="nfce-xml-chevron" aria-hidden="true">
+          {children.length ? (expanded ? '⌄' : '›') : '·'}
         </span>
+        <code className="nfce-xml-tag">{empty ? `<${name} />` : `<${name}>`}</code>
+        {value ? (
+          <button
+            type="button"
+            className={'nfce-xml-value' + (copiedKey === nodeKey ? ' is-copied' : '')}
+            onClick={handleCopy}
+            title="Copiar valor"
+          >
+            <span className="nfce-xml-value-text">{value}</span>
+            {copiedKey === nodeKey && <span className="nfce-xml-copied" role="status">Valor copiado</span>}
+          </button>
+        ) : empty ? (
+          <em>sem conteúdo</em>
+        ) : null}
+        {!empty && children.length === 0 && <code className="nfce-xml-tag nfce-xml-tag-close">{`</${name}>`}</code>}
         {attributes.length > 0 && (
-          <small>{attributes.map(attr => `${attr.name}="${attr.value}"`).join(' ')}</small>
+          <small className="nfce-xml-attrs">{attributes.map(attr => `${attr.name}="${attr.value}"`).join(' ')}</small>
         )}
-        {children.length > 0 && value && <strong className="nfce-xml-value">{value}</strong>}
-        {empty && <em>sem conteúdo</em>}
-      </button>
+      </div>
 
       {expanded && (
         <div>
@@ -156,8 +216,11 @@ const XmlNode = ({
                 nodeKey={childKey}
                 searchQuery={searchQuery}
                 selectedKey={selectedKey}
-                revealKey={revealKey}
+                expandedKeys={expandedKeys}
+                copiedKey={copiedKey}
                 depth={depth + 1}
+                onToggle={onToggle}
+                onCopyValue={onCopyValue}
               />
             )
           })}
@@ -181,27 +244,53 @@ const statusLabel = (item: NfceSummary) => {
   return item.statusMessage || (item.statusCode ? `Status ${item.statusCode}` : 'Sem protocolo')
 }
 
+const defaultUiState = (): NfceUiState => ({
+  selectedId: null,
+  modalOpen: false,
+  modalTab: 'danfe',
+  listSearch: '',
+  statusFilter: 'ALL',
+  page: 1,
+  tagSearch: '',
+  selectedXmlKey: null,
+  expandedXmlKeys: ['0'],
+  xmlTreeScrollTop: 0,
+  modalScrollTop: 0,
+  pageScrollY: 0,
+})
+
 export default function NfceValidatorPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const xmlTreeRef = useRef<HTMLDivElement>(null)
+  const modalBodyRef = useRef<HTMLDivElement>(null)
+  const restoringRef = useRef(true)
+  const skipPageResetRef = useRef(true)
+  const skipSearchRevealRef = useRef(true)
+  const copyTimeoutRef = useRef<number>(0)
+  const latestUiRef = useRef<NfceUiState>(defaultUiState())
+  const pendingRestoreRef = useRef<NfceUiState | null>(null)
+
   const [documents, setDocuments] = useState<NfceSummary[]>([])
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0 })
   const [errors, setErrors] = useState<string[]>([])
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AUTHORIZED' | 'ISSUES'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<NfceStatusFilter>('ALL')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<NfceSummary | null>(null)
-  const [modalTab, setModalTab] = useState<'danfe' | 'tags' | 'xml'>('danfe')
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null)
+  const [modalTab, setModalTab] = useState<NfceModalTab>('danfe')
   const [tagSearch, setTagSearch] = useState('')
   const [selectedXmlKey, setSelectedXmlKey] = useState<string | null>(null)
-  const [revealXmlKey, setRevealXmlKey] = useState<string | null>(null)
+  const [expandedXmlKeys, setExpandedXmlKeys] = useState<string[]>(['0'])
+  const [copiedXmlKey, setCopiedXmlKey] = useState<string | null>(null)
   const [storageReady, setStorageReady] = useState(false)
   const [storageScoped, setStorageScoped] = useState(false)
   const [storageMessage, setStorageMessage] = useState('Restaurando XMLs salvos para este IP…')
 
   const detail = useMemo(() => selected ? parseNfceDetail(selected) : null, [selected])
+  const expandedXmlKeySet = useMemo(() => new Set(expandedXmlKeys), [expandedXmlKeys])
 
   useEffect(() => {
     let active = true
@@ -213,6 +302,9 @@ export default function NfceValidatorPage() {
       if (!scope) {
         setStorageScoped(false)
         setStorageMessage('Não foi possível identificar o IP atual. Os XMLs desta sessão não serão restaurados após fechar ou atualizar a página.')
+        restoringRef.current = false
+        skipPageResetRef.current = false
+        skipSearchRevealRef.current = false
         setStorageReady(true)
         return
       }
@@ -221,7 +313,21 @@ export default function NfceValidatorPage() {
       const stored = await loadNfceDocuments()
       if (!active) return
 
+      const ui = loadNfceUiState()
       setDocuments(stored)
+      setSearch(ui.listSearch)
+      setStatusFilter(ui.statusFilter)
+      setPage(ui.page)
+      setModalTab(ui.modalTab)
+      setTagSearch(ui.tagSearch)
+      setSelectedXmlKey(ui.selectedXmlKey)
+      setExpandedXmlKeys(ui.expandedXmlKeys.length ? ui.expandedXmlKeys : ['0'])
+      setActiveDocumentId(ui.selectedId)
+
+      const found = ui.selectedId ? stored.find(item => item.id === ui.selectedId) ?? null : null
+      if (found && ui.modalOpen) setSelected(found)
+      pendingRestoreRef.current = ui
+
       setStorageMessage(
         stored.length
           ? `${stored.length.toLocaleString('pt-BR')} XML(s) restaurado(s) para este IP.`
@@ -243,8 +349,39 @@ export default function NfceValidatorPage() {
   }, [selected])
 
   useEffect(() => {
+    if (skipPageResetRef.current) return
     setPage(1)
   }, [search, statusFilter])
+
+  useEffect(() => {
+    if (!storageReady) return
+    const pending = pendingRestoreRef.current
+    if (!pending) {
+      restoringRef.current = false
+      skipPageResetRef.current = false
+      skipSearchRevealRef.current = false
+      return
+    }
+
+    let cancelled = false
+    const restore = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (cancelled) return
+        window.scrollTo(0, pending.pageScrollY)
+        if (modalBodyRef.current) modalBodyRef.current.scrollTop = pending.modalScrollTop
+        if (xmlTreeRef.current) xmlTreeRef.current.scrollTop = pending.xmlTreeScrollTop
+        pendingRestoreRef.current = null
+        restoringRef.current = false
+        skipPageResetRef.current = false
+        skipSearchRevealRef.current = false
+      })
+    })
+
+    return () => {
+      cancelled = true
+      window.cancelAnimationFrame(restore)
+    }
+  }, [storageReady, selected, modalTab])
 
   const handleFiles = async (incoming: File[]) => {
     if (!incoming.length || busy || !storageReady) return
@@ -314,7 +451,8 @@ export default function NfceValidatorPage() {
   }, [documents, search, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const safePage = Math.min(page, totalPages)
+  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
   const authorized = documents.filter(item => item.statusCode === '100' && item.isNfce && item.validXml).length
   const issues = documents.length - authorized
   const totalValue = documents.reduce((sum, item) => sum + item.total, 0)
@@ -329,6 +467,11 @@ export default function NfceValidatorPage() {
       setSearch('')
       setStatusFilter('ALL')
       setSelected(null)
+      setActiveDocumentId(null)
+      setTagSearch('')
+      setSelectedXmlKey(null)
+      setExpandedXmlKeys(['0'])
+      setPage(1)
       setStorageMessage('Arquivos XML importados removidos para este IP.')
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'Falha ao limpar o armazenamento local.'
@@ -337,10 +480,19 @@ export default function NfceValidatorPage() {
   }
 
   const openDocument = (item: NfceSummary) => {
+    const same = selected?.id === item.id || activeDocumentId === item.id
     setSelected(item)
-    setModalTab('danfe')
-    setTagSearch('')
+    setActiveDocumentId(item.id)
+    if (!same) {
+      setTagSearch('')
+      setSelectedXmlKey(null)
+      setExpandedXmlKeys(['0'])
+      if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0
+      if (xmlTreeRef.current) xmlTreeRef.current.scrollTop = 0
+    }
   }
+
+  const closeDocument = () => setSelected(null)
 
   const rootElement = useMemo(() => {
     if (!selected || modalTab !== 'tags') return null
@@ -370,9 +522,15 @@ export default function NfceValidatorPage() {
     )
   }, [normalizedTagSearch, xmlEntries])
 
+  const toggleXmlNode = (key: string) => {
+    setExpandedXmlKeys(current =>
+      current.includes(key) ? current.filter(item => item !== key) : [...current, key],
+    )
+  }
+
   const revealXmlEntry = (entry: XmlSearchEntry) => {
     setSelectedXmlKey(entry.key)
-    setRevealXmlKey(entry.key)
+    setExpandedXmlKeys(current => [...new Set([...current, ...ancestorKeys(entry.key)])])
 
     window.requestAnimationFrame(() => {
       const tree = xmlTreeRef.current
@@ -392,30 +550,94 @@ export default function NfceValidatorPage() {
   }
 
   useEffect(() => {
+    if (skipSearchRevealRef.current) return
     if (!normalizedTagSearch) {
       setSelectedXmlKey(null)
-      setRevealXmlKey(null)
       return
     }
     const firstMatch = xmlMatches[0]
     if (firstMatch) revealXmlEntry(firstMatch)
-  }, [normalizedTagSearch])
+  }, [normalizedTagSearch, xmlMatches])
+
+  const copyXmlValue = async (key: string, value: string) => {
+    setCopiedXmlKey(key)
+    window.clearTimeout(copyTimeoutRef.current)
+    copyTimeoutRef.current = window.setTimeout(() => {
+      setCopiedXmlKey(current => current === key ? null : current)
+    }, 1400)
+    await copyPlainText(value)
+  }
+
+  useEffect(() => () => window.clearTimeout(copyTimeoutRef.current), [])
+
+  const currentUiState = (): NfceUiState => ({
+    selectedId: selected?.id ?? activeDocumentId,
+    modalOpen: Boolean(selected),
+    modalTab,
+    listSearch: search,
+    statusFilter,
+    page: safePage,
+    tagSearch,
+    selectedXmlKey,
+    expandedXmlKeys,
+    xmlTreeScrollTop: xmlTreeRef.current?.scrollTop ?? latestUiRef.current.xmlTreeScrollTop,
+    modalScrollTop: modalBodyRef.current?.scrollTop ?? latestUiRef.current.modalScrollTop,
+    pageScrollY: window.scrollY,
+  })
+
+  latestUiRef.current = currentUiState()
 
   useEffect(() => {
-    if (modalTab !== 'tags') return
-    setSelectedXmlKey(null)
-    setRevealXmlKey(null)
-  }, [selected?.id, modalTab])
+    if (!storageReady || !storageScoped || restoringRef.current) return
+    const timer = window.setTimeout(() => {
+      saveNfceUiState(latestUiRef.current)
+    }, 220)
+    return () => window.clearTimeout(timer)
+  }, [
+    storageReady,
+    storageScoped,
+    selected,
+    activeDocumentId,
+    modalTab,
+    search,
+    statusFilter,
+    safePage,
+    tagSearch,
+    selectedXmlKey,
+    expandedXmlKeys,
+  ])
+
+  useEffect(() => {
+    if (!storageReady || !storageScoped) return
+    const persist = () => saveNfceUiState(latestUiRef.current)
+    const handleScroll = () => {
+      latestUiRef.current = {
+        ...latestUiRef.current,
+        xmlTreeScrollTop: xmlTreeRef.current?.scrollTop ?? latestUiRef.current.xmlTreeScrollTop,
+        modalScrollTop: modalBodyRef.current?.scrollTop ?? latestUiRef.current.modalScrollTop,
+        pageScrollY: window.scrollY,
+      }
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('beforeunload', persist)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('beforeunload', persist)
+      persist()
+    }
+  }, [storageReady, storageScoped])
 
   const copyXml = async () => {
     if (!selected) return
-    await navigator.clipboard?.writeText(selected.rawXml)
+    await copyPlainText(selected.rawXml)
   }
 
   const printDanfe = () => {
     setModalTab('danfe')
     window.setTimeout(() => window.print(), 50)
   }
+
+  const accessKeyGroups = formatAccessKey(detail?.accessKey || '').split(' ').filter(Boolean)
 
   return (
     <main className="workspace-import-page nfce-page">
@@ -508,7 +730,7 @@ export default function NfceValidatorPage() {
               placeholder="Pesquisar chave, número, emissor, CNPJ, protocolo..."
               aria-label="Pesquisar NFC-e"
             />
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as typeof statusFilter)}>
+            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as NfceStatusFilter)}>
               <option value="ALL">Todas</option>
               <option value="AUTHORIZED">Autorizadas</option>
               <option value="ISSUES">Com atenção</option>
@@ -548,7 +770,11 @@ export default function NfceValidatorPage() {
                 </thead>
                 <tbody>
                   {pageItems.map(item => (
-                    <tr key={item.id} onDoubleClick={() => openDocument(item)}>
+                    <tr
+                      key={item.id}
+                      className={item.id === activeDocumentId ? 'is-active' : ''}
+                      onDoubleClick={() => openDocument(item)}
+                    >
                       <td><strong>{item.number || '—'}</strong><small>Série {item.series || '—'}</small></td>
                       <td><strong>{item.issuerName || 'Não identificado'}</strong><small>{item.issuerDocument || item.fileName}</small></td>
                       <td>{formatNfceDate(item.issueDate)}</td>
@@ -564,11 +790,11 @@ export default function NfceValidatorPage() {
 
             <div className="pagination nfce-pagination">
               <span>{filtered.length.toLocaleString('pt-BR')} registros</span>
-              <button type="button" disabled={page <= 1} onClick={() => setPage(1)}>«</button>
-              <button type="button" disabled={page <= 1} onClick={() => setPage(current => Math.max(1, current - 1))}>‹</button>
-              <span>Página {page} de {totalPages}</span>
-              <button type="button" disabled={page >= totalPages} onClick={() => setPage(current => Math.min(totalPages, current + 1))}>›</button>
-              <button type="button" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</button>
+              <button type="button" disabled={safePage <= 1} onClick={() => setPage(1)}>«</button>
+              <button type="button" disabled={safePage <= 1} onClick={() => setPage(current => Math.max(1, current - 1))}>‹</button>
+              <span>Página {safePage} de {totalPages}</span>
+              <button type="button" disabled={safePage >= totalPages} onClick={() => setPage(current => Math.min(totalPages, current + 1))}>›</button>
+              <button type="button" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>»</button>
             </div>
           </>
         )}
@@ -576,7 +802,7 @@ export default function NfceValidatorPage() {
 
       {selected && detail && (
         <div className="nfce-modal-overlay" role="presentation" onMouseDown={event => {
-          if (event.target === event.currentTarget) setSelected(null)
+          if (event.target === event.currentTarget) closeDocument()
         }}>
           <section className="nfce-modal" role="dialog" aria-modal="true" aria-label={'NFC-e ' + (selected.number || selected.fileName)}>
             <header className="nfce-modal-header">
@@ -587,7 +813,7 @@ export default function NfceValidatorPage() {
               </div>
               <div className="nfce-modal-header-actions">
                 <button className="button secondary" type="button" onClick={printDanfe}>Imprimir / salvar PDF</button>
-                <button className="icon-button large" type="button" onClick={() => setSelected(null)} aria-label="Fechar">×</button>
+                <button className="icon-button large" type="button" onClick={closeDocument} aria-label="Fechar">×</button>
               </div>
             </header>
 
@@ -597,49 +823,109 @@ export default function NfceValidatorPage() {
               <button type="button" className={modalTab === 'xml' ? 'active' : ''} onClick={() => setModalTab('xml')}>XML bruto</button>
             </nav>
 
-            <div className="nfce-modal-body">
+            <div
+              className="nfce-modal-body"
+              ref={modalBodyRef}
+              onScroll={event => {
+                latestUiRef.current = {
+                  ...latestUiRef.current,
+                  modalScrollTop: event.currentTarget.scrollTop,
+                }
+              }}
+            >
               {modalTab === 'danfe' && (
                 <article className="nfce-danfe" id="nfce-danfe-print">
-                  <div className="nfce-danfe-title">
-                    <div>
+                  <header className="nfce-danfe-head">
+                    <div className="nfce-danfe-emit">
+                      <span className="nfce-danfe-kicker">Emitente</span>
                       <strong>{detail.issuerName || 'Emitente não identificado'}</strong>
-                      <span>{detail.issuerAddress || 'Endereço não informado no XML'}</span>
-                      <span>CNPJ/CPF: {detail.issuerDocument || '—'}</span>
+                      {detail.issuerFantasy && detail.issuerFantasy !== detail.issuerName && (
+                        <em>{detail.issuerFantasy}</em>
+                      )}
+                      <p>{detail.issuerAddress || 'Endereço não informado no XML'}</p>
+                      <div className="nfce-danfe-emit-ids">
+                        <b>CNPJ/CPF {formatNfceDocument(detail.issuerDocument) || '—'}</b>
+                        {detail.issuerIe && <b>IE {detail.issuerIe}</b>}
+                        {detail.issuerPhone && <b>Fone {detail.issuerPhone}</b>}
+                      </div>
                     </div>
-                    <div>
+                    <div className="nfce-danfe-badge">
+                      <span>Documento auxiliar</span>
                       <b>DANFE NFC-e</b>
-                      <span>Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica</span>
-                      <strong>Nº {detail.number || '—'} · Série {detail.series || '—'}</strong>
+                      <small>Nota Fiscal de Consumidor Eletrônica</small>
+                      <div className="nfce-danfe-number">
+                        <div>
+                          <span>Número</span>
+                          <strong>{detail.number || '—'}</strong>
+                        </div>
+                        <div>
+                          <span>Série</span>
+                          <strong>{detail.series || '—'}</strong>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </header>
 
                   <div className="nfce-danfe-key">
-                    <span>CHAVE DE ACESSO</span>
-                    <strong>{formatAccessKey(detail.accessKey) || 'Não identificada'}</strong>
+                    <span>Chave de acesso</span>
+                    <strong className="nfce-danfe-key-digits">
+                      {accessKeyGroups.length
+                        ? accessKeyGroups.map((group, index) => <span key={group + index}>{group}</span>)
+                        : 'Não identificada'}
+                    </strong>
                   </div>
 
                   <div className="nfce-danfe-meta">
-                    <div><span>Emissão</span><strong>{formatNfceDate(detail.issueDate)}</strong></div>
-                    <div><span>Protocolo</span><strong>{detail.protocol || '—'}</strong></div>
-                    <div><span>Status</span><strong>{detail.statusCode || '—'} {detail.statusMessage}</strong></div>
-                    <div><span>Natureza da operação</span><strong>{detail.natureOperation || '—'}</strong></div>
+                    <div>
+                      <span>Emissão</span>
+                      <strong>{formatNfceDate(detail.issueDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Protocolo</span>
+                      <strong>{detail.protocol || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>Status</span>
+                      <strong className={'nfce-danfe-status ' + statusClass(detail)}>{statusLabel(detail)}</strong>
+                      <small>{detail.statusCode || '—'}{detail.statusMessage ? ` · ${detail.statusMessage}` : ''}</small>
+                    </div>
+                    <div>
+                      <span>Natureza da operação</span>
+                      <strong>{detail.natureOperation || '—'}</strong>
+                    </div>
                   </div>
 
                   <div className="nfce-danfe-consumer">
-                    <span>CONSUMIDOR</span>
+                    <span className="nfce-danfe-kicker">Consumidor</span>
                     <strong>{detail.recipientName || 'Consumidor não identificado'}</strong>
-                    <small>{detail.recipientDocument || 'Documento não informado'} {detail.recipientAddress ? ' · ' + detail.recipientAddress : ''}</small>
+                    <small>
+                      {detail.recipientDocument ? formatNfceDocument(detail.recipientDocument) : 'Documento não informado'}
+                      {detail.recipientAddress ? ` · ${detail.recipientAddress}` : ''}
+                    </small>
                   </div>
 
                   <div className="nfce-danfe-items">
                     <table>
-                      <thead><tr><th>#</th><th>Código</th><th>Descrição</th><th>Qtd.</th><th>Un.</th><th>Vl. unit.</th><th>Total</th></tr></thead>
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Código</th>
+                          <th>Descrição</th>
+                          <th>Qtd.</th>
+                          <th>Un.</th>
+                          <th>Vl. unit.</th>
+                          <th>Total</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {detail.items.map(item => (
                           <tr key={item.index || item.code + item.description}>
                             <td>{item.index}</td>
                             <td>{item.code}</td>
-                            <td><strong>{item.description}</strong><small>NCM {item.ncm || '—'} · CFOP {item.cfop || '—'}{item.cest ? ' · CEST ' + item.cest : ''}</small></td>
+                            <td>
+                              <strong>{item.description}</strong>
+                              <small>NCM {item.ncm || '—'} · CFOP {item.cfop || '—'}{item.cest ? ' · CEST ' + item.cest : ''}</small>
+                            </td>
                             <td>{item.quantity.toLocaleString('pt-BR', { maximumFractionDigits: 4 })}</td>
                             <td>{item.unit}</td>
                             <td>{formatNfceMoney(item.unitPrice)}</td>
@@ -652,36 +938,53 @@ export default function NfceValidatorPage() {
 
                   <div className="nfce-danfe-bottom">
                     <div className="nfce-danfe-payments">
-                      <span>PAGAMENTOS</span>
+                      <span className="nfce-danfe-kicker">Pagamentos</span>
                       {detail.payments.length
                         ? detail.payments.map((payment, index) => (
-                            <div key={payment.methodCode + index}><strong>{payment.methodLabel}</strong><b>{formatNfceMoney(payment.amount)}</b></div>
+                            <div key={payment.methodCode + index}>
+                              <strong>{payment.methodLabel}</strong>
+                              <b>{formatNfceMoney(payment.amount)}</b>
+                            </div>
                           ))
                         : <small>Nenhuma forma de pagamento identificada.</small>}
-                      {detail.change > 0 && <div><strong>Troco</strong><b>{formatNfceMoney(detail.change)}</b></div>}
+                      {detail.change > 0 && (
+                        <div className="nfce-danfe-change">
+                          <strong>Troco</strong>
+                          <b>{formatNfceMoney(detail.change)}</b>
+                        </div>
+                      )}
                     </div>
                     <div className="nfce-danfe-totals">
+                      <span className="nfce-danfe-kicker">Totais</span>
                       <div><span>Produtos</span><strong>{formatNfceMoney(detail.productsTotal)}</strong></div>
                       <div><span>Desconto</span><strong>{formatNfceMoney(detail.discount)}</strong></div>
                       <div><span>Tributos aprox.</span><strong>{formatNfceMoney(detail.taxesTotal)}</strong></div>
-                      <div className="total"><span>VALOR TOTAL</span><strong>{formatNfceMoney(detail.total)}</strong></div>
+                      <div className="total"><span>Valor total</span><strong>{formatNfceMoney(detail.total)}</strong></div>
                     </div>
                   </div>
 
-                  {detail.qrCodeUrl && (
+                  {(detail.qrCodeUrl || detail.consumerUrl) && (
                     <div className="nfce-danfe-qr">
-                      <div className="nfce-qr-placeholder">QR</div>
+                      <div className="nfce-qr-mark" aria-hidden="true">
+                        <span /><span /><span /><span />
+                      </div>
                       <div>
-                        <span>CONSULTA VIA QR CODE</span>
-                        <a href={detail.qrCodeUrl} target="_blank" rel="noreferrer">Abrir endereço de consulta informado no XML</a>
-                        <small>{detail.qrCodeUrl}</small>
+                        <span className="nfce-danfe-kicker">Consulta</span>
+                        <strong>Consulta pública da NFC-e</strong>
+                        {detail.qrCodeUrl && (
+                          <a href={detail.qrCodeUrl} target="_blank" rel="noreferrer">Abrir endereço de consulta informado no XML</a>
+                        )}
+                        {detail.consumerUrl && detail.consumerUrl !== detail.qrCodeUrl && (
+                          <a href={detail.consumerUrl} target="_blank" rel="noreferrer">Portal do consumidor</a>
+                        )}
+                        <small>{detail.qrCodeUrl || detail.consumerUrl}</small>
                       </div>
                     </div>
                   )}
 
                   {detail.additionalInfo && (
                     <div className="nfce-danfe-additional">
-                      <span>INFORMAÇÕES ADICIONAIS</span>
+                      <span className="nfce-danfe-kicker">Informações adicionais</span>
                       <p>{detail.additionalInfo}</p>
                     </div>
                   )}
@@ -699,8 +1002,8 @@ export default function NfceValidatorPage() {
                       <span className="eyebrow">ESTRUTURA XML ORIGINAL</span>
                       <h3>Pesquisar e inspecionar todas as tags</h3>
                       <p>
-                        Expanda a árvore clicando nas linhas. Tags vazias também são exibidas para manter
-                        a estrutura original do arquivo importado.
+                        Expanda a árvore clicando nas linhas. Clique no valor laranja para copiar apenas o conteúdo
+                        da tag. Tags vazias também são exibidas para manter a estrutura original do arquivo.
                       </p>
                     </div>
                     <div className="nfce-tag-search-field">
@@ -754,7 +1057,16 @@ export default function NfceValidatorPage() {
                     </div>
                   )}
 
-                  <div className="nfce-xml-tree" ref={xmlTreeRef}>
+                  <div
+                    className="nfce-xml-tree"
+                    ref={xmlTreeRef}
+                    onScroll={event => {
+                      latestUiRef.current = {
+                        ...latestUiRef.current,
+                        xmlTreeScrollTop: event.currentTarget.scrollTop,
+                      }
+                    }}
+                  >
                     {rootElement && (
                       <XmlNode
                         element={rootElement}
@@ -762,7 +1074,10 @@ export default function NfceValidatorPage() {
                         nodeKey="0"
                         searchQuery={normalizedTagSearch}
                         selectedKey={selectedXmlKey}
-                        revealKey={revealXmlKey}
+                        expandedKeys={expandedXmlKeySet}
+                        copiedKey={copiedXmlKey}
+                        onToggle={toggleXmlNode}
+                        onCopyValue={(key, value) => void copyXmlValue(key, value)}
                       />
                     )}
                   </div>
