@@ -7849,401 +7849,666 @@ table {
 }
 
 
-/* =========================================================
-   Tipografia global — escala confortável e consistente
-   ========================================================= */
-html {
-  font-size: 16px;
-}
-
-body,
-button,
-input,
-select,
-textarea,
-table,
-th,
-td {
-  font-family: var(--font-sans);
-  font-size: var(--fs-base);
-}
-
-.button,
-.tabs button,
-.filters input,
-.filters select,
-.page-size-select,
-.screen-search input,
-.column-combobox input,
-.manual-editor input,
-.manual-editor select,
-.manual-editor textarea {
-  font-size: var(--fs-sm);
-}
-
-.column-filter-row input,
-.column-filter-row select {
-  font-size: var(--fs-sm) !important;
-}
-
-.mapping-search input {
-  font-size: var(--fs-base);
-}
-
-.button.large,
-.run-bar .button.primary,
-.run-bar .button.primary.large {
-  font-size: var(--fs-md);
-  min-height: 42px;
-  padding: 10px 16px;
-}
-
-.status,
-.validity,
-.map-state,
-.required,
-.review-chip,
-.mapping-profile-badge,
-.workspace-module-chips,
-.workspace-field-chips {
-  font-size: var(--fs-2xs);
-}
-
-.file-count,
-.privacy-pill {
-  font-size: var(--fs-xs);
-}
-
-th,
-.block-muted,
-.eyebrow,
-.sidebar-section-title,
-.sidebar-brand span,
-.module-topbar-title span {
-  font-size: var(--fs-2xs);
-}
-
-td,
-.filters,
-.table-toolbar,
-.pagination,
-.link-button,
-.empty-state {
-  font-size: var(--fs-sm);
-}
-
-.section-head h2,
-.section-head h3,
-.drop-card-head h3 {
-  font-size: var(--fs-lg);
-}
-
-.section-head p,
-.drop-card-head p,
-.entity-type-copy p {
-  font-size: var(--fs-sm);
-}
-
-.kpi span,
-.kpi small,
-.dataset-summary span,
-.dataset-summary small,
-.coverage span,
-.dashboard-kpis article > span,
-.dashboard-kpis article > small {
-  font-size: var(--fs-2xs);
-}
-
-.dashboard-status-row span,
-.dashboard-status-row small,
-.dashboard-status-row strong,
-.dashboard-field-bars strong,
-.dashboard-field-bars span {
-  font-size: var(--fs-2xs);
-}
-
-.records-table,
-.issues-table,
-.field-summary-table,
-.dup-table,
-.missing-table,
-.dashboard-field-table,
-.technical-diagnosis-table {
-  font-size: var(--fs-sm);
-}
-
-.workspace-module-bar strong {
-  font-size: var(--fs-sm);
-}
-
-.sidebar-item-copy strong,
-.sidebar-nav > button,
-.sidebar-group-toggle,
-.sidebar:not(.collapsed) .sidebar-item-copy strong {
-  font-size: var(--fs-sm);
-}
-
-.sidebar-item-copy small,
-.sidebar-group-children button {
-  font-size: var(--fs-2xs);
-}
-
-.workspace-file-type,
-.workspace-file-head small,
-.workspace-import-errors {
-  font-size: var(--fs-2xs);
-}
-
-.workspace-file-head strong {
-  font-size: var(--fs-sm);
-}
-
-.mapping-head h2 {
-  font-size: var(--fs-2xl);
-  line-height: 1.2;
-}
-
-.mapping-head p {
-  font-size: var(--fs-sm);
-}
-
-.mapping-legend,
-.mapping-toggle,
-.mapping-group,
-.mapping-suggestions > span,
-.mapping-suggestions button,
-.coverage-card small {
-  font-size: var(--fs-2xs);
-}
-
-.mapping-search input {
-  min-height: 40px;
-  font-size: var(--fs-base) !important;
-}
-
-.column-combobox input,
-.mapping-table select {
-  min-height: 40px;
-  font-size: var(--fs-sm) !important;
-}
-
-.mapping-table th {
-  font-size: var(--fs-2xs) !important;
-  letter-spacing: .04em;
-}
-
-.mapping-table td {
-  font-size: var(--fs-sm) !important;
-}
-
-.map-state {
-  min-width: 72px;
-  padding: 5px 9px;
-  font-size: var(--fs-2xs) !important;
-}
-
-.coverage-card .coverage strong {
-  font-size: var(--fs-2xl);
-}
-
-.run-bar strong {
-  font-size: var(--fs-lg);
-}
-
-.run-bar span {
-  font-size: var(--fs-sm);
-}
-
-.drawer-head p,
-.drawer-summary span:not(.status),
-.field-title > div span,
-.field-values span,
-.document-callout span,
-.document-callout p,
-.field-compare p {
-  font-size: var(--fs-2xs);
-}
-
-.field-title > div strong,
-.field-values strong,
-.manual-maintenance-info strong,
-.manual-editor label > span,
-.compact-button {
-  font-size: var(--fs-sm);
-}
-
-footer {
-  font-size: var(--fs-2xs);
-}
-
-@media (min-width: 1100px) and (min-height: 680px) {
-  .homologation-shell .module-topbar-title strong {
-    font-size: var(--fs-sm);
-  }
-
-  .homologation-shell .module-topbar-title span,
-  .homologation-shell .hero .eyebrow,
-  .homologation-shell .flow-mini span,
-  .homologation-shell .privacy-pill {
-    font-size: var(--fs-2xs);
-  }
-
-  .homologation-shell .hero p {
-    font-size: var(--fs-sm);
-  }
-
-  .homologation-setup-mode .entity-type-copy h2,
-  .homologation-setup-mode .drop-card-head h3 {
-    font-size: var(--fs-lg);
-  }
-
-  .homologation-setup-mode .entity-type-copy .eyebrow,
-  .homologation-setup-mode .entity-type-select > span,
-  .homologation-setup-mode .drop-card-head .eyebrow,
-  .homologation-setup-mode .file-count,
-  .homologation-setup-mode .file-item span,
-  .homologation-setup-mode .dataset-summary span,
-  .homologation-setup-mode .dataset-summary small {
-    font-size: var(--fs-2xs);
-  }
-
-  .homologation-setup-mode .entity-type-select select,
-  .homologation-setup-mode .entity-detection strong,
-  .homologation-setup-mode .drop-zone strong,
-  .homologation-setup-mode .file-item strong {
-    font-size: var(--fs-sm);
-  }
-
-  .homologation-setup-mode .drop-zone span,
-  .homologation-setup-mode .entity-detection span,
-  .homologation-setup-mode .entity-detection small {
-    font-size: var(--fs-2xs);
-  }
-
-  .homologation-setup-mode .mapping-head {
-    flex: 0 0 auto;
-    min-height: 72px;
-    padding: 12px 16px;
-  }
-
-  .homologation-setup-mode .mapping-head h2 {
-    margin: 4px 0 0;
-    font-size: var(--fs-2xl);
-  }
-
-  .homologation-setup-mode .mapping-profile-badge,
-  .homologation-setup-mode .coverage-card .coverage span,
-  .homologation-setup-mode .coverage-card small,
-  .homologation-setup-mode .mapping-legend,
-  .homologation-setup-mode .mapping-safe-note,
-  .homologation-setup-mode .mapping-suggestions button,
-  .homologation-setup-mode .mapping-suggestions > span {
-    font-size: var(--fs-2xs);
-  }
-
-  .homologation-setup-mode .coverage-card {
-    min-width: 180px;
-    padding: 10px 12px;
-  }
-
-  .homologation-setup-mode .coverage-card .coverage strong {
-    font-size: var(--fs-xl);
-  }
-
-  .homologation-setup-mode .mapping-toolbar {
-    flex: 0 0 auto;
-    min-height: 48px;
-    gap: 10px;
-    padding: 8px 14px;
-  }
-
-  .homologation-setup-mode .mapping-search input {
-    min-height: 38px;
-    font-size: var(--fs-base) !important;
-  }
-
-  .homologation-setup-mode .column-combobox input {
-    min-height: 38px;
-    font-size: var(--fs-sm) !important;
-  }
-
-  .homologation-setup-mode .mapping-toggle,
-  .homologation-setup-mode .mapping-toolbar .button {
-    min-height: 38px;
-    font-size: var(--fs-sm);
-  }
-
-  .homologation-setup-mode .mapping-legend {
-    flex: 0 0 auto;
-    min-height: 34px;
-    padding: 8px 14px;
-  }
-
-  .homologation-setup-mode .mapping-table th {
-    padding: 9px 10px;
-    font-size: var(--fs-2xs) !important;
-  }
-
-  .homologation-setup-mode .mapping-table td {
-    padding: 8px 10px;
-    font-size: var(--fs-sm) !important;
-  }
-
-  .homologation-setup-mode .map-state {
-    min-width: 70px;
-    font-size: var(--fs-2xs) !important;
-  }
-
-  .homologation-setup-mode .run-bar {
-    flex: 0 0 auto;
-    min-height: 64px;
-    padding: 12px 16px;
-  }
-
-  .homologation-setup-mode .run-bar strong {
-    font-size: var(--fs-lg);
-  }
-
-  .homologation-setup-mode .run-bar span {
-    font-size: var(--fs-sm);
-  }
-
-  .homologation-setup-mode .run-bar .button.large {
-    min-height: 42px;
-    padding: 10px 16px;
-    font-size: var(--fs-md);
-  }
-}
-
-@media (max-width: 1099px) {
-  .sidebar-item-copy strong,
-  .workspace-module-bar strong,
-  .workspace-module-bar span,
-  .workspace-local-badge,
-  .homologation-shell .module-topbar-title span,
-  .homologation-shell .flow-mini span {
-    font-size: var(--fs-2xs);
-  }
-
-  .homologation-shell .module-topbar-title strong,
-  .homologation-shell .hero p,
-  .homologation-shell .entity-type-copy p,
-  .homologation-shell .privacy-banner strong,
-  .homologation-shell .privacy-banner span {
-    font-size: var(--fs-sm);
-  }
-
-  .homologation-shell .mapping-head h2 {
-    font-size: var(--fs-xl);
-  }
-}
-
-@media (max-width: 700px) {
-  .homologation-shell .drop-card-head p {
-    font-size: var(--fs-2xs);
-  }
-
-  .homologation-shell .mapping-head h2 {
-    font-size: var(--fs-lg);
-  }
-}
+
+/* =========================================================
+   Tipografia global — escala confortável e consistente
+   ========================================================= */
+html {
+  font-size: 16px;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+table,
+th,
+td {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+}
+
+.button,
+.tabs button,
+.filters input,
+.filters select,
+.page-size-select,
+.screen-search input,
+.column-combobox input,
+.manual-editor input,
+.manual-editor select,
+.manual-editor textarea {
+  font-size: var(--fs-sm);
+}
+
+.column-filter-row input,
+.column-filter-row select {
+  font-size: var(--fs-sm) !important;
+}
+
+.mapping-search input {
+  font-size: var(--fs-base);
+}
+
+.button.large,
+.run-bar .button.primary,
+.run-bar .button.primary.large {
+  font-size: var(--fs-md);
+  min-height: 42px;
+  padding: 10px 16px;
+}
+
+.status,
+.validity,
+.map-state,
+.required,
+.review-chip,
+.mapping-profile-badge,
+.workspace-module-chips,
+.workspace-field-chips {
+  font-size: var(--fs-2xs);
+}
+
+.file-count,
+.privacy-pill {
+  font-size: var(--fs-xs);
+}
+
+th,
+.block-muted,
+.eyebrow,
+.sidebar-section-title,
+.sidebar-brand span,
+.module-topbar-title span {
+  font-size: var(--fs-2xs);
+}
+
+td,
+.filters,
+.table-toolbar,
+.pagination,
+.link-button,
+.empty-state {
+  font-size: var(--fs-sm);
+}
+
+.section-head h2,
+.section-head h3,
+.drop-card-head h3 {
+  font-size: var(--fs-lg);
+}
+
+.section-head p,
+.drop-card-head p,
+.entity-type-copy p {
+  font-size: var(--fs-sm);
+}
+
+.kpi span,
+.kpi small,
+.dataset-summary span,
+.dataset-summary small,
+.coverage span,
+.dashboard-kpis article > span,
+.dashboard-kpis article > small {
+  font-size: var(--fs-2xs);
+}
+
+.dashboard-status-row span,
+.dashboard-status-row small,
+.dashboard-status-row strong,
+.dashboard-field-bars strong,
+.dashboard-field-bars span {
+  font-size: var(--fs-2xs);
+}
+
+.records-table,
+.issues-table,
+.field-summary-table,
+.dup-table,
+.missing-table,
+.dashboard-field-table,
+.technical-diagnosis-table {
+  font-size: var(--fs-sm);
+}
+
+.workspace-module-bar strong {
+  font-size: var(--fs-sm);
+}
+
+.sidebar-item-copy strong,
+.sidebar-nav > button,
+.sidebar-group-toggle,
+.sidebar:not(.collapsed) .sidebar-item-copy strong {
+  font-size: var(--fs-sm);
+}
+
+.sidebar-item-copy small,
+.sidebar-group-children button {
+  font-size: var(--fs-2xs);
+}
+
+.workspace-file-type,
+.workspace-file-head small,
+.workspace-import-errors {
+  font-size: var(--fs-2xs);
+}
+
+.workspace-file-head strong {
+  font-size: var(--fs-sm);
+}
+
+.mapping-head h2 {
+  font-size: var(--fs-2xl);
+  line-height: 1.2;
+}
+
+.mapping-head p {
+  font-size: var(--fs-sm);
+}
+
+.mapping-legend,
+.mapping-toggle,
+.mapping-group,
+.mapping-suggestions > span,
+.mapping-suggestions button,
+.coverage-card small {
+  font-size: var(--fs-2xs);
+}
+
+.mapping-search input {
+  min-height: 40px;
+  font-size: var(--fs-base) !important;
+}
+
+.column-combobox input,
+.mapping-table select {
+  min-height: 40px;
+  font-size: var(--fs-sm) !important;
+}
+
+.mapping-table th {
+  font-size: var(--fs-2xs) !important;
+  letter-spacing: .04em;
+}
+
+.mapping-table td {
+  font-size: var(--fs-sm) !important;
+}
+
+.map-state {
+  min-width: 72px;
+  padding: 5px 9px;
+  font-size: var(--fs-2xs) !important;
+}
+
+.coverage-card .coverage strong {
+  font-size: var(--fs-2xl);
+}
+
+.run-bar strong {
+  font-size: var(--fs-lg);
+}
+
+.run-bar span {
+  font-size: var(--fs-sm);
+}
+
+.drawer-head p,
+.drawer-summary span:not(.status),
+.field-title > div span,
+.field-values span,
+.document-callout span,
+.document-callout p,
+.field-compare p {
+  font-size: var(--fs-2xs);
+}
+
+.field-title > div strong,
+.field-values strong,
+.manual-maintenance-info strong,
+.manual-editor label > span,
+.compact-button {
+  font-size: var(--fs-sm);
+}
+
+footer {
+  font-size: var(--fs-2xs);
+}
+
+@media (min-width: 1100px) and (min-height: 680px) {
+  .homologation-shell .module-topbar-title strong {
+    font-size: var(--fs-sm);
+  }
+
+  .homologation-shell .module-topbar-title span,
+  .homologation-shell .hero .eyebrow,
+  .homologation-shell .flow-mini span,
+  .homologation-shell .privacy-pill {
+    font-size: var(--fs-2xs);
+  }
+
+  .homologation-shell .hero p {
+    font-size: var(--fs-sm);
+  }
+
+  .homologation-setup-mode .entity-type-copy h2,
+  .homologation-setup-mode .drop-card-head h3 {
+    font-size: var(--fs-lg);
+  }
+
+  .homologation-setup-mode .entity-type-copy .eyebrow,
+  .homologation-setup-mode .entity-type-select > span,
+  .homologation-setup-mode .drop-card-head .eyebrow,
+  .homologation-setup-mode .file-count,
+  .homologation-setup-mode .file-item span,
+  .homologation-setup-mode .dataset-summary span,
+  .homologation-setup-mode .dataset-summary small {
+    font-size: var(--fs-2xs);
+  }
+
+  .homologation-setup-mode .entity-type-select select,
+  .homologation-setup-mode .entity-detection strong,
+  .homologation-setup-mode .drop-zone strong,
+  .homologation-setup-mode .file-item strong {
+    font-size: var(--fs-sm);
+  }
+
+  .homologation-setup-mode .drop-zone span,
+  .homologation-setup-mode .entity-detection span,
+  .homologation-setup-mode .entity-detection small {
+    font-size: var(--fs-2xs);
+  }
+
+  .homologation-setup-mode .mapping-head {
+    flex: 0 0 auto;
+    min-height: 72px;
+    padding: 12px 16px;
+  }
+
+  .homologation-setup-mode .mapping-head h2 {
+    margin: 4px 0 0;
+    font-size: var(--fs-2xl);
+  }
+
+  .homologation-setup-mode .mapping-profile-badge,
+  .homologation-setup-mode .coverage-card .coverage span,
+  .homologation-setup-mode .coverage-card small,
+  .homologation-setup-mode .mapping-legend,
+  .homologation-setup-mode .mapping-safe-note,
+  .homologation-setup-mode .mapping-suggestions button,
+  .homologation-setup-mode .mapping-suggestions > span {
+    font-size: var(--fs-2xs);
+  }
+
+  .homologation-setup-mode .coverage-card {
+    min-width: 180px;
+    padding: 10px 12px;
+  }
+
+  .homologation-setup-mode .coverage-card .coverage strong {
+    font-size: var(--fs-xl);
+  }
+
+  .homologation-setup-mode .mapping-toolbar {
+    flex: 0 0 auto;
+    min-height: 48px;
+    gap: 10px;
+    padding: 8px 14px;
+  }
+
+  .homologation-setup-mode .mapping-search input {
+    min-height: 38px;
+    font-size: var(--fs-base) !important;
+  }
+
+  .homologation-setup-mode .column-combobox input {
+    min-height: 38px;
+    font-size: var(--fs-sm) !important;
+  }
+
+  .homologation-setup-mode .mapping-toggle,
+  .homologation-setup-mode .mapping-toolbar .button {
+    min-height: 38px;
+    font-size: var(--fs-sm);
+  }
+
+  .homologation-setup-mode .mapping-legend {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 8px 14px;
+  }
+
+  .homologation-setup-mode .mapping-table th {
+    padding: 9px 10px;
+    font-size: var(--fs-2xs) !important;
+  }
+
+  .homologation-setup-mode .mapping-table td {
+    padding: 8px 10px;
+    font-size: var(--fs-sm) !important;
+  }
+
+  .homologation-setup-mode .map-state {
+    min-width: 70px;
+    font-size: var(--fs-2xs) !important;
+  }
+
+  .homologation-setup-mode .run-bar {
+    flex: 0 0 auto;
+    min-height: 64px;
+    padding: 12px 16px;
+  }
+
+  .homologation-setup-mode .run-bar strong {
+    font-size: var(--fs-lg);
+  }
+
+  .homologation-setup-mode .run-bar span {
+    font-size: var(--fs-sm);
+  }
+
+  .homologation-setup-mode .run-bar .button.large {
+    min-height: 42px;
+    padding: 10px 16px;
+    font-size: var(--fs-md);
+  }
+}
+
+@media (max-width: 1099px) {
+  .sidebar-item-copy strong,
+  .workspace-module-bar strong,
+  .workspace-module-bar span,
+  .workspace-local-badge,
+  .homologation-shell .module-topbar-title span,
+  .homologation-shell .flow-mini span {
+    font-size: var(--fs-2xs);
+  }
+
+  .homologation-shell .module-topbar-title strong,
+  .homologation-shell .hero p,
+  .homologation-shell .entity-type-copy p,
+  .homologation-shell .privacy-banner strong,
+  .homologation-shell .privacy-banner span {
+    font-size: var(--fs-sm);
+  }
+
+  .homologation-shell .mapping-head h2 {
+    font-size: var(--fs-xl);
+  }
+
+  .workspace-import-page {
+    width: min(100% - 20px, 1540px);
+  }
+
+  .workspace-import-hero p {
+    font-size: var(--fs-sm);
+  }
+
+  .workspace-file-card {
+    min-height: 92px;
+  }
+
+  .workspace-import-action strong {
+    font-size: var(--fs-sm);
+  }
+
+  .workspace-import-action span {
+    font-size: var(--fs-2xs);
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-import-hero h1 {
+    font-size: var(--fs-3xl);
+  }
+
+  .workspace-dropzone {
+    min-height: 132px;
+  }
+
+  .workspace-file-card {
+    min-height: auto;
+  }
+
+  .workspace-module-preview {
+    min-height: auto;
+  }
+
+  .workspace-import-action {
+    min-height: auto;
+  }
+
+  .workspace-import-action-buttons .button,
+  .workspace-clear-button,
+  .workspace-organize-button {
+    min-height: 44px;
+    font-size: var(--fs-sm);
+  }
+
+  .workspace-organize-button {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .homologation-shell .drop-card-head p {
+    font-size: var(--fs-2xs);
+  }
+
+  .homologation-shell .mapping-head h2 {
+    font-size: var(--fs-lg);
+  }
+}
+
+
+/* =========================================================
+   Filtros — estrutura visual estável sem resultados
+   ========================================================= */
+
+/*
+ * Pesquisas e filtros nunca substituem a estrutura da tela por um painel vazio.
+ * Quando não há correspondências, o tbody fica sem linhas e esta superfície
+ * preserva a área visual da tabela para evitar saltos/refluxo de layout.
+ */
+.stable-filter-table-wrap {
+  min-height: 176px;
+  background: #fff;
+}
+
+.stable-filter-list {
+  min-height: 204px;
+}
+
+@media (max-width: 760px) {
+  .stable-filter-table-wrap {
+    min-height: 148px;
+  }
+
+  .stable-filter-list {
+    min-height: 168px;
+  }
+}
+
+
+/* =========================================================
+   Importação — ocupação responsiva da viewport
+   ========================================================= */
+
+.workspace-import-page {
+  width: min(1760px, calc(100% - 32px));
+}
+
+.workspace-import-hero h1 {
+  font-size: clamp(32px, 3.2vw, 44px);
+}
+
+.workspace-import-hero p {
+  max-width: 980px;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+}
+
+.workspace-storage-state {
+  max-width: 380px;
+  padding: 8px 11px;
+  font-size: var(--fs-2xs);
+}
+
+.workspace-import-counter {
+  flex-basis: 102px;
+  padding: 12px 14px;
+}
+
+.workspace-import-counter strong {
+  font-size: var(--fs-3xl);
+}
+
+.workspace-import-counter span {
+  font-size: var(--fs-2xs);
+}
+
+.workspace-dropzone {
+  min-height: clamp(145px, 18dvh, 205px);
+  padding: clamp(22px, 3vh, 34px);
+  gap: 7px;
+}
+
+.workspace-drop-icon {
+  width: 42px;
+  height: 42px;
+  font-size: var(--fs-2xl);
+}
+
+.workspace-dropzone strong {
+  font-size: var(--fs-base);
+}
+
+.workspace-dropzone span {
+  font-size: var(--fs-xs);
+}
+
+.workspace-import-grid {
+  gap: clamp(10px, 1.2vw, 14px);
+  margin-top: clamp(12px, 1.6vh, 18px);
+}
+
+.workspace-file-card {
+  min-height: clamp(96px, 11dvh, 128px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(14px, 1.2vw, 18px);
+}
+
+.workspace-file-type {
+  font-size: var(--fs-2xs);
+}
+
+.workspace-file-head strong {
+  margin-top: 3px;
+  font-size: var(--fs-sm);
+}
+
+.workspace-file-head small {
+  margin-top: 4px;
+  font-size: var(--fs-2xs);
+}
+
+.workspace-file-modules {
+  margin-top: 10px;
+}
+
+.workspace-file-modules span,
+.workspace-module-chips span {
+  padding: 5px 8px;
+  font-size: var(--fs-2xs);
+}
+
+.workspace-module-preview {
+  min-height: clamp(82px, 10dvh, 112px);
+  margin-top: clamp(12px, 1.6vh, 18px);
+  padding: clamp(14px, 1.4vw, 18px);
+}
+
+.workspace-module-preview h2 {
+  margin-top: 3px;
+  font-size: var(--fs-base);
+}
+
+.workspace-module-preview p {
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+}
+
+.workspace-module-chips span small {
+  font-size: var(--fs-2xs);
+}
+
+.workspace-import-action {
+  min-height: 66px;
+  margin-top: clamp(14px, 2vh, 22px);
+  padding: 12px 14px;
+}
+
+.workspace-import-action strong {
+  font-size: var(--fs-sm);
+}
+
+.workspace-import-action span {
+  margin-top: 3px;
+  font-size: var(--fs-2xs);
+}
+
+.workspace-import-action-buttons {
+  gap: 10px;
+}
+
+.workspace-import-action-buttons .button,
+.workspace-clear-button,
+.workspace-organize-button {
+  min-height: 42px;
+  padding: 9px 14px;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+
+.workspace-organize-button {
+  min-width: 220px;
+}
+
+@media (min-width: 1100px) {
+  .workspace-import-page {
+    min-height: calc(100dvh - 48px);
+    display: flex;
+    flex-direction: column;
+    padding: clamp(24px, 3vh, 36px) 0 clamp(18px, 2.4vh, 30px);
+  }
+
+  .workspace-import-hero {
+    margin-bottom: clamp(16px, 2vh, 24px);
+  }
+
+  .workspace-import-action {
+    margin-top: auto;
+  }
+}
+
+@media (min-width: 1440px) and (min-height: 820px) {
+  .workspace-import-grid {
+    grid-auto-rows: minmax(112px, auto);
+  }
+
+  .workspace-file-card {
+    min-height: 112px;
+  }
+
+  .workspace-module-preview {
+    min-height: 96px;
+  }
+
+  .workspace-import-action {
+    min-height: 70px;
+  }
+}

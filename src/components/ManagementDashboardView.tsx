@@ -170,7 +170,7 @@ export default function ManagementDashboardView({
                 <h3>Campos com maior necessidade de manutenção</h3>
               </div>
             </div>
-            <div className="dashboard-field-bars">
+            <div className="dashboard-field-bars stable-filter-list">
               {topFields.map(field => {
                 const problem = field.divergent + field.attention + field.notValidatable
                 return (
@@ -185,7 +185,6 @@ export default function ManagementDashboardView({
                   </button>
                 )
               })}
-              {!topFields.length && <div className="empty-state">Nenhum campo com ocorrência.</div>}
             </div>
           </section>
         </div>
@@ -226,7 +225,7 @@ export default function ManagementDashboardView({
             </select>
           </div>
 
-          <div className="table-wrap">
+          <div className="table-wrap stable-filter-table-wrap">
             <table className="dashboard-field-table">
               <thead>
                 <tr>
@@ -267,7 +266,6 @@ export default function ManagementDashboardView({
                 ))}
               </tbody>
             </table>
-            {!pageRows.length && <div className="empty-state">Nenhum campo encontrado.</div>}
           </div>
 
           <div className="workspace-pagination dashboard-pagination">

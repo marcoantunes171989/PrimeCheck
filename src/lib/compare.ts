@@ -134,26 +134,34 @@ const compareInscricaoEstadual = (
   originUf: CellValue,
   targetUf: CellValue,
 ): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
+  const originText = asText(origin)
+  const targetText = asText(target)
+
+  if (hasReplacementCharacter(target)) {
+    return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
+  }
+
+  if (!originText && !targetText) {
+    return { status: 'CONFORME', reason: 'Inscrição estadual ausente em origem e destino.' }
+  }
+
+  const originCharacters = normalizeComparableCharacters(origin)
+  const targetCharacters = normalizeComparableCharacters(target)
+  if (originCharacters && originCharacters === targetCharacters) {
+    return {
+      status: 'CONFORME',
+      reason: 'Inscrição estadual preservada: a sequência de letras e números é idêntica na origem e no destino, desconsiderando apenas máscara/formatação.',
+    }
+  }
+
   const o = assessIe(origin, originUf)
   const t = assessIe(target, targetUf)
   const same = o.normalized === t.normalized
 
   if (same) {
-    if (o.status === 'AUSENTE') {
-      return { status: 'CONFORME', reason: 'Inscrição estadual ausente em origem e destino.' }
-    }
-    if (o.status === 'VÁLIDA') {
-      return {
-        status: 'CONFORME',
-        reason: `Inscrição estadual válida na origem (${o.detail}) e preservada no destino. Destino: ${t.detail}`,
-      }
-    }
-    if (o.status === 'ISENTO') {
-      return { status: 'CONFORME', reason: 'Inscrição estadual ISENTO/ISENTA preservada no destino.' }
-    }
     return {
-      status: 'ATENÇÃO',
-      reason: `AVISO: inscrição estadual preservada, porém ${o.status.toLocaleLowerCase('pt-BR')} na origem. ${o.detail} Destino: ${t.detail}`,
+      status: 'CONFORME',
+      reason: 'Inscrição estadual equivalente após normalização; diferenças apenas de apresentação não alteram a conformidade.',
     }
   }
 
@@ -253,10 +261,29 @@ const characterDifferenceDetail = (
 }
 
 const compareField = (field: FieldDefinition, origin: CellValue, target: CellValue): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
-  if (field.kind === 'document') return compareDocument(origin, target)
-
   const originText = asText(origin)
   const targetText = asText(target)
+
+  if (hasReplacementCharacter(target)) {
+    return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
+  }
+
+  if (!originText && !targetText) {
+    return { status: 'CONFORME', reason: 'Campo vazio nos dois arquivos.' }
+  }
+
+  if (field.kind !== 'money') {
+    const originCharacters = normalizeComparableCharacters(origin)
+    const targetCharacters = normalizeComparableCharacters(target)
+    if (originCharacters && originCharacters === targetCharacters) {
+      return {
+        status: 'CONFORME',
+        reason: 'Sequência de letras e números preservada entre origem e destino; máscara, pontuação e espaços de formatação foram desconsiderados.',
+      }
+    }
+  }
+
+  if (field.kind === 'document') return compareDocument(origin, target)
 
   if (field.id === 'nome') {
     const originName = normalizeClientName(origin)
@@ -309,10 +336,6 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
       return { status: 'CONFORME', reason: 'Regra local aplicada: código de convênio 0 corresponde a ausência de empresa convênio.' }
     }
   }
-  if (hasReplacementCharacter(target)) {
-    return { status: 'DIVERGENTE', reason: 'Destino contém caractere de substituição (�), indicando possível corrupção de codificação/acentuação.' }
-  }
-
   if (field.id === 'rg') {
     const oRg = normalizeAlphanumericDocument(origin)
     const tRg = normalizeAlphanumericDocument(target)
@@ -338,19 +361,6 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
   const o = comparableText(field, origin)
   const t = comparableText(field, target)
   if (o === t) return { status: 'CONFORME', reason: 'Valores equivalentes após normalização.' }
-
-  if (field.kind !== 'money') {
-    const originCharacters = normalizeComparableCharacters(origin)
-    const targetCharacters = normalizeComparableCharacters(target)
-    if (originCharacters && originCharacters === targetCharacters) {
-      return {
-        status: 'CONFORME',
-        reason: 'Valores equivalentes após desconsiderar máscara/formatação e comparar a sequência de letras e números.',
-      }
-    }
-  }
-
-  if (!originText && !targetText) return { status: 'CONFORME', reason: 'Campo vazio nos dois arquivos.' }
 
   if (!originText && targetText) {
     if (field.kind === 'ie' && t === 'ISENTO') {
