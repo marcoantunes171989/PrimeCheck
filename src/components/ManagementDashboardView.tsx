@@ -226,7 +226,7 @@ export default function ManagementDashboardView({
           </div>
 
           <div className="table-wrap stable-filter-table-wrap">
-            <table className="dashboard-field-table">
+            <table className="dashboard-field-table analytic-report-table">
               <thead>
                 <tr>
                   <th><input type="checkbox" checked={allPageSelected} onChange={togglePage} aria-label="Selecionar página" /></th>

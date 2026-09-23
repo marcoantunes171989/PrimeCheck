@@ -33,6 +33,7 @@ import {
 } from './normalizers'
 import { detectStatusHeader } from './mapping'
 import { duplicateCategory } from './duplicates'
+import { buildDifferenceReason, quoteSnippet } from './stringDifference'
 
 const mappingByField = (mapping: FieldMapping[]) => new Map(mapping.map(item => [item.fieldId, item]))
 
@@ -45,6 +46,9 @@ const statusPriority: Record<Severity, number> = {
   'NÃO IMPORTADO': 3,
   'DIVERGENTE': 4,
 }
+
+const withDifference = (prefix: string, origin: CellValue, target: CellValue) =>
+  buildDifferenceReason(prefix, asText(origin), asText(target))
 
 const compareDocument = (origin: CellValue, target: CellValue): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
   const o = validateCpfCnpj(origin)
@@ -72,7 +76,11 @@ const compareDocument = (origin: CellValue, target: CellValue): Pick<ComparisonF
   if (o.status === 'VÁLIDO') {
     return {
       status: 'DIVERGENTE',
-      reason: `ERRO: ${o.type.replace('_ALFANUMERICO',' alfanumérico')} válido na origem (${o.detail}), mas o destino trouxe valor diferente${tv ? ` (${asText(target)})` : ' ou vazio'}. ${targetStatus}. Documento válido da origem deve ser preservado.`,
+      reason: buildDifferenceReason(
+        `ERRO: ${o.type.replace('_ALFANUMERICO',' alfanumérico')} válido na origem (${o.detail}), mas o destino trouxe valor diferente${tv ? ` (${asText(target)})` : ' ou vazio'}. ${targetStatus}. Documento válido da origem deve ser preservado.`,
+        asText(origin),
+        asText(target),
+      ),
     }
   }
 
@@ -80,7 +88,11 @@ const compareDocument = (origin: CellValue, target: CellValue): Pick<ComparisonF
     status: 'ATENÇÃO',
     reason: o.status === 'AUSENTE'
       ? `AVISO: CPF/CNPJ ausente na origem e destino trouxe ${tv ? `valor (${asText(target)}); ${targetStatus}` : 'vazio'}. Revisar a regra de geração sem classificar como perda de documento válido.`
-      : `AVISO: CPF/CNPJ inválido na origem (${o.detail}) e destino ${tv ? `foi preenchido com valor diferente (${asText(target)}); ${targetStatus}` : 'ficou vazio'}. Revisar manualmente; não há documento válido de origem a preservar.`,
+      : withDifference(
+        `AVISO: CPF/CNPJ inválido na origem (${o.detail}) e destino ${tv ? `foi preenchido com valor diferente (${asText(target)}); ${targetStatus}` : 'ficou vazio'}. Revisar manualmente; não há documento válido de origem a preservar.`,
+        asText(origin),
+        asText(target),
+      ),
   }
 }
 
@@ -168,7 +180,11 @@ const compareInscricaoEstadual = (
   if (o.status === 'VÁLIDA') {
     return {
       status: 'DIVERGENTE',
-      reason: `ERRO: inscrição estadual válida na origem (${o.detail}), mas o destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail} O valor válido da origem deve ser preservado.`,
+      reason: buildDifferenceReason(
+        `ERRO: inscrição estadual válida na origem (${o.detail}), mas o destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail} O valor válido da origem deve ser preservado.`,
+        originText,
+        targetText,
+      ),
     }
   }
 
@@ -182,13 +198,21 @@ const compareInscricaoEstadual = (
   if (o.status === 'ISENTO') {
     return {
       status: 'ATENÇÃO',
-      reason: `AVISO: origem informada como ISENTO/ISENTA e destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail}`,
+      reason: buildDifferenceReason(
+        `AVISO: origem informada como ISENTO/ISENTA e destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail}`,
+        originText,
+        targetText,
+      ),
     }
   }
 
   return {
     status: 'ATENÇÃO',
-    reason: `AVISO: inscrição estadual ${o.status.toLocaleLowerCase('pt-BR')} na origem (${o.detail}) e destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail} Revisar manualmente; não há IE válida de origem confirmada para preservar.`,
+    reason: buildDifferenceReason(
+      `AVISO: inscrição estadual ${o.status.toLocaleLowerCase('pt-BR')} na origem (${o.detail}) e destino trouxe valor diferente${t.normalized ? ` (${asText(target)})` : ' ou vazio'}. Destino: ${t.detail} Revisar manualmente; não há IE válida de origem confirmada para preservar.`,
+      originText,
+      targetText,
+    ),
   }
 }
 
@@ -237,27 +261,6 @@ const isTruncatedValue = (originNormalized: string, targetNormalized: string) =>
   if (originNormalized === targetNormalized) return false
   if (!originNormalized.startsWith(targetNormalized)) return false
   return originNormalized.length - targetNormalized.length >= 3
-}
-
-const characterCount = (value: CellValue) => Array.from(asText(value)).length
-
-const characterDifferenceDetail = (
-  field: FieldDefinition,
-  origin: CellValue,
-  target: CellValue,
-) => {
-  if (field.kind !== 'text') return ''
-
-  const originLength = characterCount(origin)
-  const targetLength = characterCount(target)
-  const difference = targetLength - originLength
-  const relation = difference === 0
-    ? 'mesma quantidade de caracteres, porém conteúdo diferente'
-    : difference > 0
-      ? `destino possui ${difference} ${difference === 1 ? 'caractere a mais' : 'caracteres a mais'}`
-      : `destino possui ${Math.abs(difference)} ${Math.abs(difference) === 1 ? 'caractere a menos' : 'caracteres a menos'}`
-
-  return ` Origem: ${originLength} ${originLength === 1 ? 'caractere' : 'caracteres'}; destino: ${targetLength} ${targetLength === 1 ? 'caractere' : 'caracteres'}; ${relation}.`
 }
 
 const compareField = (field: FieldDefinition, origin: CellValue, target: CellValue): Pick<ComparisonFieldResult, 'status' | 'reason'> => {
@@ -345,7 +348,14 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
     }
 
     if (oRg.endsWith('X') && oRg.slice(0, -1) === tRg) {
-      return { status: 'DIVERGENTE', reason: 'RG na origem possui dígito verificador X e o destino não preservou esse caractere.' }
+      return {
+        status: 'DIVERGENTE',
+        reason: withDifference(
+          'RG na origem possui dígito verificador X e o destino não preservou esse caractere.',
+          origin,
+          target,
+        ),
+      }
     }
   }
 
@@ -366,31 +376,36 @@ const compareField = (field: FieldDefinition, origin: CellValue, target: CellVal
     if (field.kind === 'ie' && t === 'ISENTO') {
       return { status: 'ATENÇÃO', reason: 'Origem sem inscrição estadual e destino preenchido automaticamente como ISENTO. Confirmar regra da conversão.' }
     }
-    return { status: 'ATENÇÃO', reason: 'Origem sem informação e destino preenchido. Confirmar regra/default aplicado na conversão.' }
+    return {
+      status: 'ATENÇÃO',
+      reason: `Origem sem valor e destino preenchido ${quoteSnippet(targetText)}. Confirmar regra/default aplicado na conversão.`,
+    }
   }
 
-  if (originText && !targetText) return {
-    status: 'DIVERGENTE',
-    reason: 'Existe informação na origem, mas o campo está vazio no destino.' + characterDifferenceDetail(field, origin, target),
+  if (originText && !targetText) {
+    return {
+      status: 'DIVERGENTE',
+      reason: `Destino sem valor e origem preenchida ${quoteSnippet(originText)}.`,
+    }
   }
 
   if (field.id === 'contato' && targetText.length < originText.length && targetText.length <= 35 && originText.startsWith(targetText)) {
     return {
       status: 'DIVERGENTE',
-      reason: 'Possível truncamento identificado.' + characterDifferenceDetail(field, origin, target),
+      reason: withDifference('Possível truncamento identificado.', origin, target),
     }
   }
 
   if (TRUNCATION_FIELDS.has(field.id) && isTruncatedValue(o, t)) {
     return {
       status: 'DIVERGENTE',
-      reason: 'Possível truncamento identificado.' + characterDifferenceDetail(field, origin, target),
+      reason: withDifference('Possível truncamento identificado.', origin, target),
     }
   }
 
   return {
     status: 'DIVERGENTE',
-    reason: 'Valores diferentes após normalização; revisar conversão.' + characterDifferenceDetail(field, origin, target),
+    reason: withDifference('Valores diferentes após normalização; revisar conversão.', origin, target),
   }
 }
 
