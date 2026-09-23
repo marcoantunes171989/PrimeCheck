@@ -3,8 +3,18 @@ import type { FieldMapping, ImportedFile } from '../types'
 const DB_NAME = 'primecheck-local'
 const DB_VERSION = 1
 const STORE_NAME = 'workspace'
-const IMPORTED_FILES_KEY = 'imported-files-v1'
-const WORKSPACE_SESSION_KEY = 'workspace-session-v1'
+
+const LEGACY_IMPORTED_FILES_KEY = 'imported-files-v1'
+const LEGACY_WORKSPACE_SESSION_KEY = 'workspace-session-v1'
+const IMPORTED_FILES_KEY_PREFIX = 'imported-files-v2'
+const WORKSPACE_SESSION_KEY_PREFIX = 'workspace-session-v2'
+
+let activeWorkspaceScope = ''
+
+export interface WorkspaceExecutionState {
+  mappingSignature: string
+  dataSignature: string
+}
 
 export interface WorkspaceSessionState {
   activeModule: string
@@ -14,6 +24,7 @@ export interface WorkspaceSessionState {
     targetName: string
   }>
   mappings: Record<string, FieldMapping[]>
+  executions: Record<string, WorkspaceExecutionState>
 }
 
 const emptySession = (): WorkspaceSessionState => ({
@@ -21,6 +32,7 @@ const emptySession = (): WorkspaceSessionState => ({
   visitedModuleIds: [],
   selections: {},
   mappings: {},
+  executions: {},
 })
 
 const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
@@ -60,11 +72,107 @@ const withStore = async <T>(
 const hasLocalStorage = () =>
   typeof window !== 'undefined' && 'localStorage' in window
 
-export const loadWorkspaceSession = (): WorkspaceSessionState => {
-  if (!hasLocalStorage()) return emptySession()
+const importedFilesKey = () =>
+  activeWorkspaceScope ? `${IMPORTED_FILES_KEY_PREFIX}:${activeWorkspaceScope}` : ''
+
+const workspaceSessionKey = () =>
+  activeWorkspaceScope ? `${WORKSPACE_SESSION_KEY_PREFIX}:${activeWorkspaceScope}` : ''
+
+const hashScope = async (value: string) => {
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    const input = new TextEncoder().encode(`primecheck:${value}`)
+    const digest = await window.crypto.subtle.digest('SHA-256', input)
+    return Array.from(new Uint8Array(digest))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 24)
+  }
+
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `fallback-${(hash >>> 0).toString(16)}`
+}
+
+const migrateLegacyWorkspace = async () => {
+  const sessionKey = workspaceSessionKey()
+  const filesKey = importedFilesKey()
+  if (!sessionKey || !filesKey) return
+
+  if (hasLocalStorage()) {
+    const scopedSession = window.localStorage.getItem(sessionKey)
+    const legacySession = window.localStorage.getItem(LEGACY_WORKSPACE_SESSION_KEY)
+    if (!scopedSession && legacySession) {
+      window.localStorage.setItem(sessionKey, legacySession)
+    }
+    if (legacySession) {
+      window.localStorage.removeItem(LEGACY_WORKSPACE_SESSION_KEY)
+    }
+  }
+
+  if (typeof window === 'undefined' || !('indexedDB' in window)) return
 
   try {
-    const raw = window.localStorage.getItem(WORKSPACE_SESSION_KEY)
+    const scopedFiles = await withStore<ImportedFile[] | undefined>(
+      'readonly',
+      store => store.get(filesKey),
+    )
+    const legacyFiles = await withStore<ImportedFile[] | undefined>(
+      'readonly',
+      store => store.get(LEGACY_IMPORTED_FILES_KEY),
+    )
+
+    if ((!Array.isArray(scopedFiles) || scopedFiles.length === 0) && Array.isArray(legacyFiles) && legacyFiles.length > 0) {
+      await withStore<IDBValidKey>('readwrite', store => store.put(legacyFiles, filesKey))
+    }
+
+    if (Array.isArray(legacyFiles)) {
+      await withStore<undefined>('readwrite', store => store.delete(LEGACY_IMPORTED_FILES_KEY))
+    }
+  } catch {
+    // Migração é oportunista; a restauração normal continua usando o escopo atual.
+  }
+}
+
+export const initializeWorkspaceScope = async (): Promise<string> => {
+  if (activeWorkspaceScope) return activeWorkspaceScope
+  if (typeof window === 'undefined') return ''
+
+  const localHost = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
+
+  try {
+    if (localHost) {
+      activeWorkspaceScope = 'local-development'
+    } else {
+      const response = await window.fetch('/api/client-ip', {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      })
+      if (!response.ok) throw new Error('IP indisponível.')
+
+      const payload = await response.json() as { ip?: unknown }
+      const ip = typeof payload.ip === 'string' ? payload.ip.trim() : ''
+      if (!ip) throw new Error('IP indisponível.')
+
+      activeWorkspaceScope = await hashScope(ip)
+    }
+
+    await migrateLegacyWorkspace()
+    return activeWorkspaceScope
+  } catch {
+    activeWorkspaceScope = ''
+    return ''
+  }
+}
+
+export const loadWorkspaceSession = (): WorkspaceSessionState => {
+  const key = workspaceSessionKey()
+  if (!hasLocalStorage() || !key) return emptySession()
+
+  try {
+    const raw = window.localStorage.getItem(key)
     if (!raw) return emptySession()
 
     const parsed = JSON.parse(raw) as Partial<WorkspaceSessionState>
@@ -79,6 +187,9 @@ export const loadWorkspaceSession = (): WorkspaceSessionState => {
       mappings: parsed.mappings && typeof parsed.mappings === 'object'
         ? parsed.mappings as WorkspaceSessionState['mappings']
         : {},
+      executions: parsed.executions && typeof parsed.executions === 'object'
+        ? parsed.executions as WorkspaceSessionState['executions']
+        : {},
     }
   } catch {
     return emptySession()
@@ -86,8 +197,9 @@ export const loadWorkspaceSession = (): WorkspaceSessionState => {
 }
 
 const saveWorkspaceSession = (session: WorkspaceSessionState) => {
-  if (!hasLocalStorage()) return
-  window.localStorage.setItem(WORKSPACE_SESSION_KEY, JSON.stringify(session))
+  const key = workspaceSessionKey()
+  if (!hasLocalStorage() || !key) return
+  window.localStorage.setItem(key, JSON.stringify(session))
 }
 
 const updateWorkspaceSession = (
@@ -127,6 +239,15 @@ export const saveWorkspaceComparisonSelection = (
 const mappingKey = (moduleId: string, originName: string, targetName: string) =>
   [moduleId, originName, targetName].map(value => encodeURIComponent(value)).join('|')
 
+const mappingSignature = (mapping: FieldMapping[]) =>
+  JSON.stringify(mapping.map(item => ({
+    fieldId: item.fieldId,
+    originHeader: item.originHeader,
+    targetHeader: item.targetHeader,
+    originManual: item.originManual === true,
+    targetManual: item.targetManual === true,
+  })))
+
 export const loadWorkspaceMapping = (
   moduleId: string,
   originName: string,
@@ -154,17 +275,63 @@ export const saveWorkspaceMapping = (
   }))
 }
 
+export const hasWorkspaceExecution = (
+  moduleId: string,
+  originName: string,
+  targetName: string,
+  mapping: FieldMapping[],
+  dataSignature: string,
+) => {
+  if (!originName || !targetName || !mapping.length || !dataSignature) return false
+  const stored = loadWorkspaceSession().executions[mappingKey(moduleId, originName, targetName)]
+  return Boolean(
+    stored
+    && stored.mappingSignature === mappingSignature(mapping)
+    && stored.dataSignature === dataSignature,
+  )
+}
+
+export const saveWorkspaceExecution = (
+  moduleId: string,
+  originName: string,
+  targetName: string,
+  mapping: FieldMapping[],
+  dataSignature: string,
+) => {
+  if (!originName || !targetName || !mapping.length || !dataSignature) return
+
+  updateWorkspaceSession(current => ({
+    ...current,
+    executions: {
+      ...current.executions,
+      [mappingKey(moduleId, originName, targetName)]: {
+        mappingSignature: mappingSignature(mapping),
+        dataSignature,
+      },
+    },
+  }))
+}
+
 export const clearWorkspaceSession = () => {
   if (!hasLocalStorage()) return
-  window.localStorage.removeItem(WORKSPACE_SESSION_KEY)
+
+  const keysToRemove: string[] = []
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index)
+    if (key && (key === LEGACY_WORKSPACE_SESSION_KEY || key.startsWith(`${WORKSPACE_SESSION_KEY_PREFIX}:`))) {
+      keysToRemove.push(key)
+    }
+  }
+  keysToRemove.forEach(key => window.localStorage.removeItem(key))
 }
 
 export const loadWorkspaceFiles = async (): Promise<ImportedFile[]> => {
-  if (typeof window === 'undefined' || !('indexedDB' in window)) return []
+  const key = importedFilesKey()
+  if (!key || typeof window === 'undefined' || !('indexedDB' in window)) return []
   try {
     const stored = await withStore<ImportedFile[] | undefined>(
       'readonly',
-      store => store.get(IMPORTED_FILES_KEY),
+      store => store.get(key),
     )
     return Array.isArray(stored) ? stored : []
   } catch {
@@ -173,10 +340,11 @@ export const loadWorkspaceFiles = async (): Promise<ImportedFile[]> => {
 }
 
 export const saveWorkspaceFiles = async (files: ImportedFile[]): Promise<void> => {
-  if (typeof window === 'undefined' || !('indexedDB' in window)) return
+  const key = importedFilesKey()
+  if (!key || typeof window === 'undefined' || !('indexedDB' in window)) return
   await withStore<IDBValidKey>(
     'readwrite',
-    store => store.put(files, IMPORTED_FILES_KEY),
+    store => store.put(files, key),
   )
 }
 
@@ -184,6 +352,6 @@ export const clearWorkspaceFiles = async (): Promise<void> => {
   if (typeof window === 'undefined' || !('indexedDB' in window)) return
   await withStore<undefined>(
     'readwrite',
-    store => store.delete(IMPORTED_FILES_KEY),
+    store => store.clear(),
   )
 }

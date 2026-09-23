@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import FileDropZone from './components/FileDropZone'
 import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
@@ -110,6 +110,8 @@ type HomologationAppProps = {
   dashboardMode?: boolean
   initialMapping?: FieldMapping[]
   onMappingChange?: (mapping: FieldMapping[]) => void
+  restoreCompletedReport?: boolean
+  onComparisonExecuted?: (mapping: FieldMapping[]) => void
 }
 
 const mergePersistedMapping = (
@@ -148,6 +150,8 @@ function App({
   dashboardMode = false,
   initialMapping,
   onMappingChange,
+  restoreCompletedReport = false,
+  onComparisonExecuted,
 }: HomologationAppProps = {}) {
   const [originFiles, setOriginFiles] = useState<ImportedFile[]>(presetOriginFiles ?? [])
   const [targetFiles, setTargetFiles] = useState<ImportedFile[]>(presetTargetFiles ?? [])
@@ -197,12 +201,16 @@ function App({
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
   const pageSize = 20
+  const restoredComparisonKey = useRef('')
+  const suppressAutoRestore = useRef(false)
 
   const presetOriginKey = presetOriginFiles?.map(file => file.id).join('|') ?? ''
   const presetTargetKey = presetTargetFiles?.map(file => file.id).join('|') ?? ''
 
   useEffect(() => {
     if (!presetOriginFiles) return
+    restoredComparisonKey.current = ''
+    suppressAutoRestore.current = false
     setOriginFiles(presetOriginFiles)
     setReport(null)
     setSelectedClient(null)
@@ -210,6 +218,8 @@ function App({
 
   useEffect(() => {
     if (!presetTargetFiles) return
+    restoredComparisonKey.current = ''
+    suppressAutoRestore.current = false
     setTargetFiles(presetTargetFiles)
     setReport(null)
     setSelectedClient(null)
@@ -293,6 +303,18 @@ function App({
     && keyFields.length > 0
     && keyMappings.every(item => Boolean(item?.originHeader && item?.targetHeader))
   const keyLabel = keyFields.map(field => field.label).join(' + ') || 'chave do registro'
+  const restoreComparisonKey = [
+    profile.id,
+    origin.files.map(file => `${file.id}:${file.rows.length}`).join(','),
+    target.files.map(file => `${file.id}:${file.rows.length}`).join(','),
+    mapping.map(item => [
+      item.fieldId,
+      item.originHeader,
+      item.targetHeader,
+      item.originManual === true ? '1' : '0',
+      item.targetManual === true ? '1' : '0',
+    ].join(':')).join('|'),
+  ].join('||')
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'overview', label: 'Visão geral' },
     { id: 'dashboard', label: 'Dashboard' },
@@ -316,6 +338,8 @@ function App({
       try {
         const next = compareDatasets(origin, target, mapping, profile)
         setReport(next)
+        suppressAutoRestore.current = false
+        onComparisonExecuted?.(mapping)
         setActiveTab(dashboardMode ? 'dashboard' : 'overview')
         setIssueFieldFilter('TODOS')
         setStatusFilter('TODOS')
@@ -330,6 +354,14 @@ function App({
       }
     }, 40)
   }
+
+  useEffect(() => {
+    if (!restoreCompletedReport || suppressAutoRestore.current || !ready || report || busy) return
+    if (!restoreComparisonKey || restoredComparisonKey.current === restoreComparisonKey) return
+
+    restoredComparisonKey.current = restoreComparisonKey
+    runComparison()
+  }, [restoreCompletedReport, ready, report, busy, restoreComparisonKey])
 
   const handleManualAdjustment = (
     clientKey: string,
@@ -839,6 +871,7 @@ function App({
               </div>
               <div className="result-actions">
                 <button className="button ghost" onClick={() => {
+                  suppressAutoRestore.current = true
                   setReport(null)
                   setActiveTab('overview')
                   setIssueFieldFilter('TODOS')
