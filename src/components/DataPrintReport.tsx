@@ -1,9 +1,17 @@
+import { statusClassName } from './StatusBadge'
+
 export type PrintColumn = {
   key: string
   label: string
 }
 
 export type PrintRow = Record<string, string | number>
+
+const PRINT_STATUS_KEYS = new Set(['status', 'resultado', 'validade'])
+
+function isStatusColumn(key: string) {
+  return PRINT_STATUS_KEYS.has(key)
+}
 
 export default function DataPrintReport({
   title,
@@ -36,13 +44,30 @@ export default function DataPrintReport({
       <table className="generic-print-table">
         <thead>
           <tr>
-            {columns.map(column => <th key={column.key}>{column.label}</th>)}
+            {columns.map(column => (
+              <th
+                key={column.key}
+                className={isStatusColumn(column.key) ? 'print-status-col' : undefined}
+              >
+                {column.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
             <tr key={index}>
-              {columns.map(column => <td key={column.key}>{String(row[column.key] ?? '—')}</td>)}
+              {columns.map(column => {
+                const value = String(row[column.key] ?? '—')
+                const statusCell = isStatusColumn(column.key)
+                return (
+                  <td key={column.key} className={statusCell ? 'print-status-col' : undefined}>
+                    {statusCell && value !== '—'
+                      ? <span className={statusClassName(value)}>{value}</span>
+                      : value}
+                  </td>
+                )
+              })}
             </tr>
           ))}
         </tbody>

@@ -1,12 +1,12 @@
 import type { Severity } from '../types'
 
+export function statusClassName(status: string) {
+  if (status === 'CONFORME' || status === 'VÁLIDO') return 'status status-ok'
+  if (status === 'ATENÇÃO') return 'status status-warning'
+  if (status === 'DIVERGENTE' || status === 'INVÁLIDO') return 'status status-error'
+  return 'status status-neutral'
+}
+
 export default function StatusBadge({ status }: { status: Severity }) {
-  const className = status === 'CONFORME'
-    ? 'status status-ok'
-    : status === 'ATENÇÃO'
-      ? 'status status-warning'
-      : status === 'DIVERGENTE'
-        ? 'status status-error'
-        : 'status status-neutral'
-  return <span className={className}>{status}</span>
+  return <span className={statusClassName(status)}>{status}</span>
 }
