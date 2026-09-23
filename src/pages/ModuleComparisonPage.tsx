@@ -7,9 +7,11 @@ import {
 } from '../config/workspaceModules'
 import type { ImportedFile } from '../types'
 import {
+  hasWorkspaceExecution,
   loadWorkspaceComparisonSelection,
   loadWorkspaceMapping,
   saveWorkspaceComparisonSelection,
+  saveWorkspaceExecution,
   saveWorkspaceMapping,
 } from '../lib/workspaceStorage'
 
@@ -85,6 +87,20 @@ export default function ModuleComparisonPage({
   const persistedMapping = useMemo(
     () => canCompare ? loadWorkspaceMapping(module.id, originName, targetName) : [],
     [canCompare, module.id, originName, targetName],
+  )
+  const comparisonDataSignature = useMemo(() => [
+    ...originFiles.map(file => `origem:${file.id}:${file.rows.length}:${file.headers.length}`),
+    ...targetFiles.map(file => `destino:${file.id}:${file.rows.length}:${file.headers.length}`),
+  ].join('|'), [originFiles, targetFiles])
+  const restoreCompletedReport = useMemo(
+    () => canCompare && hasWorkspaceExecution(
+      module.id,
+      originName,
+      targetName,
+      persistedMapping,
+      comparisonDataSignature,
+    ),
+    [canCompare, module.id, originName, targetName, persistedMapping, comparisonDataSignature],
   )
 
   const swap = () => {
@@ -190,6 +206,16 @@ export default function ModuleComparisonPage({
           initialMapping={persistedMapping}
           onMappingChange={nextMapping =>
             saveWorkspaceMapping(module.id, originName, targetName, nextMapping)
+          }
+          restoreCompletedReport={restoreCompletedReport}
+          onComparisonExecuted={nextMapping =>
+            saveWorkspaceExecution(
+              module.id,
+              originName,
+              targetName,
+              nextMapping,
+              comparisonDataSignature,
+            )
           }
         />
       )}
