@@ -6162,22 +6162,23 @@ body {
   }
 
   .issue-print-table th:nth-child(1),
-  .issue-print-table td:nth-child(1) { width: 13%; }
+  .issue-print-table td:nth-child(1) { width: 12%; }
 
   .issue-print-table th:nth-child(2),
   .issue-print-table td:nth-child(2) { width: 12%; }
 
   .issue-print-table th:nth-child(3),
-  .issue-print-table td:nth-child(3) { width: 16%; }
+  .issue-print-table td:nth-child(3) { width: 14%; }
 
   .issue-print-table th:nth-child(4),
-  .issue-print-table td:nth-child(4) { width: 16%; }
+  .issue-print-table td:nth-child(4) { width: 14%; }
 
   .issue-print-table th:nth-child(5),
-  .issue-print-table td:nth-child(5) { width: 10%; }
+  .issue-print-table td:nth-child(5),
+  .issue-print-table .print-status-col { width: 13%; }
 
   .issue-print-table th:nth-child(6),
-  .issue-print-table td:nth-child(6) { width: 33%; }
+  .issue-print-table td:nth-child(6) { width: 35%; }
 
   .issue-print-table td strong,
   .issue-print-table td small {
@@ -8860,6 +8861,59 @@ footer {
     overflow-wrap: anywhere;
   }
 
+  .status,
+  .quick-duplicate-status,
+  .validity,
+  .analysis-status-badge,
+  .issue-print-table .status,
+  .generic-print-table .status,
+  .analytic-report-table .status,
+  .issue-print-table .quick-duplicate-status,
+  .generic-print-table .quick-duplicate-status,
+  .analytic-report-table .quick-duplicate-status {
+    display: inline !important;
+    min-width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 9.5px !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+    letter-spacing: .02em;
+    white-space: nowrap !important;
+  }
+
+  .status-ok,
+  .validity.valid {
+    color: var(--green) !important;
+  }
+
+  .status-warning,
+  .validity.warn {
+    color: var(--yellow) !important;
+  }
+
+  .status-error {
+    color: var(--red) !important;
+  }
+
+  .status-neutral,
+  .quick-duplicate-status {
+    color: var(--neutral) !important;
+  }
+
+  .issue-print-table th:nth-child(1),
+  .issue-print-table td:nth-child(1) {
+    width: 12%;
+  }
+
+  .issue-print-table th:nth-child(2),
+  .issue-print-table td:nth-child(2) {
+    width: 12%;
+  }
+
   .issue-print-table th:nth-child(3),
   .issue-print-table td:nth-child(3),
   .issue-print-table th:nth-child(4),
@@ -8867,10 +8921,22 @@ footer {
     width: 14%;
   }
 
+  .issue-print-table th:nth-child(5),
+  .issue-print-table td:nth-child(5),
+  .issue-print-table .print-status-col,
+  .generic-print-table .print-status-col {
+    width: 13%;
+    vertical-align: middle;
+    text-align: left;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
   .issue-print-table th:nth-child(6),
   .issue-print-table td:nth-child(6),
   .issue-print-table .reason-cell {
-    width: 36%;
+    width: 35%;
     font-size: 11px;
     line-height: 1.4;
     overflow-wrap: anywhere;

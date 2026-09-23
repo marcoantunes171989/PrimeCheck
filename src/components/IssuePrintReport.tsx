@@ -57,7 +57,7 @@ export default function IssuePrintReport({
             <th>Campo</th>
             <th>Origem</th>
             <th>Destino</th>
-            <th>Status</th>
+            <th className="print-status-col">Status</th>
             <th>Motivo</th>
           </tr>
         </thead>
@@ -74,7 +74,7 @@ export default function IssuePrintReport({
               </td>
               <td>{item.field.originValue || '—'}</td>
               <td>{item.field.targetValue || '—'}</td>
-              <td><StatusBadge status={item.field.status} /></td>
+              <td className="print-status-col"><StatusBadge status={item.field.status} /></td>
               <td className="reason-cell">{item.field.reason}</td>
             </tr>
           ))}
