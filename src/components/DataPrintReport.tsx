@@ -1,4 +1,5 @@
 import { statusClassName } from './StatusBadge'
+import { formatReportDateTime } from '../lib/reportFormatting'
 
 export type PrintColumn = {
   key: string
@@ -35,7 +36,7 @@ export default function DataPrintReport({
         <h1>{title}</h1>
         <p>{subtitle}</p>
         <div className="generic-print-summary">
-          <div><span>Gerado em</span><strong>{new Date().toLocaleString('pt-BR')}</strong></div>
+          <div><span>Gerado em</span><strong>{formatReportDateTime()}</strong></div>
           <div><span>Registros</span><strong>{rows.length.toLocaleString('pt-BR')}</strong></div>
           <div><span>Filtros</span><strong>{filterDescription || 'Sem filtros adicionais'}</strong></div>
         </div>

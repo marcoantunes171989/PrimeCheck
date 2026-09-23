@@ -16,6 +16,7 @@ import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import DuplicateAnalysisModal, { type DuplicateAnalysisRequest } from './components/DuplicateAnalysisModal'
 import { buildRecordDisplayFields, findDuplicateGroup, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
 import { validateCpfCnpj } from './lib/normalizers'
+import { formatReportDateTime } from './lib/reportFormatting'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
 type Tab = 'overview' | 'dashboard' | 'diagnosis' | 'clients' | 'issues' | 'fields' | 'duplicates' | 'missing'
@@ -1914,37 +1915,22 @@ type DuplicateSyntheticRow = {
   fieldId: string
   fieldLabel: string
   category: string
-  groupCount: number
+  normalizedValue: string
   recordCount: number
+  codes: string[]
 }
 
 function summarizeDuplicates(items: ComparisonReport['duplicates']): DuplicateSyntheticRow[] {
-  const grouped = new Map<string, DuplicateSyntheticRow>()
-
-  for (const dup of items) {
-    const key = [dup.side, dup.fieldId, dup.category].join('::')
-    const current = grouped.get(key)
-    if (current) {
-      current.groupCount += 1
-      current.recordCount += dup.count
-      continue
-    }
-    grouped.set(key, {
-      key,
-      side: dup.side,
-      fieldId: dup.fieldId,
-      fieldLabel: dup.fieldLabel,
-      category: dup.category,
-      groupCount: 1,
-      recordCount: dup.count,
-    })
-  }
-
-  return [...grouped.values()].sort((left, right) =>
-    left.fieldLabel.localeCompare(right.fieldLabel, 'pt-BR', { sensitivity: 'base' })
-    || left.side.localeCompare(right.side, 'pt-BR')
-    || left.category.localeCompare(right.category, 'pt-BR', { sensitivity: 'base' }),
-  )
+  return items.map((dup, index) => ({
+    key: [dup.side, dup.fieldId, dup.normalizedValue, index].join('::'),
+    side: dup.side,
+    fieldId: dup.fieldId,
+    fieldLabel: dup.fieldLabel,
+    category: dup.category,
+    normalizedValue: dup.normalizedValue,
+    recordCount: dup.count,
+    codes: dup.records.map(record => record.key).filter(Boolean),
+  }))
 }
 
 function DuplicatePrintReport({
@@ -1960,10 +1946,7 @@ function DuplicatePrintReport({
 }) {
   const nameLabel = profile.fields.find(field => field.id === profile.nameFieldId)?.label
     || (profile.id === 'product' ? 'Descrição' : profile.id === 'supplier' ? 'Razão Social' : 'Nome')
-  const printedAt = (() => {
-    const date = new Date(generatedAt)
-    return Number.isNaN(date.getTime()) ? new Date().toLocaleString('pt-BR') : date.toLocaleString('pt-BR')
-  })()
+  const printedAt = formatReportDateTime(generatedAt)
 
   return (
     <section className="dup-print-report" aria-hidden="true">
@@ -2070,10 +2053,7 @@ function DuplicateSyntheticPrintReport({
   filterDescription: string
   generatedAt: string
 }) {
-  const printedAt = (() => {
-    const date = new Date(generatedAt)
-    return Number.isNaN(date.getTime()) ? new Date().toLocaleString('pt-BR') : date.toLocaleString('pt-BR')
-  })()
+  const printedAt = formatReportDateTime(generatedAt)
   const totalRecords = sourceItems.reduce((total, dup) => total + dup.count, 0)
   const totalFields = new Set(sourceItems.map(dup => dup.fieldId)).size
 
@@ -2100,8 +2080,8 @@ function DuplicateSyntheticPrintReport({
         <div className="dup-print-guidance">
           <strong>Resumo sintético</strong>
           <p>
-            As duplicidades estão agrupadas por lado, campo e tipo. A quantidade de grupos representa valores
-            duplicados distintos e a quantidade de registros representa a soma dos cadastros envolvidos nesses grupos.
+            Cada linha representa um valor duplicado dentro dos filtros aplicados. Use campo, tipo, valor,
+            quantidade e códigos envolvidos para localizar rapidamente os cadastros que exigem correção ou consolidação.
           </p>
         </div>
 
@@ -2111,20 +2091,22 @@ function DuplicateSyntheticPrintReport({
               <th>Lado</th>
               <th>Campo duplicado</th>
               <th>Tipo</th>
-              <th>Grupos duplicados</th>
-              <th>Registros envolvidos</th>
+              <th>Valor duplicado</th>
+              <th>Qtd. registros</th>
+              <th>Códigos envolvidos</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={5}>Nenhuma duplicidade encontrada para os filtros aplicados.</td></tr>
+              <tr><td colSpan={6}>Nenhuma duplicidade encontrada para os filtros aplicados.</td></tr>
             ) : rows.map(row => (
               <tr key={row.key}>
                 <td>{sideLabel(row.side)}</td>
-                <td>{row.fieldLabel}</td>
+                <td><strong>{row.fieldLabel}</strong></td>
                 <td>{row.category}</td>
-                <td>{number(row.groupCount)}</td>
-                <td>{number(row.recordCount)}</td>
+                <td className="mono">{row.normalizedValue || '—'}</td>
+                <td><strong>{number(row.recordCount)}</strong></td>
+                <td className="dup-print-synthetic-codes">{row.codes.length ? row.codes.join(' · ') : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -2351,9 +2333,9 @@ function DuplicatesView({
                 </>
               ) : (
                 <>
-                  {number(syntheticRows.length)} {syntheticRows.length === 1 ? 'agrupamento sintético' : 'agrupamentos sintéticos'} · {' '}
-                  {number(sorted.length)} {sorted.length === 1 ? 'grupo duplicado' : 'grupos duplicados'} · {' '}
-                  {number(syntheticRecordCount)} registros envolvidos.
+                  {number(syntheticRows.length)} {syntheticRows.length === 1 ? 'grupo duplicado' : 'grupos duplicados'} no resumo sintético · {' '}
+                  {number(syntheticRecordCount)} registros envolvidos · {' '}
+                  {number(syntheticFieldCount)} {syntheticFieldCount === 1 ? 'campo com duplicidade' : 'campos com duplicidade'}.
                 </>
               )}
             </p>
@@ -2425,7 +2407,7 @@ function DuplicatesView({
           <span>
             {reportMode === 'ANALITICO'
               ? 'Revise os registros do mesmo grupo e confirme qual cadastro deve prevalecer. Ao abrir um grupo ele é marcado como analisado para facilitar a sequência da revisão.'
-              : 'Resumo agrupado por lado, campo e tipo. Use esta visão para conferir rapidamente quantos grupos duplicados e quantos registros estão envolvidos antes da análise individual.'}
+              : 'Resumo compacto por grupo duplicado, mantendo lado, campo, tipo, valor, quantidade e códigos envolvidos. Os filtros ativos também são respeitados na impressão.'}
           </span>
         </div>
 
@@ -2623,8 +2605,9 @@ function DuplicatesView({
                   <th>Lado</th>
                   <th>Campo duplicado</th>
                   <th>Tipo</th>
-                  <th>Grupos duplicados</th>
-                  <th>Registros envolvidos</th>
+                  <th>Valor duplicado</th>
+                  <th>Qtd. registros</th>
+                  <th>Códigos envolvidos</th>
                 </tr>
               </thead>
               <tbody>
@@ -2633,8 +2616,9 @@ function DuplicatesView({
                     <td><span className={'dup-side dup-side-' + row.side.toLowerCase()}>{row.side}</span></td>
                     <td><div className="dup-field"><strong>{row.fieldLabel}</strong></div></td>
                     <td><span className="dup-category">{row.category}</span></td>
-                    <td><strong className="dup-synthetic-number">{number(row.groupCount)}</strong></td>
+                    <td><strong className="mono dup-synthetic-value">{row.normalizedValue || '—'}</strong></td>
                     <td><strong className="dup-synthetic-number">{number(row.recordCount)}</strong></td>
+                    <td><span className="dup-synthetic-codes">{row.codes.length ? row.codes.join(' · ') : '—'}</span></td>
                   </tr>
                 ))}
               </tbody>

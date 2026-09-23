@@ -1,4 +1,5 @@
 import type { ClientComparison, ComparisonFieldResult } from '../types'
+import { formatReportDateTime } from '../lib/reportFormatting'
 import StatusBadge from './StatusBadge'
 
 export type IssuePrintItem = {
@@ -19,7 +20,7 @@ export default function IssuePrintReport({
 }) {
   if (!items.length) return null
 
-  const generatedAt = new Date().toLocaleString('pt-BR')
+  const generatedAt = formatReportDateTime()
   const fieldLabels = [...new Set(items.map(item => item.field.fieldLabel))]
   const analysisLabel = fieldLabels.length === 1
     ? fieldLabels[0]
