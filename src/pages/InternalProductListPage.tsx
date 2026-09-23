@@ -158,7 +158,7 @@ export default function InternalProductListPage() {
   }
 
   const updateSearch = (
-    setter: React.Dispatch<React.SetStateAction<string>>,
+    setter: (value: string) => void,
     value: string,
   ) => {
     rememberViewport()
@@ -414,7 +414,7 @@ export default function InternalProductListPage() {
               <button
                 type="button"
                 className="button internal-products-clear-search"
-                onClick={clearSearch}
+                onClick={() => clearSearch()}
                 disabled={!hasSearch}
               >
                 Limpar pesquisa
