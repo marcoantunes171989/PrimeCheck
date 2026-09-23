@@ -10152,3 +10152,51 @@ footer {
   outline: none;
   box-shadow: 0 0 0 3px rgba(243, 133, 37, .28);
 }
+
+/* Homologação de Clientes: checklist e campo técnico do banco */
+.mapping-checklist-cell {
+  width: 250px;
+  min-width: 220px;
+  vertical-align: middle;
+  background: #fbfcfd;
+}
+.mapping-checklist-cell .mapping-group {
+  max-width: 220px;
+  color: #355062;
+  font-weight: 800;
+}
+.mapping-checklist-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  margin-right: 7px;
+  border: 1px solid #9fc9b2;
+  border-radius: 6px;
+  background: #edf9f2;
+  color: #16834a;
+  font-size: 11px;
+  font-weight: 900;
+  vertical-align: middle;
+}
+.mapping-database-field {
+  min-width: 210px;
+}
+.mapping-database-field > strong {
+  display: inline-block;
+  color: var(--primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-xs);
+  letter-spacing: .01em;
+}
+.mapping-database-field > small {
+  display: block;
+  margin-top: 4px;
+  color: #73818b;
+  font-size: var(--fs-2xs);
+}
+@media (max-width: 900px) {
+  .mapping-checklist-cell {
+    min-width: 190px;
+  }
+}
