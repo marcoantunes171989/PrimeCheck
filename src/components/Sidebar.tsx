@@ -40,7 +40,7 @@ type NavEntry = {
   kind: NavKind
   target: string
   enabled: boolean
-  groupId?: WorkspaceGroupId
+  groupId?: WorkspaceGroupId | 'nfce'
 }
 
 const GROUP_ICONS: Record<WorkspaceGroupId, IconName> = {
@@ -64,7 +64,15 @@ const FIXED_FILES = [
 const VALIDATION_ITEMS = [
   { id: 'cnpj', label: 'Validação CNPJ', helper: 'Consulta e dígitos', icon: 'cnpj' as const },
   { id: 'ie', label: 'Validação I.E.', helper: '27 UFs', icon: 'ie' as const },
-  { id: 'nfce', label: 'Validação NFC-e', helper: 'XML, tags e DANFE', icon: 'fiscal' as const },
+]
+
+const NFCE_MENU = { id: 'nfce', label: 'Validação NFC-e', helper: 'Documentos e análises', icon: 'fiscal' as const }
+const NFCE_CHILDREN = [
+  { id: 'nfce:documents', label: 'Documentos NFC-e' },
+  { id: 'nfce:overview', label: 'Visão Geral' },
+  { id: 'nfce:products', label: 'Produtos mais vendidos' },
+  { id: 'nfce:consumers', label: 'Consumidores' },
+  { id: 'nfce:barcodes', label: 'Códigos curtos' },
 ]
 
 const normalizeSearch = (value: string) =>
@@ -263,6 +271,7 @@ export default function Sidebar({
   const navRef = useRef<HTMLElement>(null)
   const pendingFocusRef = useRef(false)
   const [openGroup, setOpenGroup] = useState<WorkspaceGroupId | null>(null)
+  const [nfceOpen, setNfceOpen] = useState(false)
   const [queryRaw, setQueryRaw] = useState('')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [mobile, setMobile] = useState(() =>
@@ -306,15 +315,28 @@ export default function Sidebar({
   }, [])
 
   useEffect(() => {
-    if (!active.startsWith('data:')) return
-    const id = active.slice(5)
-    const group = WORKSPACE_GROUPS.find(item => item.modules.includes(id as never))
-    if (!group) return
-    setOpenGroup(group.id)
+    if (active.startsWith('data:')) {
+      const id = active.slice(5)
+      const group = WORKSPACE_GROUPS.find(item => item.modules.includes(id as never))
+      if (!group) return
+      setNfceOpen(false)
+      setOpenGroup(group.id)
+      return
+    }
+    if (active.startsWith('nfce:')) {
+      setOpenGroup(null)
+      setNfceOpen(true)
+    }
   }, [active])
 
   const toggleGroup = (id: WorkspaceGroupId) => {
+    setNfceOpen(false)
     setOpenGroup(current => current === id ? null : id)
+  }
+
+  const toggleNfce = () => {
+    setOpenGroup(null)
+    setNfceOpen(current => !current)
   }
 
   const focusSearch = useCallback((select = false) => {
@@ -399,9 +421,15 @@ export default function Sidebar({
     )
   }, [query, searching, validationSectionMatched])
 
+  const nfceMatched = useMemo(() => {
+    if (!searching || validationSectionMatched) return true
+    if (matchesQuery(query, NFCE_MENU.label, NFCE_MENU.helper, 'nfce', 'xml', 'danfe')) return true
+    return NFCE_CHILDREN.some(item => matchesQuery(query, item.label, item.id, 'nfce'))
+  }, [query, searching, validationSectionMatched])
+
   const showDashboards = visibleDashboards.length > 0
   const showFiles = visibleFixedFiles.length > 0 || visibleGroups.some(item => item.visible)
-  const showValidation = visibleValidation.length > 0
+  const showValidation = visibleValidation.length > 0 || nfceMatched
   const hasResults = showDashboards || showFiles || showValidation
 
   const navEntries = useMemo(() => {
@@ -441,8 +469,16 @@ export default function Sidebar({
     visibleValidation.forEach(item => {
       entries.push({ key: item.id, kind: 'item', target: item.id, enabled: true })
     })
+    if (nfceMatched) {
+      entries.push({ key: 'group:nfce', kind: 'group', target: 'nfce', enabled: true, groupId: 'nfce' })
+      if (nfceOpen) {
+        NFCE_CHILDREN.forEach(item => {
+          entries.push({ key: item.id, kind: 'item', target: item.id, enabled: true, groupId: 'nfce' })
+        })
+      }
+    }
     return entries
-  }, [enabledSet, openGroup, searching, visibleDashboards, visibleFixedFiles, visibleGroups, visibleValidation])
+  }, [enabledSet, nfceMatched, nfceOpen, openGroup, searching, visibleDashboards, visibleFixedFiles, visibleGroups, visibleValidation])
 
   useEffect(() => {
     setSelectedKey(current => current && navEntries.some(entry => entry.key === current) ? current : null)
@@ -460,8 +496,19 @@ export default function Sidebar({
 
   const activateEntry = (entry: NavEntry) => {
     if (entry.kind === 'group' && entry.groupId) {
+      if (entry.groupId === 'nfce') {
+        if (collapsed) {
+          onToggle()
+          setOpenGroup(null)
+          setNfceOpen(true)
+          return
+        }
+        toggleNfce()
+        return
+      }
       if (collapsed) {
         onToggle()
+        setNfceOpen(false)
         setOpenGroup(entry.groupId)
         return
       }
@@ -469,7 +516,10 @@ export default function Sidebar({
       return
     }
     if (!entry.enabled) return
-    if (!entry.groupId) setOpenGroup(null)
+    if (!entry.groupId) {
+      setOpenGroup(null)
+      setNfceOpen(false)
+    }
     onChange(entry.target)
     if (mobile) setMobileSearchOpen(false)
   }
@@ -674,6 +724,7 @@ export default function Sidebar({
                     onClick: () => {
                       if (!enabled) return
                       setOpenGroup(null)
+                      setNfceOpen(false)
                       onChange(`dashboard:${module.id}`)
                     },
                   },
@@ -693,6 +744,7 @@ export default function Sidebar({
                 renderItem(item.id, item.label, item.helper, item.icon, {
                   onClick: () => {
                     setOpenGroup(null)
+                    setNfceOpen(false)
                     onChange(item.id)
                   },
                 }),
@@ -783,9 +835,67 @@ export default function Sidebar({
                 renderItem(item.id, item.label, item.helper, item.icon, {
                   onClick: () => {
                     setOpenGroup(null)
+                    setNfceOpen(false)
                     onChange(item.id)
                   },
                 }),
+              )}
+
+              {nfceMatched && (
+                <div className={'sidebar-group ' + (nfceOpen ? 'open ' : '') + (active.startsWith('nfce:') ? 'active-group' : '')}>
+                  <button
+                    type="button"
+                    id="sidebar-nav-group:nfce"
+                    className={itemClass('group:nfce', 'sidebar-group-toggle')}
+                    onClick={() => {
+                      if (collapsed) {
+                        onToggle()
+                        setOpenGroup(null)
+                        setNfceOpen(true)
+                      } else {
+                        toggleNfce()
+                      }
+                    }}
+                    aria-expanded={nfceOpen}
+                    title={compact ? NFCE_MENU.label : undefined}
+                  >
+                    <IconBox name={NFCE_MENU.icon} />
+                    {!compact && (
+                      <span className="sidebar-item-copy">
+                        <strong>{NFCE_MENU.label}</strong>
+                        <small>{NFCE_MENU.helper}</small>
+                      </span>
+                    )}
+                    {!compact && (
+                      <span className={'sidebar-item-chevron sidebar-group-chevron' + (nfceOpen ? ' is-open' : '')} aria-hidden="true">
+                        <Glyph name={nfceOpen ? 'chevronDown' : 'chevronRight'} />
+                      </span>
+                    )}
+                  </button>
+
+                  {nfceOpen && (
+                    <div className="sidebar-group-children">
+                      {NFCE_CHILDREN.map(item => (
+                        <button
+                          type="button"
+                          id={`sidebar-nav-${item.id}`}
+                          key={item.id}
+                          className={[
+                            'sidebar-child',
+                            active === item.id ? 'active' : '',
+                            selectedKey === item.id ? 'is-kbd' : '',
+                          ].filter(Boolean).join(' ')}
+                          onClick={() => onChange(item.id)}
+                          aria-current={active === item.id ? 'page' : undefined}
+                          title={item.label}
+                        >
+                          <span className="sidebar-child-dot" />
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </section>
           )}
