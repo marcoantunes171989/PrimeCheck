@@ -1,3 +1,5 @@
+import { initializeWorkspaceScope } from './workspaceStorage'
+
 export interface InternalProductRow {
   id: string
   code: string
@@ -16,9 +18,11 @@ export interface InternalProductSnapshot {
 }
 
 const DB_NAME = 'primecheck-local'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'workspace'
-const INTERNAL_PRODUCTS_KEY = 'internal-product-list-v1'
+const NFCE_STORE_NAME = 'nfce-xml'
+const LEGACY_INTERNAL_PRODUCTS_KEY = 'internal-product-list-v1'
+const INTERNAL_PRODUCTS_KEY_PREFIX = 'internal-product-list-v2'
 
 const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
   const request = window.indexedDB.open(DB_NAME, DB_VERSION)
@@ -27,6 +31,9 @@ const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
     const db = request.result
     if (!db.objectStoreNames.contains(STORE_NAME)) {
       db.createObjectStore(STORE_NAME)
+    }
+    if (!db.objectStoreNames.contains(NFCE_STORE_NAME)) {
+      db.createObjectStore(NFCE_STORE_NAME)
     }
   }
 
@@ -54,31 +61,78 @@ const withStore = async <T>(
   }
 }
 
+const resolveInternalProductsKey = async () => {
+  const scope = await initializeWorkspaceScope()
+  return scope ? `${INTERNAL_PRODUCTS_KEY_PREFIX}:${scope}` : ''
+}
+
+const isValidSnapshot = (value: InternalProductSnapshot | undefined | null): value is InternalProductSnapshot =>
+  Boolean(value?.rows && Array.isArray(value.rows))
+
+const migrateLegacySnapshot = async (scopedKey: string) => {
+  const current = await withStore<InternalProductSnapshot | undefined>(
+    'readonly',
+    store => store.get(scopedKey),
+  )
+  if (isValidSnapshot(current)) return current
+
+  const legacy = await withStore<InternalProductSnapshot | undefined>(
+    'readonly',
+    store => store.get(LEGACY_INTERNAL_PRODUCTS_KEY),
+  )
+  if (!isValidSnapshot(legacy)) return null
+
+  await withStore<IDBValidKey>(
+    'readwrite',
+    store => store.put(legacy, scopedKey),
+  )
+  await withStore<undefined>(
+    'readwrite',
+    store => store.delete(LEGACY_INTERNAL_PRODUCTS_KEY),
+  )
+  return legacy
+}
+
 export const loadInternalProductList = async (): Promise<InternalProductSnapshot | null> => {
   if (typeof window === 'undefined' || !('indexedDB' in window)) return null
-  try {
-    const stored = await withStore<InternalProductSnapshot | undefined>(
-      'readonly',
-      store => store.get(INTERNAL_PRODUCTS_KEY),
-    )
-    return stored?.rows && Array.isArray(stored.rows) ? stored : null
-  } catch {
-    return null
+
+  const scopedKey = await resolveInternalProductsKey()
+  if (!scopedKey) {
+    throw new Error('Não foi possível identificar o IP atual para restaurar a lista de produtos.')
   }
+
+  const migrated = await migrateLegacySnapshot(scopedKey)
+  if (migrated) return migrated
+
+  const stored = await withStore<InternalProductSnapshot | undefined>(
+    'readonly',
+    store => store.get(scopedKey),
+  )
+  return isValidSnapshot(stored) ? stored : null
 }
 
 export const saveInternalProductList = async (snapshot: InternalProductSnapshot): Promise<void> => {
   if (typeof window === 'undefined' || !('indexedDB' in window)) return
+
+  const scopedKey = await resolveInternalProductsKey()
+  if (!scopedKey) {
+    throw new Error('Não foi possível identificar o IP atual para salvar a lista de produtos.')
+  }
+
   await withStore<IDBValidKey>(
     'readwrite',
-    store => store.put(snapshot, INTERNAL_PRODUCTS_KEY),
+    store => store.put(snapshot, scopedKey),
   )
 }
 
 export const clearInternalProductList = async (): Promise<void> => {
   if (typeof window === 'undefined' || !('indexedDB' in window)) return
+
+  const scopedKey = await resolveInternalProductsKey()
+  if (!scopedKey) return
+
   await withStore<undefined>(
     'readwrite',
-    store => store.delete(INTERNAL_PRODUCTS_KEY),
+    store => store.delete(scopedKey),
   )
 }
