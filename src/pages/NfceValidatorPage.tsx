@@ -18,12 +18,14 @@ import {
   saveNfceDocuments,
   saveNfceUiState,
   type NfceModalTab,
+  type NfceSortDirection,
+  type NfceSortKey,
   type NfceStatusFilter,
   type NfceUiState,
 } from '../lib/workspaceStorage'
 import '../nfce.css'
 
-const PAGE_SIZE = 100
+const PAGE_SIZE = 20
 const BATCH_SIZE = 40
 
 const directText = (element: Element) =>
@@ -244,12 +246,78 @@ const statusLabel = (item: NfceSummary) => {
   return item.statusMessage || (item.statusCode ? `Status ${item.statusCode}` : 'Sem protocolo')
 }
 
+const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' })
+
+const issueTimestamp = (item: NfceSummary) => {
+  const timestamp = Date.parse(item.issueDate)
+  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER
+}
+
+const issueDayKey = (item: NfceSummary) => {
+  const timestamp = Date.parse(item.issueDate)
+  if (!Number.isFinite(timestamp)) return 'sem-data'
+  const date = new Date(timestamp)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const issueDayLabel = (key: string) => {
+  if (key === 'sem-data') return 'Sem data de emissão'
+  const [year, month, day] = key.split('-').map(Number)
+  return new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day))
+}
+
+const compareNfce = (
+  left: NfceSummary,
+  right: NfceSummary,
+  sortKey: NfceSortKey,
+  direction: NfceSortDirection,
+) => {
+  const factor = direction === 'asc' ? 1 : -1
+  let result = 0
+
+  switch (sortKey) {
+    case 'number':
+      result = collator.compare(`${left.number} ${left.series}`, `${right.number} ${right.series}`)
+      break
+    case 'issuer':
+      result = collator.compare(`${left.issuerName} ${left.issuerDocument}`, `${right.issuerName} ${right.issuerDocument}`)
+      break
+    case 'issueDate':
+      result = issueTimestamp(left) - issueTimestamp(right)
+      break
+    case 'total':
+      result = left.total - right.total
+      break
+    case 'status':
+      result = collator.compare(statusLabel(left), statusLabel(right))
+      break
+    case 'accessKey':
+      result = collator.compare(left.accessKey, right.accessKey)
+      break
+  }
+
+  if (result === 0 && sortKey !== 'issueDate') {
+    result = issueTimestamp(left) - issueTimestamp(right)
+  }
+  return result * factor
+}
+
 const defaultUiState = (): NfceUiState => ({
   selectedId: null,
   modalOpen: false,
   modalTab: 'danfe',
   listSearch: '',
   statusFilter: 'ALL',
+  sortKey: 'issueDate',
+  sortDirection: 'asc',
   page: 1,
   tagSearch: '',
   selectedXmlKey: null,
@@ -277,6 +345,8 @@ export default function NfceValidatorPage() {
   const [errors, setErrors] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<NfceStatusFilter>('ALL')
+  const [sortKey, setSortKey] = useState<NfceSortKey>('issueDate')
+  const [sortDirection, setSortDirection] = useState<NfceSortDirection>('asc')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<NfceSummary | null>(null)
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null)
@@ -317,6 +387,8 @@ export default function NfceValidatorPage() {
       setDocuments(stored)
       setSearch(ui.listSearch)
       setStatusFilter(ui.statusFilter)
+      setSortKey(ui.sortKey)
+      setSortDirection(ui.sortDirection)
       setPage(ui.page)
       setModalTab(ui.modalTab)
       setTagSearch(ui.tagSearch)
@@ -351,7 +423,7 @@ export default function NfceValidatorPage() {
   useEffect(() => {
     if (skipPageResetRef.current) return
     setPage(1)
-  }, [search, statusFilter])
+  }, [search, statusFilter, sortKey, sortDirection])
 
   useEffect(() => {
     if (!storageReady) return
@@ -450,9 +522,39 @@ export default function NfceValidatorPage() {
     })
   }, [documents, search, statusFilter])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const sortedFiltered = useMemo(
+    () => [...filtered].sort((left, right) => compareNfce(left, right, sortKey, sortDirection)),
+    [filtered, sortDirection, sortKey],
+  )
+
+  const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageItems = sortedFiltered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageGroups = useMemo(() => {
+    const groups: Array<{ key: string; label: string; items: NfceSummary[] }> = []
+    pageItems.forEach(item => {
+      const key = issueDayKey(item)
+      const current = groups[groups.length - 1]
+      if (!current || current.key !== key) {
+        groups.push({ key, label: issueDayLabel(key), items: [item] })
+      } else {
+        current.items.push(item)
+      }
+    })
+    return groups
+  }, [pageItems])
+
+  const toggleSort = (key: NfceSortKey) => {
+    if (sortKey === key) {
+      setSortDirection(current => current === 'asc' ? 'desc' : 'asc')
+      return
+    }
+    setSortKey(key)
+    setSortDirection('asc')
+  }
+
+  const sortIndicator = (key: NfceSortKey) =>
+    sortKey === key ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
   const authorized = documents.filter(item => item.statusCode === '100' && item.isNfce && item.validXml).length
   const issues = documents.length - authorized
   const totalValue = documents.reduce((sum, item) => sum + item.total, 0)
@@ -576,6 +678,8 @@ export default function NfceValidatorPage() {
     modalTab,
     listSearch: search,
     statusFilter,
+    sortKey,
+    sortDirection,
     page: safePage,
     tagSearch,
     selectedXmlKey,
@@ -601,6 +705,8 @@ export default function NfceValidatorPage() {
     modalTab,
     search,
     statusFilter,
+    sortKey,
+    sortDirection,
     safePage,
     tagSearch,
     selectedXmlKey,
