@@ -9324,6 +9324,7 @@ footer {
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
+  overflow-anchor: none;
 }
 
 .internal-products-toolbar {
@@ -9390,8 +9391,11 @@ footer {
 }
 
 .internal-products-table-wrap {
-  max-height: calc(100dvh - 325px);
+  height: clamp(320px, calc(100dvh - 325px), 620px);
+  min-height: 320px;
   overflow: auto;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #becad1 transparent;
 }
@@ -9499,7 +9503,10 @@ footer {
   }
 
   .internal-products-table-wrap {
+    height: min(56dvh, 520px);
+    min-height: 320px;
     max-height: none;
+    overflow: auto;
   }
 }
 
@@ -9536,7 +9543,9 @@ footer {
   }
 
   .internal-products-table-wrap {
-    overflow-x: auto;
+    height: min(52dvh, 460px);
+    min-height: 280px;
+    overflow: auto;
   }
 
   .internal-products-table {
