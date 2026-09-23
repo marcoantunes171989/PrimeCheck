@@ -266,157 +266,194 @@ const CHECKLIST_FIELDS_BASE: FieldDefinition[] = [
 const CLIENT_CHECKLIST_CONFIG: Record<string, {
   checklistLabel: string
   databaseField: string
-  aliases: string[]
+  originExactAliases: string[]
+  targetExactAliases: string[]
 }> = {
   codigoInterno: {
-    checklistLabel: 'Código interno',
+    checklistLabel: 'código interno',
     databaseField: 'COD_CLIENTE',
-    aliases: ['COD_CLIENTE'],
+    originExactAliases: ['COD_CLIENTE'],
+    targetExactAliases: ['COD_CLIENTE'],
   },
   nome: {
     checklistLabel: 'Nome',
     databaseField: 'DES_CLIENTE',
-    aliases: ['DES_CLIENTE'],
+    originExactAliases: ['DES_CLIENTE'],
+    targetExactAliases: ['DES_CLIENTE'],
   },
   apelido: {
-    checklistLabel: 'Apelido',
+    checklistLabel: 'apelido',
     databaseField: 'DES_FANTASIA',
-    aliases: ['DES_FANTASIA'],
+    originExactAliases: ['DES_FANTASIA'],
+    targetExactAliases: ['DES_FANTASIA'],
   },
   cpfCnpj: {
     checklistLabel: 'CNPJ/CPF',
     databaseField: 'NUM_CGC',
-    aliases: ['NUM_CGC'],
+    originExactAliases: ['NUM_CGC'],
+    targetExactAliases: ['NUM_CGC'],
   },
   ie: {
     checklistLabel: 'IE',
     databaseField: 'NUM_INSC_EST',
-    aliases: ['NUM_INSC_EST'],
+    originExactAliases: ['NUM_INSC_EST'],
+    targetExactAliases: ['NUM_INSC_EST'],
   },
   rg: {
     checklistLabel: 'RG',
     databaseField: 'NUM_RG',
-    aliases: ['NUM_RG'],
+    originExactAliases: ['NUM_RG'],
+    targetExactAliases: ['NUM_RG'],
   },
   pessoaTipo: {
     checklistLabel: 'Pessoa Física ou Jurídica',
     databaseField: 'FLG_EMPRESA',
-    aliases: ['FLG_EMPRESA'],
+    originExactAliases: ['FLG_EMPRESA'],
+    targetExactAliases: ['FLG_EMPRESA'],
   },
   limiteConvenio: {
     checklistLabel: 'Limite de convênio',
     databaseField: 'VAL_LIMITE_CONV',
-    aliases: ['VAL_LIMITE_CONV'],
+    originExactAliases: ['VAL_LIMITE_CONV'],
+    targetExactAliases: ['VAL_LIMITE_CONV'],
   },
   limiteCheque: {
     checklistLabel: 'Limite de cheque',
     databaseField: 'VAL_LIMITE_CREDITO',
-    aliases: ['VAL_LIMITE_CREDITO'],
+    originExactAliases: ['VAL_LIMITE_CRETID'],
+    targetExactAliases: ['VAL_LIMITE_CREDITO'],
   },
   dataCadastro: {
-    checklistLabel: 'Data de cadastro',
+    checklistLabel: 'data de cadastro',
     databaseField: 'DTA_CADASTRO',
-    aliases: ['DTA_CADASTRO'],
+    originExactAliases: ['DTA_CADASTRO'],
+    targetExactAliases: ['DTA_CADASTRO'],
   },
   endereco: {
-    checklistLabel: 'Endereço',
+    checklistLabel: 'endereço',
     databaseField: 'DES_ENDERECO',
-    aliases: ['DES_ENDERECO'],
+    originExactAliases: ['DES_ENDERECO'],
+    targetExactAliases: ['DES_ENDERECO'],
   },
   numeroEndereco: {
-    checklistLabel: 'Número',
+    checklistLabel: 'numero',
     databaseField: 'NUM_ENDERECO',
-    aliases: ['NUM_ENDERECO'],
+    originExactAliases: ['NUM_ENDERECO'],
+    targetExactAliases: ['NUM_ENDERECO'],
   },
   complemento: {
-    checklistLabel: 'Complemento',
+    checklistLabel: 'complemento',
     databaseField: 'DES_COMPLEMENTO',
-    aliases: ['DES_COMPLEMENTO'],
+    originExactAliases: ['DES_COMPLEMENTO'],
+    targetExactAliases: ['DES_COMPLEMENTO'],
   },
   bairro: {
-    checklistLabel: 'Bairro',
+    checklistLabel: 'bairro',
     databaseField: 'DES_BAIRRO',
-    aliases: ['DES_BAIRRO'],
+    originExactAliases: ['DES_BAIRRO'],
+    targetExactAliases: ['DES_BAIRRO'],
   },
   cidade: {
-    checklistLabel: 'Cidade',
+    checklistLabel: 'cidade',
     databaseField: 'DES_CIDADE',
-    aliases: ['DES_CIDADE'],
+    originExactAliases: ['DES_CIDADE'],
+    targetExactAliases: ['DES_CIDADE'],
   },
   uf: {
-    checklistLabel: 'Sigla',
+    checklistLabel: 'sigla',
     databaseField: 'DES_SIGLA',
-    aliases: ['DES_SIGLA'],
+    originExactAliases: ['DES_SIGLA'],
+    targetExactAliases: ['DES_SIGLA'],
   },
   cep: {
-    checklistLabel: 'CEP',
+    checklistLabel: 'cep',
     databaseField: 'NUM_CEP',
-    aliases: ['NUM_CEP'],
+    originExactAliases: ['NUM_CEP'],
+    targetExactAliases: ['NUM_CEP'],
   },
   telefone: {
-    checklistLabel: 'Telefone',
+    checklistLabel: 'telefone',
     databaseField: 'NUM_FONE',
-    aliases: ['NUM_FONE'],
+    originExactAliases: ['NUM_FONE'],
+    targetExactAliases: ['NUM_FONE'],
   },
   celular: {
-    checklistLabel: 'Celular',
+    checklistLabel: 'celular',
     databaseField: 'NUM_CELULAR',
-    aliases: ['NUM_CELULAR'],
+    originExactAliases: ['NUM_CELULAR'],
+    targetExactAliases: ['NUM_CELULAR'],
   },
   fax: {
-    checklistLabel: 'Fax',
+    checklistLabel: 'fax',
     databaseField: 'NUM_FAX',
-    aliases: ['NUM_FAX'],
+    originExactAliases: ['NUM_FAX'],
+    targetExactAliases: ['NUM_FAX'],
   },
   contato: {
-    checklistLabel: 'Contato',
+    checklistLabel: 'contato',
     databaseField: 'DES_CONTATO',
-    aliases: ['DES_CONTATO'],
+    originExactAliases: ['DES_CONTATO'],
+    targetExactAliases: ['DES_CONTATO'],
   },
   dataNascimento: {
-    checklistLabel: 'Data de nascimento',
+    checklistLabel: 'data de nascimento',
     databaseField: 'DTA_NASCIMENTO',
-    aliases: ['DTA_NASCIMENTO'],
+    originExactAliases: ['DTA_NASCIMENTO'],
+    targetExactAliases: ['DTA_NASCIMENTO'],
   },
   sexo: {
-    checklistLabel: 'Sexo Masculino ou Feminino',
+    checklistLabel: 'sexo Masculino ou Feminino',
     databaseField: 'FLG_SEXO',
-    aliases: ['FLG_SEXO'],
+    originExactAliases: ['FLG_SEXO'],
+    targetExactAliases: ['FLG_SEXO'],
   },
   estadoCivil: {
     checklistLabel: 'Estado civil',
     databaseField: 'FLG_EST_CIVIL',
-    aliases: ['FLG_EST_CIVIL'],
+    originExactAliases: ['FLG_EST_CIVIL'],
+    targetExactAliases: ['FLG_EST_CIVIL'],
   },
   statusCheque: {
-    checklistLabel: 'Status PDV',
+    checklistLabel: 'status PDV',
     databaseField: 'cod_status_pdv',
-    aliases: ['COD_STATUS_PDV'],
+    originExactAliases: ['COD_STATUS_PDV'],
+    targetExactAliases: ['cod_status_pdv'],
   },
   statusConvenio: {
-    checklistLabel: 'Status PDV convênio',
+    checklistLabel: 'status PDV convênio',
     databaseField: 'COD_STATUS_PDV_CONV',
-    aliases: ['COD_STATUS_PDV_CONV'],
+    originExactAliases: ['COD_STATUS_PDV_CONV'],
+    targetExactAliases: ['COD_STATUS_PDV_CONV'],
   },
   empresaConvenio: {
     checklistLabel: 'Código convênio',
     databaseField: 'cod_convenio',
-    aliases: ['COD_CONVENIO'],
+    originExactAliases: ['COD_CONVENIO'],
+    targetExactAliases: ['cod_convenio'],
   },
   diaFechamento: {
     checklistLabel: 'Dia de Fechamento convênio',
     databaseField: 'NUM_DIA_FECHA',
-    aliases: ['NUM_DIA_FECHA'],
+    originExactAliases: [],
+    targetExactAliases: ['NUM_DIA_FECHA'],
   },
   conveniado: {
-    checklistLabel: 'Convênio',
+    checklistLabel: 'convênio',
     databaseField: 'flg_convenio',
-    aliases: ['FLG_CONVENIO'],
+    originExactAliases: ['FLG_CONVENIO'],
+    targetExactAliases: ['flg_convenio'],
+  },
+  condicaoPagamento: {
+    checklistLabel: 'condição de pagamento',
+    databaseField: 'des_observacao',
+    originExactAliases: ['DES_OBSERVACAO'],
+    targetExactAliases: ['des_observacao'],
   },
   observacao: {
-    checklistLabel: 'Observação',
-    databaseField: 'DES_OBSERVACAO',
-    aliases: ['DES_OBSERVACAO', 'OBSERVACAO'],
+    checklistLabel: 'observação',
+    databaseField: '',
+    originExactAliases: [],
+    targetExactAliases: [],
   },
 }
 
@@ -450,6 +487,7 @@ const CLIENT_CHECKLIST_ORDER = [
   'empresaConvenio',
   'diaFechamento',
   'conveniado',
+  'condicaoPagamento',
   'observacao',
 ]
 
@@ -458,18 +496,24 @@ const CLIENT_CHECKLIST_ORDER_INDEX = new Map(
 )
 
 export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE
-  .filter(field => field.id !== 'condicaoPagamento')
+  .filter(field => CLIENT_CHECKLIST_ORDER_INDEX.has(field.id))
   .map(field => {
     const config = CLIENT_CHECKLIST_CONFIG[field.id]
-    return config
-      ? {
-          ...field,
-          checklistLabel: config.checklistLabel,
-          databaseField: config.databaseField,
-          originExactAliases: field.id === 'limiteCheque' ? ['VAL_LIMITE_CRETID'] : undefined,
-          aliases: config.aliases,
-        }
-      : field
+    if (!config) return field
+
+    const aliases = [
+      ...config.originExactAliases,
+      ...config.targetExactAliases,
+    ].filter((value, index, values) => value && values.indexOf(value) === index)
+
+    return {
+      ...field,
+      checklistLabel: config.checklistLabel,
+      databaseField: config.databaseField,
+      originExactAliases: config.originExactAliases,
+      targetExactAliases: config.targetExactAliases,
+      aliases,
+    }
   })
   .sort((left, right) =>
     (CLIENT_CHECKLIST_ORDER_INDEX.get(left.id) ?? Number.MAX_SAFE_INTEGER)
