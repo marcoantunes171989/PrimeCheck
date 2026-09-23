@@ -57,7 +57,9 @@ export default function ModuleComparisonPage({
       && physicalNames.includes(stored.targetName)
       && stored.originName !== stored.targetName,
     )
-    const pair = storedIsValid ? stored : pickInitialPair(physicalNames)
+    const pair = storedIsValid && stored
+      ? { origin: stored.originName, target: stored.targetName }
+      : pickInitialPair(physicalNames)
     setOriginName(pair.origin)
     setTargetName(pair.target)
   }, [module.id, physicalNames.join('|')])
