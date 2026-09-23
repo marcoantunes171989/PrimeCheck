@@ -6,6 +6,12 @@ import {
   type WorkspaceModuleDefinition,
 } from '../config/workspaceModules'
 import type { ImportedFile } from '../types'
+import {
+  loadWorkspaceComparisonSelection,
+  loadWorkspaceMapping,
+  saveWorkspaceComparisonSelection,
+  saveWorkspaceMapping,
+} from '../lib/workspaceStorage'
 
 const normalizeName = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
@@ -44,10 +50,24 @@ export default function ModuleComparisonPage({
   const [targetName, setTargetName] = useState('')
 
   useEffect(() => {
-    const pair = pickInitialPair(physicalNames)
+    const stored = loadWorkspaceComparisonSelection(module.id)
+    const storedIsValid = Boolean(
+      stored
+      && physicalNames.includes(stored.originName)
+      && physicalNames.includes(stored.targetName)
+      && stored.originName !== stored.targetName,
+    )
+    const pair = storedIsValid && stored
+      ? { origin: stored.originName, target: stored.targetName }
+      : pickInitialPair(physicalNames)
     setOriginName(pair.origin)
     setTargetName(pair.target)
   }, [module.id, physicalNames.join('|')])
+
+  useEffect(() => {
+    if (!originName || !targetName || originName === targetName) return
+    saveWorkspaceComparisonSelection(module.id, originName, targetName)
+  }, [module.id, originName, targetName])
 
   const originFiles = useMemo(
     () => resolved.files.filter(file => file.name === originName),
@@ -62,6 +82,10 @@ export default function ModuleComparisonPage({
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
   const canCompare = Boolean(originName && targetName && originName !== targetName)
+  const persistedMapping = useMemo(
+    () => canCompare ? loadWorkspaceMapping(module.id, originName, targetName) : [],
+    [canCompare, module.id, originName, targetName],
+  )
 
   const swap = () => {
     setOriginName(targetName)
@@ -163,6 +187,10 @@ export default function ModuleComparisonPage({
           originLabel={originName}
           targetLabel={targetName}
           dashboardMode={dashboardMode}
+          initialMapping={persistedMapping}
+          onMappingChange={nextMapping =>
+            saveWorkspaceMapping(module.id, originName, targetName, nextMapping)
+          }
         />
       )}
     </main>
