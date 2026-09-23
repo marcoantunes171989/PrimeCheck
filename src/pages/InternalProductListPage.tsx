@@ -270,7 +270,7 @@ export default function InternalProductListPage() {
                 ? 'Restaurando lista salva…'
                 : snapshot
                   ? 'Lista de produtos salva para este IP.'
-                  : 'Nenhuma lista salva para este IP.'}
+                  : 'Nenhuma lista de produtos salva para este IP.'}
             </span>
           </div>
           <div className="workspace-import-counter">
