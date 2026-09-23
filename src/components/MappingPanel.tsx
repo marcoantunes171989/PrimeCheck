@@ -152,10 +152,10 @@ export default function MappingPanel({
                   ? 'partial'
                   : 'none'
 
-              const originSuggestions = !originHeader
+              const originSuggestions = !clientChecklistMode && !originHeader
                 ? getHeaderSuggestions(originHeaders, field)
                 : []
-              const targetSuggestions = !targetHeader
+              const targetSuggestions = !clientChecklistMode && !targetHeader
                 ? getHeaderSuggestions(targetHeaders, field)
                 : []
 
