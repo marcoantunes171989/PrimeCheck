@@ -9,7 +9,7 @@ import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceMod
 import type { ImportedFile } from './types'
 import { clearWorkspaceFiles, loadWorkspaceFiles, saveWorkspaceFiles } from './lib/workspaceStorage'
 
-type ModuleId = 'importacao' | 'homologacao' | 'cnpj' | 'ie' | `data:${string}` | `dashboard:${string}`
+type ModuleId = 'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | `data:${string}` | `dashboard:${string}`
 
 const staticModuleTitle: Record<'importacao' | 'homologacao' | 'cnpj' | 'ie', string> = {
   importacao: 'Importação e organização',
@@ -182,7 +182,7 @@ export default function App() {
           )
         })}
 
-        {module === 'homologacao' && <HomologationApp />}
+        {module === 'internal-products' && <InternalProductListPage />}\n        {module === 'homologacao' && <HomologationApp />}
         {module === 'cnpj' && <CnpjValidatorPage />}
         {module === 'ie' && <IeValidatorPage />}
       </div>
