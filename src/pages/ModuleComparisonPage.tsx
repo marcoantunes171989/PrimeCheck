@@ -18,7 +18,36 @@ import {
 const normalizeName = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
 
-const pickInitialPair = (names: string[]) => {
+type ClientFileRole = 'origin' | 'target' | null
+
+const clientFileRole = (fileName: string): ClientFileRole => {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const normalized = normalizeName(stem)
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  if (!normalized.startsWith('cliente_')) return null
+
+  const suffix = normalized.slice('cliente_'.length).replace(/_/g, '')
+  if (!suffix) return null
+  return suffix === 'intersolid' ? 'target' : 'origin'
+}
+
+const clientFantasyName = (fileName: string) => {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const match = stem.match(/^cliente_(.+)$/i)
+  if (!match) return ''
+  return match[1]
+}
+
+const pickInitialPair = (names: string[], moduleId: WorkspaceModuleDefinition['id']) => {
+  if (moduleId === 'clients') {
+    return {
+      origin: names.find(name => clientFileRole(name) === 'origin') ?? '',
+      target: names.find(name => clientFileRole(name) === 'target') ?? '',
+    }
+  }
+
   if (names.length < 2) return { origin: names[0] ?? '', target: '' }
 
   const originPattern = /(donaire|origem|legado|source|antigo|anterior)/
@@ -51,17 +80,38 @@ export default function ModuleComparisonPage({
   const [originName, setOriginName] = useState('')
   const [targetName, setTargetName] = useState('')
 
+  const originOptions = useMemo(
+    () => module.id === 'clients'
+      ? physicalNames.filter(name => clientFileRole(name) === 'origin')
+      : physicalNames,
+    [module.id, physicalNames],
+  )
+  const targetOptions = useMemo(
+    () => module.id === 'clients'
+      ? physicalNames.filter(name => clientFileRole(name) === 'target')
+      : physicalNames,
+    [module.id, physicalNames],
+  )
+  const clientPairReady = module.id !== 'clients' || (originOptions.length > 0 && targetOptions.length > 0)
+
   useEffect(() => {
     const stored = loadWorkspaceComparisonSelection(module.id)
     const storedIsValid = Boolean(
       stored
       && physicalNames.includes(stored.originName)
       && physicalNames.includes(stored.targetName)
-      && stored.originName !== stored.targetName,
+      && stored.originName !== stored.targetName
+      && (
+        module.id !== 'clients'
+        || (
+          clientFileRole(stored.originName) === 'origin'
+          && clientFileRole(stored.targetName) === 'target'
+        )
+      ),
     )
     const pair = storedIsValid && stored
       ? { origin: stored.originName, target: stored.targetName }
-      : pickInitialPair(physicalNames)
+      : pickInitialPair(physicalNames, module.id)
     setOriginName(pair.origin)
     setTargetName(pair.target)
   }, [module.id, physicalNames.join('|')])
@@ -83,7 +133,18 @@ export default function ModuleComparisonPage({
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
-  const canCompare = Boolean(originName && targetName && originName !== targetName)
+  const canCompare = Boolean(
+    originName
+    && targetName
+    && originName !== targetName
+    && (
+      module.id !== 'clients'
+      || (
+        clientFileRole(originName) === 'origin'
+        && clientFileRole(targetName) === 'target'
+      )
+    ),
+  )
   const persistedMapping = useMemo(
     () => canCompare ? loadWorkspaceMapping(module.id, originName, targetName) : [],
     [canCompare, module.id, originName, targetName],
@@ -104,6 +165,7 @@ export default function ModuleComparisonPage({
   )
 
   const swap = () => {
+    if (module.id === 'clients') return
     setOriginName(targetName)
     setTargetName(originName)
   }
@@ -136,22 +198,29 @@ export default function ModuleComparisonPage({
             aria-label={'Arquivo de origem para ' + module.label}
           >
             <option value="">Selecione o arquivo de origem</option>
-            {physicalNames.map(name => (
+            {originOptions.map(name => (
               <option key={'origin-' + name} value={name} disabled={name === targetName}>
                 {name}
               </option>
             ))}
           </select>
-          <small>{originName ? originRows.toLocaleString('pt-BR') + ' registros relacionados' : 'Aguardando seleção'}</small>
+          <small>
+            {originName
+              ? originRows.toLocaleString('pt-BR') + ' registros relacionados'
+                + (module.id === 'clients' ? ' · Cliente: ' + clientFantasyName(originName) : '')
+              : module.id === 'clients'
+                ? 'Padrão: CLIENTE_[nome fantasia].csv'
+                : 'Aguardando seleção'}
+          </small>
         </div>
 
         <button
           type="button"
           className="comparison-swap"
           onClick={swap}
-          disabled={!originName || !targetName}
-          title="Trocar origem e destino"
-          aria-label="Trocar arquivo de origem e destino"
+          disabled={!originName || !targetName || module.id === 'clients'}
+          title={module.id === 'clients' ? 'Em Clientes, CLIENTE_intersolid é sempre o destino' : 'Trocar origem e destino'}
+          aria-label={module.id === 'clients' ? 'Origem e destino fixos para Clientes' : 'Trocar arquivo de origem e destino'}
         >
           ⇄
         </button>
@@ -167,22 +236,30 @@ export default function ModuleComparisonPage({
             aria-label={'Arquivo de destino para ' + module.label}
           >
             <option value="">Selecione o arquivo de destino</option>
-            {physicalNames.map(name => (
+            {targetOptions.map(name => (
               <option key={'target-' + name} value={name} disabled={name === originName}>
                 {name}
               </option>
             ))}
           </select>
-          <small>{targetName ? targetRows.toLocaleString('pt-BR') + ' registros relacionados' : 'Aguardando seleção'}</small>
+          <small>
+            {targetName
+              ? targetRows.toLocaleString('pt-BR') + ' registros relacionados · Destino Intersolid'
+              : module.id === 'clients'
+                ? 'Padrão obrigatório: CLIENTE_intersolid.csv'
+                : 'Aguardando seleção'}
+          </small>
         </div>
       </section>
 
-      {physicalNames.length < 2 ? (
+      {!clientPairReady || physicalNames.length < 2 ? (
         <section className="comparison-pair-empty">
-          <strong>É necessário importar dois arquivos compatíveis com {module.label}.</strong>
+          <strong>É necessário importar os arquivos corretos para {module.label}.</strong>
           <span>
-            O PrimeCheck identificou {physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo.
-            Volte à Importação e carregue, por exemplo, a base de origem e a base convertida/destino.
+            {module.id === 'clients'
+              ? 'Use CLIENTE_[nome fantasia].csv como origem e CLIENTE_intersolid.csv como destino. O texto após CLIENTE_ pode variar conforme o cliente.'
+              : `O PrimeCheck identificou ${physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo. Volte à Importação e carregue a base de origem e a base convertida/destino.`
+            }
           </span>
           <button type="button" className="button primary" onClick={onBackToImport}>
             Voltar para Importação
@@ -191,7 +268,11 @@ export default function ModuleComparisonPage({
       ) : !canCompare ? (
         <section className="comparison-pair-empty compact">
           <strong>Selecione arquivos diferentes para origem e destino.</strong>
-          <span>Os nomes dos arquivos podem variar livremente; a identificação do módulo é feita pelos campos encontrados.</span>
+          <span>
+            {module.id === 'clients'
+              ? 'Para Clientes, a origem deve seguir CLIENTE_[nome fantasia] e o destino deve ser CLIENTE_intersolid.'
+              : 'Os nomes dos arquivos podem variar livremente; a identificação do módulo é feita pelos campos encontrados.'}
+          </span>
         </section>
       ) : (
         <HomologationApp
