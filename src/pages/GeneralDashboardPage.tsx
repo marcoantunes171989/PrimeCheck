@@ -149,7 +149,7 @@ export default function GeneralDashboardPage({ files }: { files: ImportedFile[] 
   })), [files, matches])
 
   return (
-    <main className="general-dashboard-page">
+    <main className="general-dashboard-page" data-dashboard="general">
       <header className="general-dashboard-hero">
         <div>
           <span className="eyebrow">VISÃO GERAL · DADOS PROCESSADOS</span>
