@@ -7866,3 +7866,240 @@ table {
     min-height: 168px;
   }
 }
+
+
+/* =========================================================
+   Importação — ocupação responsiva da viewport
+   ========================================================= */
+
+.workspace-import-page {
+  width: min(1760px, calc(100% - 32px));
+}
+
+.workspace-import-hero h1 {
+  font-size: clamp(32px, 3.2vw, 44px);
+}
+
+.workspace-import-hero p {
+  max-width: 980px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.workspace-storage-state {
+  max-width: 380px;
+  padding: 8px 11px;
+  font-size: 10px;
+}
+
+.workspace-import-counter {
+  flex-basis: 102px;
+  padding: 12px 14px;
+}
+
+.workspace-import-counter strong {
+  font-size: 26px;
+}
+
+.workspace-import-counter span {
+  font-size: 10px;
+}
+
+.workspace-dropzone {
+  min-height: clamp(145px, 18dvh, 205px);
+  padding: clamp(22px, 3vh, 34px);
+  gap: 7px;
+}
+
+.workspace-drop-icon {
+  width: 42px;
+  height: 42px;
+  font-size: 22px;
+}
+
+.workspace-dropzone strong {
+  font-size: 14px;
+}
+
+.workspace-dropzone span {
+  font-size: 11px;
+}
+
+.workspace-import-grid {
+  gap: clamp(10px, 1.2vw, 14px);
+  margin-top: clamp(12px, 1.6vh, 18px);
+}
+
+.workspace-file-card {
+  min-height: clamp(96px, 11dvh, 128px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(14px, 1.2vw, 18px);
+}
+
+.workspace-file-type {
+  font-size: 8.5px;
+}
+
+.workspace-file-head strong {
+  margin-top: 3px;
+  font-size: 12.5px;
+}
+
+.workspace-file-head small {
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.workspace-file-modules {
+  margin-top: 10px;
+}
+
+.workspace-file-modules span,
+.workspace-module-chips span {
+  padding: 5px 8px;
+  font-size: 9.5px;
+}
+
+.workspace-module-preview {
+  min-height: clamp(82px, 10dvh, 112px);
+  margin-top: clamp(12px, 1.6vh, 18px);
+  padding: clamp(14px, 1.4vw, 18px);
+}
+
+.workspace-module-preview h2 {
+  margin-top: 3px;
+  font-size: 16px;
+}
+
+.workspace-module-preview p {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.workspace-module-chips span small {
+  font-size: 8.5px;
+}
+
+.workspace-import-action {
+  min-height: 66px;
+  margin-top: clamp(14px, 2vh, 22px);
+  padding: 12px 14px;
+}
+
+.workspace-import-action strong {
+  font-size: 12px;
+}
+
+.workspace-import-action span {
+  margin-top: 3px;
+  font-size: 9.5px;
+}
+
+.workspace-import-action-buttons {
+  gap: 10px;
+}
+
+.workspace-import-action-buttons .button,
+.workspace-clear-button,
+.workspace-organize-button {
+  min-height: 42px;
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.workspace-organize-button {
+  min-width: 220px;
+}
+
+@media (min-width: 1100px) {
+  .workspace-import-page {
+    min-height: calc(100dvh - 48px);
+    display: flex;
+    flex-direction: column;
+    padding: clamp(24px, 3vh, 36px) 0 clamp(18px, 2.4vh, 30px);
+  }
+
+  .workspace-import-hero {
+    margin-bottom: clamp(16px, 2vh, 24px);
+  }
+
+  .workspace-import-action {
+    margin-top: auto;
+  }
+}
+
+@media (min-width: 1440px) and (min-height: 820px) {
+  .workspace-import-grid {
+    grid-auto-rows: minmax(112px, auto);
+  }
+
+  .workspace-file-card {
+    min-height: 112px;
+  }
+
+  .workspace-module-preview {
+    min-height: 96px;
+  }
+
+  .workspace-import-action {
+    min-height: 70px;
+  }
+}
+
+@media (max-width: 1099px) {
+  .workspace-import-page {
+    width: min(100% - 20px, 1540px);
+  }
+
+  .workspace-import-hero p {
+    font-size: 12px;
+  }
+
+  .workspace-file-card {
+    min-height: 92px;
+  }
+
+  .workspace-import-action strong {
+    font-size: 11px;
+  }
+
+  .workspace-import-action span {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-import-hero h1 {
+    font-size: 28px;
+  }
+
+  .workspace-dropzone {
+    min-height: 132px;
+  }
+
+  .workspace-file-card {
+    min-height: auto;
+  }
+
+  .workspace-module-preview {
+    min-height: auto;
+  }
+
+  .workspace-import-action {
+    min-height: auto;
+  }
+
+  .workspace-import-action-buttons .button,
+  .workspace-clear-button,
+  .workspace-organize-button {
+    min-height: 44px;
+    font-size: 12px;
+  }
+
+  .workspace-organize-button {
+    min-width: 0;
+  }
+}
