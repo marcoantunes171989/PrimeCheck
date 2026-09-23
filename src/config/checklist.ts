@@ -1,6 +1,6 @@
 import type { FieldDefinition } from '../types'
 
-export const CHECKLIST_FIELDS: FieldDefinition[] = [
+const CHECKLIST_FIELDS_BASE: FieldDefinition[] = [
   {
     id: 'codigoInterno',
     label: 'Código interno',
@@ -66,7 +66,7 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = [
     kind: 'personType',
     aliases: [
       'TIPO_PESSOA', 'TIP_PESSOA', 'PESSOA_FISICA_JURIDICA', 'FISICA_JURIDICA',
-      'PESSOA', 'TIPO_CLIENTE', 'FLG_EMPRESA', 'EMPRESA',
+      'PESSOA', 'TIPO_CLIENTE', 'FLG_EMPRESA', 'EMPRESA', 'FLAG_EMPRESA_CONÊNIO', 'FLAG_EMPRESA_CONVENIO',
     ],
   },
   {
@@ -102,52 +102,52 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = [
   {
     id: 'endereco',
     label: 'Endereço',
-    group: 'Endereço Completo',
+    group: 'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
     kind: 'text',
     aliases: ['ENDERECO', 'DES_ENDERECO', 'LOGRADOURO', 'ENDERECO_RESIDENCIAL', 'Endereço'],
   },
   {
     id: 'numeroEndereco',
     label: 'Nº Endereço',
-    group: 'Endereço Completo',
+    group: 'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
     kind: 'text',
     aliases: [
       'NUMERO', 'NUM_ENDERECO', 'NUMERO_ENDERECO', 'NRO_ENDERECO',
-      'ENDERECO_NUMERO', 'Nº ENDEREÇO', 'N° ENDEREÇO', 'Nº Endereço',
+      'ENDERECO_NUMERO', 'ENDERECO__2', 'Nº ENDEREÇO', 'N° ENDEREÇO', 'Nº Endereço',
     ],
   },
   {
     id: 'complemento',
     label: 'Complemento',
-    group: 'Endereço Completo',
+    group: 'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
     kind: 'text',
     aliases: ['COMPLEMENTO', 'DES_COMPLEMENTO', 'COMPL_ENDERECO'],
   },
   {
     id: 'bairro',
     label: 'Bairro',
-    group: 'Endereço Completo',
+    group: 'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
     kind: 'text',
     aliases: ['BAIRRO', 'DES_BAIRRO'],
   },
   {
     id: 'cidade',
     label: 'Cidade',
-    group: 'Endereço Completo',
+    group: 'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
     kind: 'text',
     aliases: ['CIDADE', 'DES_CIDADE', 'MUNICIPIO', 'DES_MUNICIPIO'],
   },
   {
     id: 'uf',
     label: 'UF',
-    group: 'Endereço Completo',
+    group: 'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
     kind: 'state',
     aliases: ['UF', 'ESTADO', 'SIGLA_UF', 'DES_UF', 'DES_SIGLA'],
   },
   {
     id: 'cep',
     label: 'CEP',
-    group: 'Endereço Completo',
+    group: 'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
     kind: 'code',
     aliases: ['CEP', 'NUM_CEP', 'COD_CEP'],
   },
@@ -156,14 +156,14 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = [
     label: 'Telefone',
     group: 'Telefone, Celular, Fax e Contato',
     kind: 'phone',
-    aliases: ['TELEFONE', 'FONE', 'NUM_TELEFONE', 'TEL', 'FONE1', 'NUM_FONE'],
+    aliases: ['TELEFONE', 'FONE', 'NUM_TELEFONE', 'NUMERO_TELEFONE', 'TEL', 'FONE1', 'NUM_FONE'],
   },
   {
     id: 'celular',
     label: 'Celular',
     group: 'Telefone, Celular, Fax e Contato',
     kind: 'phone',
-    aliases: ['CELULAR', 'NUM_CELULAR', 'FONE_CELULAR', 'TELEFONE_CELULAR', 'WHATSAPP'],
+    aliases: ['CELULAR', 'NUM_CELULAR', 'NUMERO_CELULAR__2', 'NUMERO_CELULAR', 'FONE_CELULAR', 'TELEFONE_CELULAR', 'WHATSAPP'],
   },
   {
     id: 'fax',
@@ -217,7 +217,7 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = [
     kind: 'text',
     aliases: [
       'STATUS_CONVENIO', 'SIT_CONVENIO', 'SITUACAO_CONVENIO',
-      'COD_STATUS_PDV_CONV', 'Status Convenio',
+      'COD_STATUS_PDV_CONV', 'STATUS_PDV__2', 'Status Convenio',
     ],
   },
   {
@@ -227,7 +227,7 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = [
     kind: 'text',
     aliases: [
       'EMPRESA_CONVENIO', 'COD_EMPRESA_CONVENIO', 'DES_EMPRESA_CONVENIO',
-      'COD_CONVENIO', 'CONVENIO', 'Convênio', 'Convenio',
+      'COD_CONVENIO', 'CODIGO_CONVÊNIO', 'CODIGO_CONVENIO', 'CONVENIO', 'Convênio', 'Convenio',
     ],
   },
   {
@@ -242,7 +242,7 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = [
     label: 'Conveniado',
     group: 'Conveniado',
     kind: 'boolean',
-    aliases: ['CONVENIADO', 'FLG_CONVENIADO', 'IND_CONVENIADO', 'FLG_CONVENIO'],
+    aliases: ['CONVENIADO', 'FLG_CONVENIADO', 'IND_CONVENIADO', 'FLG_CONVENIO', 'CONVÊNIO', 'CONVENIO'],
   },
   {
     id: 'condicaoPagamento',
@@ -262,6 +262,45 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = [
     aliases: ['OBSERVACAO', 'OBS', 'DES_OBSERVACAO', 'COMENTARIO', 'ANOTACAO', 'Observação'],
   },
 ]
+
+const CLIENT_DATABASE_FIELDS: Record<string, string> = {
+  codigoInterno: 'CODIGO_INTERNO',
+  nome: 'NOME',
+  apelido: 'APELIDO',
+  cpfCnpj: 'CNPJ_CPF',
+  ie: 'INSCRICAO_ESTADUAL',
+  rg: 'RG',
+  pessoaTipo: 'FLAG_EMPRESA_CONVENIO',
+  limiteCheque: 'LIMITE_CHEQUE',
+  limiteConvenio: 'LIMITE_CONVENIO',
+  dataCadastro: 'DATA_CADASTRO',
+  endereco: 'ENDERECO',
+  numeroEndereco: 'NUMERO_ENDERECO',
+  complemento: 'COMPLEMENTO',
+  bairro: 'BAIRRO',
+  cidade: 'CIDADE',
+  uf: 'SIGLA',
+  cep: 'CEP',
+  telefone: 'NUMERO_TELEFONE',
+  celular: 'NUMERO_CELULAR',
+  fax: 'FAX',
+  contato: 'NOME_CONTATO',
+  dataNascimento: 'DATA_NASCIMENTO',
+  sexo: 'SEXO',
+  estadoCivil: 'ESTADO_CIVIL',
+  statusCheque: 'STATUS_PDV',
+  statusConvenio: 'STATUS_PDV_CONVENIO',
+  empresaConvenio: 'CODIGO_CONVENIO',
+  diaFechamento: 'DIA_FECHAMENTO',
+  conveniado: 'CONVENIO',
+  condicaoPagamento: 'CONDICAO_PAGAMENTO',
+  observacao: 'OBSERVACAO',
+}
+
+export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE.map(field => ({
+  ...field,
+  databaseField: CLIENT_DATABASE_FIELDS[field.id] ?? field.label,
+}))
 
 export const RECORD_STATUS_ALIASES = [
   'INATIVO', 'FLG_INATIVO', 'IND_INATIVO', 'ATIVO', 'FLG_ATIVO',
