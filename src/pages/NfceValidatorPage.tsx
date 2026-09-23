@@ -22,64 +22,126 @@ const directText = (element: Element) =>
     .filter(Boolean)
     .join(' ')
 
-const elementName = (element: Element) => element.localName || element.tagName.replace(/^.*:/, '')
+const elementName = (element: Element) => element.tagName
+
+type XmlSearchEntry = {
+  key: string
+  path: string
+  name: string
+  value: string
+  attributes: string
+}
+
+const elementOwnSearchText = (element: Element, path: string) => {
+  const attributes = Array.from(element.attributes)
+    .map(attr => `${attr.name}=${attr.value}`)
+    .join(' ')
+  return normalizeNfceSearch([
+    path,
+    elementName(element),
+    directText(element),
+    attributes,
+  ].join(' '))
+}
+
+const buildXmlSearchEntries = (root: Element) => {
+  const entries: XmlSearchEntry[] = []
+
+  const visit = (element: Element, path: string, key: string) => {
+    entries.push({
+      key,
+      path,
+      name: elementName(element),
+      value: directText(element),
+      attributes: Array.from(element.attributes)
+        .map(attr => `${attr.name}="${attr.value}"`)
+        .join(' '),
+    })
+
+    const children = Array.from(element.children)
+    children.forEach((child, index) => {
+      const childName = elementName(child)
+      const sameNameBefore = children.slice(0, index).filter(item => elementName(item) === childName).length
+      const sameNameTotal = children.filter(item => elementName(item) === childName).length
+      const childPath = `${path}/${childName}${sameNameTotal > 1 ? `[${sameNameBefore + 1}]` : ''}`
+      visit(child, childPath, `${key}-${index}`)
+    })
+  }
+
+  visit(root, '/' + elementName(root), '0')
+  return entries
+}
 
 const XmlNode = ({
   element,
   path,
-  query,
+  nodeKey,
+  searchQuery,
+  selectedKey,
+  revealKey,
   depth = 0,
 }: {
   element: Element
   path: string
-  query: string
+  nodeKey: string
+  searchQuery: string
+  selectedKey: string | null
+  revealKey: string | null
   depth?: number
 }) => {
   const children = Array.from(element.children)
   const name = elementName(element)
   const value = directText(element)
   const attributes = Array.from(element.attributes)
-  const haystack = normalizeNfceSearch([
-    path,
-    name,
-    value,
-    attributes.map(attr => `${attr.name}=${attr.value}`).join(' '),
-    element.textContent ?? '',
-  ].join(' '))
-  const matches = !query || haystack.includes(query)
-  const [open, setOpen] = useState(depth < 1)
+  const empty = children.length === 0 && !value
+  const [open, setOpen] = useState(depth === 0)
+  const revealsThisBranch = Boolean(revealKey && (revealKey === nodeKey || revealKey.startsWith(nodeKey + '-')))
+  const expanded = children.length > 0 && (open || revealsThisBranch)
+  const matched = Boolean(searchQuery && elementOwnSearchText(element, path).includes(searchQuery))
+  const selected = selectedKey === nodeKey
 
-  if (!matches) return null
-
-  const expanded = query ? true : open
   return (
-    <div className="nfce-xml-node">
+    <div className="nfce-xml-node" id={`nfce-xml-node-${nodeKey}`}>
       <button
         type="button"
-        className="nfce-xml-node-head"
+        className={[
+          'nfce-xml-node-head',
+          matched ? 'is-match' : '',
+          selected ? 'is-selected' : '',
+        ].filter(Boolean).join(' ')}
         onClick={() => children.length && setOpen(current => !current)}
         style={{ paddingLeft: `${10 + depth * 16}px` }}
+        aria-expanded={children.length ? expanded : undefined}
+        title={path}
       >
         <span className="nfce-xml-chevron">{children.length ? (expanded ? '⌄' : '›') : '·'}</span>
-        <code>&lt;{name}&gt;</code>
+        <code>
+          {empty ? `<${name} />` : children.length ? `<${name}>` : `<${name}>${value}</${name}>`}
+        </code>
         {attributes.length > 0 && (
           <small>{attributes.map(attr => `${attr.name}="${attr.value}"`).join(' ')}</small>
         )}
-        {value && <strong>{value}</strong>}
+        {children.length > 0 && value && <strong>{value}</strong>}
+        {empty && <em>sem conteúdo</em>}
       </button>
-      {expanded && children.length > 0 && (
+
+      {expanded && (
         <div>
           {children.map((child, index) => {
             const childName = elementName(child)
             const sameNameBefore = children.slice(0, index).filter(item => elementName(item) === childName).length
             const sameNameTotal = children.filter(item => elementName(item) === childName).length
             const childPath = `${path}/${childName}${sameNameTotal > 1 ? `[${sameNameBefore + 1}]` : ''}`
+            const childKey = `${nodeKey}-${index}`
             return (
               <XmlNode
-                key={childPath + ':' + index}
+                key={childKey}
                 element={child}
                 path={childPath}
-                query={query}
+                nodeKey={childKey}
+                searchQuery={searchQuery}
+                selectedKey={selectedKey}
+                revealKey={revealKey}
                 depth={depth + 1}
               />
             )
@@ -117,6 +179,8 @@ export default function NfceValidatorPage() {
   const [selected, setSelected] = useState<NfceSummary | null>(null)
   const [modalTab, setModalTab] = useState<'danfe' | 'tags' | 'xml'>('danfe')
   const [tagSearch, setTagSearch] = useState('')
+  const [selectedXmlKey, setSelectedXmlKey] = useState<string | null>(null)
+  const [revealXmlKey, setRevealXmlKey] = useState<string | null>(null)
 
   const detail = useMemo(() => selected ? parseNfceDetail(selected) : null, [selected])
 
@@ -213,6 +277,55 @@ export default function NfceValidatorPage() {
     const doc = new DOMParser().parseFromString(selected.rawXml, 'application/xml')
     return doc.documentElement
   }, [modalTab, selected])
+
+  const xmlEntries = useMemo(
+    () => rootElement ? buildXmlSearchEntries(rootElement) : [],
+    [rootElement],
+  )
+
+  const normalizedTagSearch = useMemo(
+    () => normalizeNfceSearch(tagSearch),
+    [tagSearch],
+  )
+
+  const xmlMatches = useMemo(() => {
+    if (!normalizedTagSearch) return []
+    return xmlEntries.filter(entry =>
+      normalizeNfceSearch([
+        entry.path,
+        entry.name,
+        entry.value,
+        entry.attributes,
+      ].join(' ')).includes(normalizedTagSearch),
+    )
+  }, [normalizedTagSearch, xmlEntries])
+
+  const revealXmlEntry = (entry: XmlSearchEntry) => {
+    setSelectedXmlKey(entry.key)
+    setRevealXmlKey(entry.key)
+    window.requestAnimationFrame(() => {
+      document.getElementById(`nfce-xml-node-${entry.key}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+  }
+
+  useEffect(() => {
+    if (!normalizedTagSearch) {
+      setSelectedXmlKey(null)
+      setRevealXmlKey(null)
+      return
+    }
+    const firstMatch = xmlMatches[0]
+    if (firstMatch) revealXmlEntry(firstMatch)
+  }, [normalizedTagSearch])
+
+  useEffect(() => {
+    if (modalTab !== 'tags') return
+    setSelectedXmlKey(null)
+    setRevealXmlKey(null)
+  }, [selected?.id, modalTab])
 
   const copyXml = async () => {
     if (!selected) return
@@ -488,23 +601,71 @@ export default function NfceValidatorPage() {
                 <section className="nfce-tags-view">
                   <div className="nfce-tag-search">
                     <div>
-                      <span className="eyebrow">ESTRUTURA XML</span>
-                      <h3>Pesquisar e inspecionar tags</h3>
+                      <span className="eyebrow">ESTRUTURA XML ORIGINAL</span>
+                      <h3>Pesquisar e inspecionar todas as tags</h3>
+                      <p>
+                        Expanda a árvore clicando nas linhas. Tags vazias também são exibidas para manter
+                        a estrutura original do arquivo importado.
+                      </p>
                     </div>
-                    <input
-                      type="search"
-                      value={tagSearch}
-                      onChange={event => setTagSearch(event.target.value)}
-                      placeholder="Pesquisar tag, valor, atributo ou caminho..."
-                      autoFocus
-                    />
+                    <div className="nfce-tag-search-field">
+                      <input
+                        type="search"
+                        value={tagSearch}
+                        onChange={event => setTagSearch(event.target.value)}
+                        placeholder="Pesquisar tag, valor, atributo ou caminho..."
+                        autoFocus
+                      />
+                      {tagSearch && (
+                        <button type="button" onClick={() => setTagSearch('')} aria-label="Limpar pesquisa">×</button>
+                      )}
+                    </div>
                   </div>
+
+                  {normalizedTagSearch && (
+                    <div className="nfce-tag-results">
+                      <div className="nfce-tag-results-head">
+                        <strong>{xmlMatches.length.toLocaleString('pt-BR')} resultado{xmlMatches.length === 1 ? '' : 's'}</strong>
+                        <span>Clique em um resultado para abrir o caminho na árvore XML.</span>
+                      </div>
+                      {xmlMatches.length > 0 ? (
+                        <div className="nfce-tag-results-list">
+                          {xmlMatches.slice(0, 200).map(entry => (
+                            <button
+                              type="button"
+                              key={entry.key}
+                              className={selectedXmlKey === entry.key ? 'active' : ''}
+                              onClick={() => revealXmlEntry(entry)}
+                            >
+                              <code>&lt;{entry.name}&gt;</code>
+                              <span>{entry.value || entry.attributes || 'sem conteúdo'}</span>
+                              <small>{entry.path}</small>
+                            </button>
+                          ))}
+                          {xmlMatches.length > 200 && (
+                            <div className="nfce-tag-results-limit">
+                              Exibindo os primeiros 200 resultados de {xmlMatches.length.toLocaleString('pt-BR')}.
+                              Refine a pesquisa para localizar a informação desejada.
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="nfce-tag-no-results">
+                          Nenhuma tag, valor, atributo ou caminho encontrado para “{tagSearch}”.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="nfce-xml-tree">
                     {rootElement && (
                       <XmlNode
                         element={rootElement}
                         path={'/' + elementName(rootElement)}
-                        query={normalizeNfceSearch(tagSearch)}
+                        nodeKey="0"
+                        searchQuery={normalizedTagSearch}
+                        selectedKey={selectedXmlKey}
+                        revealKey={revealXmlKey}
                       />
                     )}
                   </div>
