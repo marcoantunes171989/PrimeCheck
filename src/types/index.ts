@@ -25,6 +25,7 @@ export interface FieldDefinition {
   group: string
   checklistLabel?: string
   databaseField?: string
+  originExactAliases?: string[]
   aliases: string[]
   kind: 'text' | 'code' | 'document' | 'ie' | 'phone' | 'date' | 'money' | 'personType' | 'boolean' | 'sex' | 'state'
   requiredForMatch?: boolean
