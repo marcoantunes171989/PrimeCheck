@@ -9,9 +9,14 @@ import {
   parseNfceFile,
   type NfceSummary,
 } from '../lib/nfce'
+import {
+  clearNfceDocuments,
+  initializeWorkspaceScope,
+  loadNfceDocuments,
+  saveNfceDocuments,
+} from '../lib/workspaceStorage'
 import '../nfce.css'
 
-const MAX_FILES = 5000
 const PAGE_SIZE = 100
 const BATCH_SIZE = 40
 
@@ -115,13 +120,23 @@ const XmlNode = ({
         title={path}
       >
         <span className="nfce-xml-chevron">{children.length ? (expanded ? '⌄' : '›') : '·'}</span>
-        <code>
-          {empty ? `<${name} />` : children.length ? `<${name}>` : `<${name}>${value}</${name}>`}
-        </code>
+        <span className="nfce-xml-tag-preview">
+          {empty ? (
+            <code>&lt;{name} /&gt;</code>
+          ) : children.length ? (
+            <code>&lt;{name}&gt;</code>
+          ) : (
+            <>
+              <code>&lt;{name}&gt;</code>
+              <strong className="nfce-xml-value">{value}</strong>
+              <code>&lt;/{name}&gt;</code>
+            </>
+          )}
+        </span>
         {attributes.length > 0 && (
           <small>{attributes.map(attr => `${attr.name}="${attr.value}"`).join(' ')}</small>
         )}
-        {children.length > 0 && value && <strong>{value}</strong>}
+        {children.length > 0 && value && <strong className="nfce-xml-value">{value}</strong>}
         {empty && <em>sem conteúdo</em>}
       </button>
 
@@ -181,8 +196,38 @@ export default function NfceValidatorPage() {
   const [tagSearch, setTagSearch] = useState('')
   const [selectedXmlKey, setSelectedXmlKey] = useState<string | null>(null)
   const [revealXmlKey, setRevealXmlKey] = useState<string | null>(null)
+  const [storageReady, setStorageReady] = useState(false)
+  const [storageMessage, setStorageMessage] = useState('Restaurando XMLs salvos para este IP…')
 
   const detail = useMemo(() => selected ? parseNfceDetail(selected) : null, [selected])
+
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      const scope = await initializeWorkspaceScope()
+      if (!active) return
+
+      if (!scope) {
+        setStorageMessage('Não foi possível identificar o IP atual. Os XMLs desta sessão não serão restaurados após fechar ou atualizar a página.')
+        setStorageReady(true)
+        return
+      }
+
+      const stored = await loadNfceDocuments()
+      if (!active) return
+
+      setDocuments(stored)
+      setStorageMessage(
+        stored.length
+          ? `${stored.length.toLocaleString('pt-BR')} XML(s) restaurado(s) para este IP.`
+          : 'Nenhum XML salvo para este IP.',
+      )
+      setStorageReady(true)
+    })()
+
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     if (!selected) return
@@ -211,10 +256,6 @@ export default function NfceValidatorPage() {
       }
       const fileKey = `${file.name}:${file.size}:${file.lastModified}`
       if (existing.has(fileKey)) continue
-      if (documents.length + accepted.length >= MAX_FILES) {
-        localErrors.push(`Limite de ${MAX_FILES.toLocaleString('pt-BR')} arquivos atingido.`)
-        break
-      }
       accepted.push(file)
       existing.add(fileKey)
     }
@@ -238,7 +279,20 @@ export default function NfceValidatorPage() {
 
     setDocuments(current => [...current, ...parsed])
     setErrors(localErrors)
-    setBusy(false)
+
+    try {
+      await saveNfceDocuments(parsed)
+      setStorageMessage(`${parsed.length.toLocaleString('pt-BR')} XML(s) salvo(s) localmente para este IP.`)
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Falha no armazenamento local.'
+      setErrors(current => [
+        ...current,
+        `Os XMLs foram carregados nesta sessão, mas não puderam ser armazenados no navegador: ${reason}`,
+      ])
+      setStorageMessage('XMLs disponíveis nesta sessão, mas o armazenamento local atingiu uma limitação do navegador/dispositivo.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const filtered = useMemo(() => {
@@ -257,13 +311,21 @@ export default function NfceValidatorPage() {
   const issues = documents.length - authorized
   const totalValue = documents.reduce((sum, item) => sum + item.total, 0)
 
-  const removeAll = () => {
-    if (busy) return
-    setDocuments([])
-    setErrors([])
-    setSearch('')
-    setStatusFilter('ALL')
-    setSelected(null)
+  const removeAll = async () => {
+    if (busy || !storageReady) return
+
+    try {
+      await clearNfceDocuments()
+      setDocuments([])
+      setErrors([])
+      setSearch('')
+      setStatusFilter('ALL')
+      setSelected(null)
+      setStorageMessage('Arquivos XML importados removidos para este IP.')
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Falha ao limpar o armazenamento local.'
+      setErrors(current => [...current, reason])
+    }
   }
 
   const openDocument = (item: NfceSummary) => {
@@ -344,13 +406,19 @@ export default function NfceValidatorPage() {
           <span className="eyebrow">VALIDAÇÃO NFC-e · XML MODELO 65</span>
           <h1>Validação de NFC-e</h1>
           <p>
-            Importe até 5.000 XMLs, pesquise documentos, confira as tags fiscais e abra cada NFC-e
-            em uma visualização DANFE para conferência. O processamento permanece local no navegador.
+            Importe quantos XMLs forem necessários, pesquise documentos, confira as tags fiscais e abra cada NFC-e
+            em uma visualização DANFE para conferência. O processamento e o armazenamento permanecem locais no navegador.
           </p>
         </div>
-        <div className="nfce-import-counter">
-          <strong>{documents.length.toLocaleString('pt-BR')}/{MAX_FILES.toLocaleString('pt-BR')}</strong>
-          <span>XMLs carregados</span>
+        <div className="nfce-import-summary">
+          <div className="nfce-storage-state">
+            <i />
+            <span>{storageMessage}</span>
+          </div>
+          <div className="nfce-import-counter">
+            <strong>{documents.length.toLocaleString('pt-BR')}</strong>
+            <span>XMLs carregados</span>
+          </div>
         </div>
       </section>
 
@@ -384,7 +452,7 @@ export default function NfceValidatorPage() {
         <div className="nfce-drop-icon">XML</div>
         <div>
           <strong>{busy ? 'Processando arquivos NFC-e…' : 'Arraste os XMLs aqui ou clique para selecionar'}</strong>
-          <span>Até 5.000 arquivos · XML NFC-e modelo 65 · leitura local</span>
+          <span>Sem limite fixo no PrimeCheck · XML NFC-e modelo 65 · armazenamento local por IP</span>
         </div>
         {busy && (
           <div className="nfce-progress" aria-live="polite">
@@ -427,7 +495,16 @@ export default function NfceValidatorPage() {
               <option value="AUTHORIZED">Autorizadas</option>
               <option value="ISSUES">Com atenção</option>
             </select>
-            {documents.length > 0 && <button className="button ghost" type="button" onClick={removeAll}>Limpar XMLs</button>}
+            {documents.length > 0 && (
+              <button
+                className="button ghost"
+                type="button"
+                disabled={busy || !storageReady}
+                onClick={() => void removeAll()}
+              >
+                Limpar XMLs importados
+              </button>
+            )}
           </div>
         </div>
 
@@ -638,7 +715,9 @@ export default function NfceValidatorPage() {
                               onClick={() => revealXmlEntry(entry)}
                             >
                               <code>&lt;{entry.name}&gt;</code>
-                              <span>{entry.value || entry.attributes || 'sem conteúdo'}</span>
+                              <span className={entry.value || entry.attributes ? 'has-value' : ''}>
+                                {entry.value || entry.attributes || 'sem conteúdo'}
+                              </span>
                               <small>{entry.path}</small>
                             </button>
                           ))}
