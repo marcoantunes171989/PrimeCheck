@@ -8,7 +8,14 @@ import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import InternalProductListPage from './pages/InternalProductListPage'
 import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceModules'
 import type { ImportedFile } from './types'
-import { clearWorkspaceFiles, loadWorkspaceFiles, saveWorkspaceFiles } from './lib/workspaceStorage'
+import {
+  clearWorkspaceFiles,
+  clearWorkspaceSession,
+  loadWorkspaceFiles,
+  loadWorkspaceSession,
+  saveWorkspaceFiles,
+  saveWorkspaceNavigation,
+} from './lib/workspaceStorage'
 
 type ModuleId = 'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | `data:${string}` | `dashboard:${string}`
 
@@ -38,8 +45,21 @@ export default function App() {
     let active = true
     void loadWorkspaceFiles().then(files => {
       if (!active) return
+
+      const session = loadWorkspaceSession()
+      const enabledModuleIds = new Set(analyzeWorkspaceFiles(files).map(match => match.module.id))
+      const restoredVisited = session.visitedModuleIds.filter(moduleId => enabledModuleIds.has(moduleId))
+      const activeWorkspaceModuleId = session.activeModule.startsWith('data:') || session.activeModule.startsWith('dashboard:')
+        ? session.activeModule.slice(session.activeModule.indexOf(':') + 1)
+        : ''
+      const canRestoreActiveModule = files.length > 0
+        && activeWorkspaceModuleId
+        && enabledModuleIds.has(activeWorkspaceModuleId)
+
       setWorkspaceFiles(files)
-      setWorkspaceStorageMessage(files.length ? 'Dados restaurados deste navegador.' : 'Nenhum dado salvo neste navegador.')
+      setVisitedWorkspaceModules(new Set(restoredVisited))
+      setModule(canRestoreActiveModule ? session.activeModule as ModuleId : 'importacao')
+      setWorkspaceStorageMessage(files.length ? 'Dados e vínculos restaurados deste navegador.' : 'Nenhum dado salvo neste navegador.')
       setWorkspaceStorageReady(true)
     })
     return () => { active = false }
@@ -51,6 +71,13 @@ export default function App() {
       .then(() => setWorkspaceStorageMessage(workspaceFiles.length ? 'Dados salvos neste navegador.' : 'Nenhum dado salvo neste navegador.'))
       .catch(() => setWorkspaceStorageMessage('Não foi possível salvar os dados localmente.'))
   }, [workspaceFiles, workspaceStorageReady])
+
+  useEffect(() => {
+    if (!workspaceStorageReady) return
+    if (module !== 'importacao' && !module.startsWith('data:') && !module.startsWith('dashboard:')) return
+
+    saveWorkspaceNavigation(module, [...visitedWorkspaceModules])
+  }, [module, visitedWorkspaceModules, workspaceStorageReady])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -83,10 +110,11 @@ export default function App() {
 
   const clearImportedData = async () => {
     await clearWorkspaceFiles()
+    clearWorkspaceSession()
     setWorkspaceFiles([])
     setVisitedWorkspaceModules(new Set())
     setModule('importacao')
-    setWorkspaceStorageMessage('Dados importados removidos deste navegador.')
+    setWorkspaceStorageMessage('Dados importados e vínculos removidos deste navegador.')
   }
 
   const changeModule = (next: ModuleId) => {
