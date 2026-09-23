@@ -522,10 +522,30 @@ export default function NfceValidatorPage() {
     })
   }, [documents, search, statusFilter])
 
-  const sortedFiltered = useMemo(
-    () => [...filtered].sort((left, right) => compareNfce(left, right, sortKey, sortDirection)),
-    [filtered, sortDirection, sortKey],
-  )
+  const sortedFiltered = useMemo(() => {
+    const groups = new Map<string, NfceSummary[]>()
+    filtered.forEach(item => {
+      const key = issueDayKey(item)
+      const current = groups.get(key) ?? []
+      current.push(item)
+      groups.set(key, current)
+    })
+
+    const dateKeys = [...groups.keys()].sort((left, right) => {
+      if (left === 'sem-data') return 1
+      if (right === 'sem-data') return -1
+      const result = collator.compare(left, right)
+      return sortKey === 'issueDate' && sortDirection === 'desc' ? -result : result
+    })
+
+    return dateKeys.flatMap(key => {
+      const rows = groups.get(key) ?? []
+      if (sortKey === 'issueDate') {
+        return rows.sort((left, right) => compareNfce(left, right, 'issueDate', sortDirection))
+      }
+      return rows.sort((left, right) => compareNfce(left, right, sortKey, sortDirection))
+    })
+  }, [filtered, sortDirection, sortKey])
 
   const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
