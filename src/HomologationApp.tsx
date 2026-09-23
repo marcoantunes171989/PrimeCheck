@@ -2333,9 +2333,9 @@ function DuplicatesView({
                 </>
               ) : (
                 <>
-                  {number(syntheticRows.length)} {syntheticRows.length === 1 ? 'agrupamento sintético' : 'agrupamentos sintéticos'} · {' '}
-                  {number(sorted.length)} {sorted.length === 1 ? 'grupo duplicado' : 'grupos duplicados'} · {' '}
-                  {number(syntheticRecordCount)} registros envolvidos.
+                  {number(syntheticRows.length)} {syntheticRows.length === 1 ? 'grupo duplicado' : 'grupos duplicados'} no resumo sintético · {' '}
+                  {number(syntheticRecordCount)} registros envolvidos · {' '}
+                  {number(syntheticFieldCount)} {syntheticFieldCount === 1 ? 'campo com duplicidade' : 'campos com duplicidade'}.
                 </>
               )}
             </p>
@@ -2407,7 +2407,7 @@ function DuplicatesView({
           <span>
             {reportMode === 'ANALITICO'
               ? 'Revise os registros do mesmo grupo e confirme qual cadastro deve prevalecer. Ao abrir um grupo ele é marcado como analisado para facilitar a sequência da revisão.'
-              : 'Resumo agrupado por lado, campo e tipo. Use esta visão para conferir rapidamente quantos grupos duplicados e quantos registros estão envolvidos antes da análise individual.'}
+              : 'Resumo compacto por grupo duplicado, mantendo lado, campo, tipo, valor, quantidade e códigos envolvidos. Os filtros ativos também são respeitados na impressão.'}
           </span>
         </div>
 
