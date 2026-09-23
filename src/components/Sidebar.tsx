@@ -292,7 +292,7 @@ export default function Sidebar({
           ...module,
           helper: 'Dashboard gerencial',
           icon: DASHBOARD_ICONS[module.id] ?? 'chart' as IconName,
-          enabled: module.enabled,
+          enabled: enabledSet.has(module.id),
         })),
     ],
     [enabledSet],
@@ -411,7 +411,7 @@ export default function Sidebar({
         key: `dashboard:${module.id}`,
         kind: 'item',
         target: `dashboard:${module.id}`,
-        enabled: enabledSet.has(module.id),
+        enabled: module.enabled,
       })
     })
     visibleFixedFiles.forEach(item => {
