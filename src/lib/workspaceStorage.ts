@@ -428,6 +428,8 @@ export const clearNfceDocuments = async (): Promise<void> => {
 
 export type NfceModalTab = 'danfe' | 'tags' | 'xml'
 export type NfceStatusFilter = 'ALL' | 'AUTHORIZED' | 'ISSUES'
+export type NfceSortKey = 'number' | 'issuer' | 'issueDate' | 'total' | 'status' | 'accessKey'
+export type NfceSortDirection = 'asc' | 'desc'
 
 export type NfceUiState = {
   selectedId: string | null
@@ -435,6 +437,8 @@ export type NfceUiState = {
   modalTab: NfceModalTab
   listSearch: string
   statusFilter: NfceStatusFilter
+  sortKey: NfceSortKey
+  sortDirection: NfceSortDirection
   page: number
   tagSearch: string
   selectedXmlKey: string | null
@@ -455,6 +459,8 @@ const emptyNfceUiState = (): NfceUiState => ({
   modalTab: 'danfe',
   listSearch: '',
   statusFilter: 'ALL',
+  sortKey: 'issueDate',
+  sortDirection: 'asc',
   page: 1,
   tagSearch: '',
   selectedXmlKey: null,
@@ -481,6 +487,15 @@ export const loadNfceUiState = (): NfceUiState => {
     const statusFilter = parsed.statusFilter === 'AUTHORIZED' || parsed.statusFilter === 'ISSUES'
       ? parsed.statusFilter
       : 'ALL'
+    const sortKey: NfceSortKey =
+      parsed.sortKey === 'number'
+      || parsed.sortKey === 'issuer'
+      || parsed.sortKey === 'total'
+      || parsed.sortKey === 'status'
+      || parsed.sortKey === 'accessKey'
+        ? parsed.sortKey
+        : 'issueDate'
+    const sortDirection: NfceSortDirection = parsed.sortDirection === 'desc' ? 'desc' : 'asc'
     const expandedXmlKeys = Array.isArray(parsed.expandedXmlKeys)
       ? parsed.expandedXmlKeys.filter((value): value is string => typeof value === 'string' && value.length > 0)
       : ['0']
@@ -491,6 +506,8 @@ export const loadNfceUiState = (): NfceUiState => {
       modalTab,
       listSearch: asString(parsed.listSearch),
       statusFilter,
+      sortKey,
+      sortDirection,
       page: Math.max(1, Math.floor(asNumber(parsed.page, 1))),
       tagSearch: asString(parsed.tagSearch),
       selectedXmlKey: typeof parsed.selectedXmlKey === 'string' && parsed.selectedXmlKey ? parsed.selectedXmlKey : null,
