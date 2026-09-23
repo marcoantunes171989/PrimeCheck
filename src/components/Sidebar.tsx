@@ -419,7 +419,7 @@ export default function Sidebar({
     })
     visibleGroups.forEach(item => {
       if (!item.visible) return
-      const isOpen = searching || openGroup === item.group.id
+      const isOpen = openGroup === item.group.id
       entries.push({
         key: `group:${item.group.id}`,
         kind: 'group',
@@ -700,7 +700,7 @@ export default function Sidebar({
 
               {visibleGroups.map(({ group, visibleModules, visible, enabledCount }) => {
                 if (!visible) return null
-                const isOpen = searching || openGroup === group.id
+                const isOpen = openGroup === group.id
                 const activeInside = visibleModules.some(module => active === `data:${module.id}`) ||
                   group.modules.some(id => active === `data:${id}`)
                 const helper = groupHelper(enabledCount)
