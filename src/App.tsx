@@ -11,6 +11,7 @@ import type { ImportedFile } from './types'
 import {
   clearWorkspaceFiles,
   clearWorkspaceSession,
+  initializeWorkspaceScope,
   loadWorkspaceFiles,
   loadWorkspaceSession,
   saveWorkspaceFiles,
@@ -43,7 +44,18 @@ export default function App() {
 
   useEffect(() => {
     let active = true
-    void loadWorkspaceFiles().then(files => {
+
+    void (async () => {
+      const scope = await initializeWorkspaceScope()
+      if (!active) return
+
+      if (!scope) {
+        setWorkspaceStorageMessage('Não foi possível identificar o IP atual. Os dados não serão restaurados entre sessões até a identificação da rede.')
+        setWorkspaceStorageReady(true)
+        return
+      }
+
+      const files = await loadWorkspaceFiles()
       if (!active) return
 
       const session = loadWorkspaceSession()
@@ -59,16 +71,17 @@ export default function App() {
       setWorkspaceFiles(files)
       setVisitedWorkspaceModules(new Set(restoredVisited))
       setModule(canRestoreActiveModule ? session.activeModule as ModuleId : 'importacao')
-      setWorkspaceStorageMessage(files.length ? 'Dados e vínculos restaurados deste navegador.' : 'Nenhum dado salvo neste navegador.')
+      setWorkspaceStorageMessage(files.length ? 'Dados, vínculos e homologações restaurados para este IP.' : 'Nenhum dado salvo para este IP.')
       setWorkspaceStorageReady(true)
-    })
+    })()
+
     return () => { active = false }
   }, [])
 
   useEffect(() => {
     if (!workspaceStorageReady) return
     void saveWorkspaceFiles(workspaceFiles)
-      .then(() => setWorkspaceStorageMessage(workspaceFiles.length ? 'Dados salvos neste navegador.' : 'Nenhum dado salvo neste navegador.'))
+      .then(() => setWorkspaceStorageMessage(workspaceFiles.length ? 'Dados salvos para este IP.' : 'Nenhum dado salvo para este IP.'))
       .catch(() => setWorkspaceStorageMessage('Não foi possível salvar os dados localmente.'))
   }, [workspaceFiles, workspaceStorageReady])
 
@@ -114,7 +127,7 @@ export default function App() {
     setWorkspaceFiles([])
     setVisitedWorkspaceModules(new Set())
     setModule('importacao')
-    setWorkspaceStorageMessage('Dados importados e vínculos removidos deste navegador.')
+    setWorkspaceStorageMessage('Dados importados, vínculos e homologações removidos.')
   }
 
   const changeModule = (next: ModuleId) => {
