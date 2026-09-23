@@ -19,7 +19,36 @@ import {
 const normalizeName = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
 
+type ClientFileRole = 'origin' | 'target' | null
+
+const clientFileRole = (fileName: string): ClientFileRole => {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const normalized = normalizeName(stem)
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  if (!normalized.startsWith('cliente_')) return null
+
+  const suffix = normalized.slice('cliente_'.length).replace(/_/g, '')
+  if (!suffix) return null
+  return suffix === 'intersolid' ? 'target' : 'origin'
+}
+
+const clientFantasyName = (fileName: string) => {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const match = stem.match(/^cliente_(.+)$/i)
+  if (!match) return ''
+  return match[1]
+}
+
 const pickInitialPair = (names: string[], moduleId: WorkspaceModuleDefinition['id']) => {
+  if (moduleId === 'clients') {
+    return {
+      origin: names.find(name => clientFileRole(name) === 'origin') ?? '',
+      target: names.find(name => clientFileRole(name) === 'target') ?? '',
+    }
+  }
+
   if (moduleId === 'sections') {
     return {
       origin: names.find(name => getWorkspaceComparisonFileRole('sections', name) === 'origin') ?? '',
@@ -60,18 +89,24 @@ export default function ModuleComparisonPage({
   const [targetName, setTargetName] = useState('')
 
   const originOptions = useMemo(
-    () => module.id === 'sections'
-      ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'origin')
-      : physicalNames,
+    () => module.id === 'clients'
+      ? physicalNames.filter(name => clientFileRole(name) === 'origin')
+      : module.id === 'sections'
+        ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'origin')
+        : physicalNames,
     [module.id, physicalNames],
   )
   const targetOptions = useMemo(
-    () => module.id === 'sections'
-      ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'target')
-      : physicalNames,
+    () => module.id === 'clients'
+      ? physicalNames.filter(name => clientFileRole(name) === 'target')
+      : module.id === 'sections'
+        ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'target')
+        : physicalNames,
     [module.id, physicalNames],
   )
+  const clientPairReady = module.id !== 'clients' || (originOptions.length > 0 && targetOptions.length > 0)
   const sectionPairReady = module.id !== 'sections' || (originOptions.length > 0 && targetOptions.length > 0)
+  const pairReady = clientPairReady && sectionPairReady
 
   useEffect(() => {
     const stored = loadWorkspaceComparisonSelection(module.id)
@@ -80,6 +115,13 @@ export default function ModuleComparisonPage({
       && physicalNames.includes(stored.originName)
       && physicalNames.includes(stored.targetName)
       && stored.originName !== stored.targetName
+      && (
+        module.id !== 'clients'
+        || (
+          clientFileRole(stored.originName) === 'origin'
+          && clientFileRole(stored.targetName) === 'target'
+        )
+      )
       && (
         module.id !== 'sections'
         || (
@@ -109,6 +151,7 @@ export default function ModuleComparisonPage({
     [resolved.files, targetName],
   )
   const profile = useMemo(() => getWorkspaceEntityProfile(module.id), [module.id])
+  const storageModuleId = module.id === 'clients' ? 'clients:checklist-v7' : module.id
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
@@ -116,6 +159,13 @@ export default function ModuleComparisonPage({
     originName
     && targetName
     && originName !== targetName
+    && (
+      module.id !== 'clients'
+      || (
+        clientFileRole(originName) === 'origin'
+        && clientFileRole(targetName) === 'target'
+      )
+    )
     && (
       module.id !== 'sections'
       || (
@@ -125,8 +175,8 @@ export default function ModuleComparisonPage({
     ),
   )
   const persistedMapping = useMemo(
-    () => canCompare ? loadWorkspaceMapping(module.id, originName, targetName) : [],
-    [canCompare, module.id, originName, targetName],
+    () => canCompare ? loadWorkspaceMapping(storageModuleId, originName, targetName) : [],
+    [canCompare, storageModuleId, originName, targetName],
   )
   const comparisonDataSignature = useMemo(() => [
     ...originFiles.map(file => `origem:${file.id}:${file.rows.length}:${file.headers.length}`),
@@ -134,17 +184,17 @@ export default function ModuleComparisonPage({
   ].join('|'), [originFiles, targetFiles])
   const restoreCompletedReport = useMemo(
     () => canCompare && hasWorkspaceExecution(
-      module.id,
+      storageModuleId,
       originName,
       targetName,
       persistedMapping,
       comparisonDataSignature,
     ),
-    [canCompare, module.id, originName, targetName, persistedMapping, comparisonDataSignature],
+    [canCompare, storageModuleId, originName, targetName, persistedMapping, comparisonDataSignature],
   )
 
   const swap = () => {
-    if (module.id === 'sections') return
+    if (module.id === 'clients' || module.id === 'sections') return
     setOriginName(targetName)
     setTargetName(originName)
   }
@@ -183,16 +233,35 @@ export default function ModuleComparisonPage({
               </option>
             ))}
           </select>
-          <small>{originName ? originRows.toLocaleString('pt-BR') + ' registros relacionados' : 'Aguardando seleção'}</small>
+          <small>
+            {originName
+              ? originRows.toLocaleString('pt-BR') + ' registros relacionados'
+                + (module.id === 'clients' ? ' · Cliente: ' + clientFantasyName(originName) : '')
+              : module.id === 'clients'
+                ? 'Padrão: CLIENTE_[nome fantasia].csv'
+                : 'Aguardando seleção'}
+          </small>
         </div>
 
         <button
           type="button"
           className="comparison-swap"
           onClick={swap}
-          disabled={!originName || !targetName || module.id === 'sections'}
-          title={module.id === 'sections' ? 'Em Seções, o arquivo Intersolid é sempre o destino' : 'Trocar origem e destino'}
-          aria-label={module.id === 'sections' ? 'Origem e destino fixos para Seções' : 'Trocar arquivo de origem e destino'}
+          disabled={!originName || !targetName || module.id === 'clients' || module.id === 'sections'}
+          title={
+            module.id === 'clients'
+              ? 'Em Clientes, CLIENTE_intersolid é sempre o destino'
+              : module.id === 'sections'
+                ? 'Em Seções, o arquivo Intersolid é sempre o destino'
+                : 'Trocar origem e destino'
+          }
+          aria-label={
+            module.id === 'clients'
+              ? 'Origem e destino fixos para Clientes'
+              : module.id === 'sections'
+                ? 'Origem e destino fixos para Seções'
+                : 'Trocar arquivo de origem e destino'
+          }
         >
           ⇄
         </button>
@@ -214,17 +283,26 @@ export default function ModuleComparisonPage({
               </option>
             ))}
           </select>
-          <small>{targetName ? targetRows.toLocaleString('pt-BR') + ' registros relacionados' : 'Aguardando seleção'}</small>
+          <small>
+            {targetName
+              ? targetRows.toLocaleString('pt-BR') + ' registros relacionados'
+                + (module.id === 'clients' ? ' · Destino Intersolid' : '')
+              : module.id === 'clients'
+                ? 'Padrão obrigatório: CLIENTE_intersolid.csv'
+                : 'Aguardando seleção'}
+          </small>
         </div>
       </section>
 
-      {!sectionPairReady || physicalNames.length < 2 ? (
+      {!pairReady || physicalNames.length < 2 ? (
         <section className="comparison-pair-empty">
           <strong>É necessário importar os arquivos corretos para {module.label}.</strong>
           <span>
-            {module.id === 'sections'
-              ? 'Use SECAO_[cliente].csv como origem e SECAO_intersolid.csv como destino. Somente os campos Código/Descrição da estrutura de Seções serão considerados.'
-              : `O PrimeCheck identificou ${physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo. Volte à Importação e carregue a base de origem e a base convertida/destino.`
+            {module.id === 'clients'
+              ? 'Use CLIENTE_[nome fantasia].csv como origem e CLIENTE_intersolid.csv como destino. O texto após CLIENTE_ pode variar conforme o cliente.'
+              : module.id === 'sections'
+                ? 'Use SECAO_[cliente].csv como origem e SECAO_intersolid.csv como destino. Somente os campos Código/Descrição da estrutura de Seções serão considerados.'
+                : `O PrimeCheck identificou ${physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo. Volte à Importação e carregue a base de origem e a base convertida/destino.`
             }
           </span>
           <button type="button" className="button primary" onClick={onBackToImport}>
@@ -234,7 +312,13 @@ export default function ModuleComparisonPage({
       ) : !canCompare ? (
         <section className="comparison-pair-empty compact">
           <strong>Selecione arquivos diferentes para origem e destino.</strong>
-          <span>Os nomes dos arquivos podem variar livremente; a identificação do módulo é feita pelos campos encontrados.</span>
+          <span>
+            {module.id === 'clients'
+              ? 'Para Clientes, a origem deve seguir CLIENTE_[nome fantasia] e o destino deve ser CLIENTE_intersolid.'
+              : module.id === 'sections'
+                ? 'Para Seções, a origem deve seguir SECAO_[cliente] e o destino deve ser SECAO_intersolid.'
+                : 'Os nomes dos arquivos podem variar livremente; a identificação do módulo é feita pelos campos encontrados.'}
+          </span>
         </section>
       ) : (
         <HomologationApp
@@ -248,12 +332,12 @@ export default function ModuleComparisonPage({
           dashboardMode={dashboardMode}
           initialMapping={persistedMapping}
           onMappingChange={nextMapping =>
-            saveWorkspaceMapping(module.id, originName, targetName, nextMapping)
+            saveWorkspaceMapping(storageModuleId, originName, targetName, nextMapping)
           }
           restoreCompletedReport={restoreCompletedReport}
           onComparisonExecuted={nextMapping =>
             saveWorkspaceExecution(
-              module.id,
+              storageModuleId,
               originName,
               targetName,
               nextMapping,
