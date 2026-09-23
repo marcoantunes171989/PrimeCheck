@@ -466,7 +466,7 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE
           ...field,
           checklistLabel: config.checklistLabel,
           databaseField: config.databaseField,
-          originExactAliases: field.id === 'limiteCheque' ? ['VAL_LIMITE_CREDITO'] : undefined,
+          originExactAliases: field.id === 'limiteCheque' ? ['VAL_LIMITE_CRETID'] : undefined,
           aliases: config.aliases,
         }
       : field
