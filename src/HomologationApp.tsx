@@ -108,6 +108,34 @@ type HomologationAppProps = {
   originLabel?: string
   targetLabel?: string
   dashboardMode?: boolean
+  initialMapping?: FieldMapping[]
+  onMappingChange?: (mapping: FieldMapping[]) => void
+}
+
+const mergePersistedMapping = (
+  automatic: FieldMapping[],
+  persisted: FieldMapping[],
+  profile: EntityProfile,
+  originHeaders: string[],
+  targetHeaders: string[],
+) => {
+  const automaticByField = new Map(automatic.map(item => [item.fieldId, item]))
+  const persistedByField = new Map(persisted.map(item => [item.fieldId, item]))
+
+  return profile.fields.map(field => {
+    const fallback = automaticByField.get(field.id)
+    const saved = persistedByField.get(field.id)
+    const savedOriginIsValid = Boolean(saved?.originHeader && originHeaders.includes(saved.originHeader))
+    const savedTargetIsValid = Boolean(saved?.targetHeader && targetHeaders.includes(saved.targetHeader))
+
+    return {
+      fieldId: field.id,
+      originHeader: savedOriginIsValid ? saved?.originHeader ?? '' : fallback?.originHeader ?? '',
+      targetHeader: savedTargetIsValid ? saved?.targetHeader ?? '' : fallback?.targetHeader ?? '',
+      originManual: savedOriginIsValid ? saved?.originManual : undefined,
+      targetManual: savedTargetIsValid ? saved?.targetManual : undefined,
+    }
+  })
 }
 
 function App({
@@ -118,6 +146,8 @@ function App({
   originLabel = 'Origem',
   targetLabel = 'Destino',
   dashboardMode = false,
+  initialMapping,
+  onMappingChange,
 }: HomologationAppProps = {}) {
   const [originFiles, setOriginFiles] = useState<ImportedFile[]>(presetOriginFiles ?? [])
   const [targetFiles, setTargetFiles] = useState<ImportedFile[]>(presetTargetFiles ?? [])
@@ -215,15 +245,30 @@ function App({
   )
   const conservativeMapping = !profileOverride && entityMode === 'auto' && detection.lowConfidence
 
+  const commitMapping = (next: FieldMapping[]) => {
+    setMapping(next)
+    onMappingChange?.(next)
+  }
+
   useEffect(() => {
     if (origin.headers.length && target.headers.length) {
-      setMapping(autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping }))
+      const automatic = autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping })
+      const next = initialMapping?.length
+        ? mergePersistedMapping(automatic, initialMapping, profile, origin.headers, target.headers)
+        : automatic
+      commitMapping(next)
       setReport(null)
     } else {
       setMapping([])
       setReport(null)
     }
-  }, [origin.headers.join('|'), target.headers.join('|'), profile.id, conservativeMapping])
+  }, [
+    origin.headers.join('|'),
+    target.headers.join('|'),
+    profile.id,
+    conservativeMapping,
+    initialMapping,
+  ])
 
   useEffect(() => setPage(1), [search, statusFilter, issueFieldFilter, activeTab, pageSize])
 
@@ -260,7 +305,7 @@ function App({
   ]
 
   const remap = () => {
-    setMapping(autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping }))
+    commitMapping(autoMap(origin, target, profile, { allowGenericHeaders: !conservativeMapping }))
     setReport(null)
   }
 
@@ -462,7 +507,7 @@ function App({
   const clearAll = () => {
     setOriginFiles([])
     setTargetFiles([])
-    setMapping([])
+    commitMapping([])
     setReport(null)
     setSelectedClient(null)
     setSearch('')
@@ -765,7 +810,7 @@ function App({
                 mapping={mapping}
                 originHeaders={origin.headers}
                 targetHeaders={target.headers}
-                onChange={setMapping}
+                onChange={commitMapping}
                 onAutoMap={remap}
               />
             )}
