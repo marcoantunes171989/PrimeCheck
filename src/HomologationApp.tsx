@@ -16,6 +16,7 @@ import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import DuplicateAnalysisModal, { type DuplicateAnalysisRequest } from './components/DuplicateAnalysisModal'
 import { buildRecordDisplayFields, findDuplicateGroup, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
 import { normalizeHeader, validateCpfCnpj } from './lib/normalizers'
+import { buildHierarchyVisual, isGroupHierarchyProfile, isSubgroupHierarchyProfile, type VisualHierarchyContext } from './lib/hierarchyDisplay'
 import { formatReportDateTime } from './lib/reportFormatting'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
@@ -30,25 +31,6 @@ type IssueOccurrence = {
   client: ClientComparison
   field: ComparisonFieldResult
   duplicate?: IssueDuplicateInfo
-}
-
-type VisualHierarchyContext = {
-  sectionNames: Record<string, string>
-  groupNames: Record<string, string>
-}
-
-const normalizeHierarchyCode = (value: unknown) => {
-  const text = String(value ?? '').trim()
-  if (!text) return ''
-  if (/^\d+$/.test(text)) return text.replace(/^0+(?=\d)/, '')
-  return text.toLocaleUpperCase('pt-BR')
-}
-
-const readHierarchyRowValue = (row: Record<string, unknown> | undefined, header: string) => {
-  if (!row) return ''
-  const expected = normalizeHeader(header)
-  const key = Object.keys(row).find(candidate => normalizeHeader(candidate) === expected)
-  return key ? String(row[key] ?? '').trim() : ''
 }
 
 const number = (value: number) => value.toLocaleString('pt-BR')
@@ -486,58 +468,14 @@ function App({
   const resultProfile = report ? getEntityProfile(report.profileId) : profile
   const showDocument = resultProfile.showDocumentValidity === true
 
-  const hierarchyForClient = (client: ClientComparison) => {
-    const keyParts = client.key.split('/').map(part => part.trim())
-    const sectionField = client.fields.find(field => field.fieldId === 'codigoSecao')
-    const groupField = client.fields.find(field => field.fieldId === 'codigoGrupo')
-    const sectionCode = normalizeHierarchyCode(
-      sectionField?.originValue || sectionField?.targetValue || keyParts[0],
-    )
-    const groupCode = normalizeHierarchyCode(
-      groupField?.originValue || groupField?.targetValue || keyParts[1],
-    )
+  const showGroupHierarchy = isGroupHierarchyProfile(resultProfile.id)
+  const showSubgroupHierarchy = isSubgroupHierarchyProfile(resultProfile.id)
 
-    const directSectionName =
-      readHierarchyRowValue(client.targetRow, 'DES_SECAO')
-      || readHierarchyRowValue(client.originRow, 'DES_SECAO')
-    const directGroupName =
-      readHierarchyRowValue(client.targetRow, 'DES_GRUPO')
-      || readHierarchyRowValue(client.originRow, 'DES_GRUPO')
+  const hierarchyForClient = (client: ClientComparison) =>
+    buildHierarchyVisual(client, resultProfile.id, visualHierarchy)
 
-    const sectionName =
-      directSectionName
-      || (sectionCode && visualHierarchy ? visualHierarchy.sectionNames[sectionCode] ?? '' : '')
-    const groupName =
-      directGroupName
-      || (
-        sectionCode && groupCode && visualHierarchy
-          ? visualHierarchy.groupNames[sectionCode + '|' + groupCode] ?? ''
-          : ''
-      )
-
-    return {
-      sectionCode,
-      sectionName,
-      groupCode,
-      groupName,
-    }
-  }
-
-  const hierarchyDisplayForClient = (client: ClientComparison) => {
-    const hierarchy = hierarchyForClient(client)
-    const sectionLabel = hierarchy.sectionName || (hierarchy.sectionCode ? 'Seção ' + hierarchy.sectionCode : 'Seção')
-    const groupLabel = hierarchy.groupName || (hierarchy.groupCode ? 'Grupo ' + hierarchy.groupCode : 'Grupo')
-
-    if (resultProfile.id === 'group') {
-      return sectionLabel + ' | ' + (client.name || '—')
-    }
-
-    if (resultProfile.id === 'subgroup') {
-      return sectionLabel + ' | ' + groupLabel + ' | ' + (client.name || '—')
-    }
-
-    return client.name || '—'
-  }
+  const hierarchyDisplayForClient = (client: ClientComparison) =>
+    hierarchyForClient(client).displayLabel
 
   const filteredClients = useMemo(() => {
     if (!report) return []
@@ -552,7 +490,7 @@ function App({
       if (clientColumnFilters.found === 'NAO' && client.found) return false
       if (!contains(client.key, clientColumnFilters.code)) return false
       if (!contains(
-        resultProfile.id === 'group' || resultProfile.id === 'subgroup'
+        showGroupHierarchy || showSubgroupHierarchy
           ? hierarchyDisplayForClient(client)
           : client.name,
         clientColumnFilters.name,
@@ -587,7 +525,7 @@ function App({
         || rawHit
         || hierarchyHit
     })
-  }, [report, search, statusFilter, clientColumnFilters, visualHierarchy])
+  }, [report, search, statusFilter, clientColumnFilters, visualHierarchy, resultProfile.id, showGroupHierarchy, showSubgroupHierarchy])
 
   const originDuplicateLookup = useMemo(() => {
     const lookup = new Map<string, IssueDuplicateInfo>()
@@ -673,7 +611,9 @@ function App({
 
   const sortedClients = useMemo(() => sortedBy(filteredClients, clientSort, (client, key) => {
     if (key === 'code') return client.key
-    if (key === 'name') return client.name
+    if (key === 'name') return showGroupHierarchy || showSubgroupHierarchy
+      ? hierarchyDisplayForClient(client)
+      : client.name
     if (key === 'found') return client.found
     if (key === 'status') return client.status
     if (key === 'divergent') return client.divergentCount
@@ -681,7 +621,7 @@ function App({
     if (key === 'document') return client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
     if (key === 'validity') return validateCpfCnpj(client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? '').status
     return ''
-  }), [filteredClients, clientSort])
+  }), [filteredClients, clientSort, showGroupHierarchy, showSubgroupHierarchy, visualHierarchy, resultProfile.id])
 
   const sortedIssues = useMemo(() => sortedBy(issues, issueSort, (item, key) => {
     if (key === 'code') return item.client.key
@@ -1225,9 +1165,9 @@ function App({
                           <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           <SortableHeader
                             label={
-                              resultProfile.id === 'group'
+                              showGroupHierarchy
                                 ? 'Seção | Grupo'
-                                : resultProfile.id === 'subgroup'
+                                : showSubgroupHierarchy
                                   ? 'Seção | Grupo | Subgrupo'
                                   : resultProfile.recordLabel
                             }
@@ -1287,8 +1227,6 @@ function App({
                           const validation = validateCpfCnpj(doc)
                           const reviewed = reviewedClientKeys.has(client.key)
                           const hierarchy = hierarchyForClient(client)
-                          const showGroupHierarchy = resultProfile.id === 'group'
-                          const showSubgroupHierarchy = resultProfile.id === 'subgroup'
                           return <tr key={client.key} className={reviewed ? 'row-reviewed' : ''}>
                             <td className="selection-column">
                               <input
@@ -1358,7 +1296,13 @@ function App({
                   filterDescription={[
                     search.trim() ? 'Pesquisa: ' + search.trim() : '',
                     clientColumnFilters.code ? 'Código: ' + clientColumnFilters.code : '',
-                    clientColumnFilters.name ? resultProfile.recordLabel + ': ' + clientColumnFilters.name : '',
+                    clientColumnFilters.name
+                      ? (showGroupHierarchy
+                          ? 'Seção | Grupo'
+                          : showSubgroupHierarchy
+                            ? 'Seção | Grupo | Subgrupo'
+                            : resultProfile.recordLabel) + ': ' + clientColumnFilters.name
+                      : '',
                     clientColumnFilters.found !== 'TODOS' ? 'Encontrado: ' + clientColumnFilters.found : '',
                     clientColumnFilters.status !== 'TODOS' ? 'Resultado: ' + clientColumnFilters.status : '',
                     clientColumnFilters.document ? 'CPF/CNPJ: ' + clientColumnFilters.document : '',
@@ -1367,7 +1311,14 @@ function App({
                   ].filter(Boolean).join(' · ')}
                   columns={[
                     { key: 'codigo', label: 'Código' },
-                    { key: 'registro', label: resultProfile.recordLabel },
+                    {
+                      key: 'registro',
+                      label: showGroupHierarchy
+                        ? 'Seção | Grupo'
+                        : showSubgroupHierarchy
+                          ? 'Seção | Grupo | Subgrupo'
+                          : resultProfile.recordLabel,
+                    },
                     { key: 'encontrado', label: 'Encontrado' },
                     { key: 'resultado', label: 'Resultado' },
                     { key: 'divergencias', label: 'Divergências' },
@@ -1382,7 +1333,9 @@ function App({
                     const doc = client.fields.find(field => field.fieldId === 'cpfCnpj')?.originValue ?? ''
                     return {
                       codigo: client.key,
-                      registro: client.name || '—',
+                      registro: showGroupHierarchy || showSubgroupHierarchy
+                        ? hierarchyDisplayForClient(client)
+                        : client.name || '—',
                       encontrado: client.found ? 'Sim' : 'Não',
                       resultado: client.status,
                       divergencias: client.divergentCount,
