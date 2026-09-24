@@ -1,4 +1,4 @@
-import { initializeWorkspaceScope } from './workspaceStorage'
+import { initializeWorkspaceScope, openPrimeCheckDb } from './workspaceStorage'
 
 export interface InternalProductRow {
   id: string
@@ -17,35 +17,15 @@ export interface InternalProductSnapshot {
   rows: InternalProductRow[]
 }
 
-const DB_NAME = 'primecheck-local'
-const DB_VERSION = 2
 const STORE_NAME = 'workspace'
-const NFCE_STORE_NAME = 'nfce-xml'
 const LEGACY_INTERNAL_PRODUCTS_KEY = 'internal-product-list-v1'
 const INTERNAL_PRODUCTS_KEY_PREFIX = 'internal-product-list-v2'
-
-const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
-  const request = window.indexedDB.open(DB_NAME, DB_VERSION)
-
-  request.onupgradeneeded = () => {
-    const db = request.result
-    if (!db.objectStoreNames.contains(STORE_NAME)) {
-      db.createObjectStore(STORE_NAME)
-    }
-    if (!db.objectStoreNames.contains(NFCE_STORE_NAME)) {
-      db.createObjectStore(NFCE_STORE_NAME)
-    }
-  }
-
-  request.onsuccess = () => resolve(request.result)
-  request.onerror = () => reject(request.error ?? new Error('Falha ao abrir armazenamento local.'))
-})
 
 const withStore = async <T>(
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>,
 ) => {
-  const db = await openDb()
+  const db = await openPrimeCheckDb()
   try {
     return await new Promise<T>((resolve, reject) => {
       const transaction = db.transaction(STORE_NAME, mode)
