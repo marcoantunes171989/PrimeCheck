@@ -123,10 +123,9 @@ const canonicalizeClientTargetFiles = (
   return files.map(file => {
     const usedRawHeaders = new Set<string>()
     const canonicalPairs = profile.fields.flatMap(field => {
-      const canonical = field.originExactAliases?.[0]
+      const canonical = field.originExactAliases?.[0] ?? field.targetExactAliases?.[0]
       if (!canonical) return []
 
-      const canonicalToken = normalizeHeader(canonical)
       const candidates = [
         canonical,
         ...(field.targetExactAliases ?? []),
@@ -143,25 +142,17 @@ const canonicalizeClientTargetFiles = (
       if (!rawHeader) return []
       usedRawHeaders.add(rawHeader)
 
-      return [{ canonical, canonicalToken, rawHeader }]
+      return [{ canonical, rawHeader }]
     })
 
-    if (!canonicalPairs.length) return file
+    if (!canonicalPairs.length) return { ...file, headers: [] }
 
-    const canonicalHeaders = canonicalPairs.map(pair => pair.canonical)
-    const headers = [...file.headers]
-    canonicalHeaders.forEach(header => {
-      if (!headers.some(existing => normalizeHeader(existing) === normalizeHeader(header))) {
-        headers.push(header)
-      }
-    })
+    const headers = [...new Set(canonicalPairs.map(pair => pair.canonical))]
 
     const rows = file.rows.map(row => {
       const next = { ...row }
       canonicalPairs.forEach(({ canonical, rawHeader }) => {
-        if (!(canonical in next) || String(next[canonical] ?? '') === '') {
-          next[canonical] = row[rawHeader]
-        }
+        next[canonical] = row[rawHeader]
       })
       return next
     })
