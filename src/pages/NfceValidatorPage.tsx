@@ -23,6 +23,7 @@ import {
   type NfceStatusFilter,
   type NfceUiState,
 } from '../lib/workspaceStorage'
+import ImportProgressBar from '../components/ImportProgressBar'
 import '../nfce.css'
 
 const PAGE_SIZE = 20
@@ -789,19 +790,25 @@ export default function NfceValidatorPage() {
       </section>
 
       <section
-        className={'workspace-dropzone nfce-dropzone ' + (dragging ? 'dragging' : '')}
-        onDragOver={event => { event.preventDefault(); setDragging(true) }}
+        className={'workspace-dropzone nfce-dropzone ' + (dragging ? 'dragging' : '') + (busy ? ' busy' : '')}
+        onDragOver={event => {
+          event.preventDefault()
+          if (!busy && storageReady) setDragging(true)
+        }}
         onDragLeave={() => setDragging(false)}
         onDrop={event => {
           event.preventDefault()
           setDragging(false)
-          void handleFiles(Array.from(event.dataTransfer.files))
+          if (!busy && storageReady) void handleFiles(Array.from(event.dataTransfer.files))
         }}
-        onClick={() => storageReady && inputRef.current?.click()}
+        onClick={() => {
+          if (!busy && storageReady) inputRef.current?.click()
+        }}
         role="button"
         tabIndex={0}
+        aria-disabled={busy || !storageReady}
         onKeyDown={event => {
-          if (storageReady && (event.key === 'Enter' || event.key === ' ')) inputRef.current?.click()
+          if (!busy && storageReady && (event.key === 'Enter' || event.key === ' ')) inputRef.current?.click()
         }}
       >
         <input
@@ -820,13 +827,38 @@ export default function NfceValidatorPage() {
           <strong>{!storageReady ? 'Restaurando arquivos NFC-e…' : busy ? 'Processando arquivos NFC-e…' : 'Arraste os XMLs aqui ou clique para selecionar'}</strong>
           <span>Arquivos XML exclusivamente · NFC-e modelo 65 · sem limite fixo no PrimeCheck · armazenamento local por IP</span>
         </div>
-        {busy && (
-          <div className="nfce-progress" aria-live="polite">
-            <span style={{ width: progress.total ? `${progress.current / progress.total * 100}%` : '0%' }} />
-            <small>{progress.current.toLocaleString('pt-BR')} de {progress.total.toLocaleString('pt-BR')}</small>
-          </div>
-        )}
       </section>
+
+      {progress.total > 0 && (
+        <ImportProgressBar
+          percent={progress.total ? (progress.current / progress.total) * 100 : 0}
+          running={busy}
+          title={
+            busy
+              ? progress.current >= progress.total
+                ? 'Finalizando armazenamento local dos XMLs…'
+                : 'Processando arquivos NFC-e…'
+              : 'Importação de NFC-e concluída.'
+          }
+          detail={
+            progress.current.toLocaleString('pt-BR')
+            + ' de '
+            + progress.total.toLocaleString('pt-BR')
+            + ' XML(s) processados'
+          }
+          meta={(
+            <>
+              <span>
+                <strong>Processados:</strong>{' '}
+                {progress.current.toLocaleString('pt-BR')}
+                {' / '}
+                {progress.total.toLocaleString('pt-BR')}
+              </span>
+              <span><strong>Armazenamento:</strong> local por IP</span>
+            </>
+          )}
+        />
+      )}
 
       {errors.length > 0 && (
         <div className="workspace-import-errors">

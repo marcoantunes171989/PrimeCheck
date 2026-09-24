@@ -24,6 +24,12 @@ export default function MappingPanel({
   const [search, setSearch] = useState('')
   const [onlyPending, setOnlyPending] = useState(false)
 
+  const clientChecklistMode = profile.id === 'client' || profile.id === 'workspace:clients'
+  const supplierChecklistMode = profile.id === 'supplier' || profile.id === 'workspace:suppliers'
+  const sectionChecklistMode = profile.id === 'section' || profile.id === 'workspace:sections'
+  const groupChecklistMode = profile.id === 'group' || profile.id === 'workspace:groups'
+  const subgroupChecklistMode = profile.id === 'subgroup' || profile.id === 'workspace:subgroups'
+  const checklistMode = clientChecklistMode || supplierChecklistMode || sectionChecklistMode || groupChecklistMode || subgroupChecklistMode
   const coverage = mappingCoverage(mapping)
   const total = profile.fields.length || coverage.total
   const both = coverage.both
@@ -32,18 +38,32 @@ export default function MappingPanel({
   const update = (fieldId: string, side: 'originHeader' | 'targetHeader', value: string) => {
     const manualKey = side === 'originHeader' ? 'originManual' : 'targetManual'
     const current = mapping.find(item => item.fieldId === fieldId)
+    const mirroredTarget = clientChecklistMode && side === 'originHeader' && value
+      ? targetHeaders.find(header => normalizeHeader(header) === normalizeHeader(value)) ?? ''
+      : ''
+
     if (!current) {
       onChange([...mapping, {
         fieldId,
         originHeader: side === 'originHeader' ? value : '',
-        targetHeader: side === 'targetHeader' ? value : '',
+        targetHeader: side === 'targetHeader'
+          ? value
+          : mirroredTarget,
         [manualKey]: Boolean(value),
+        ...(mirroredTarget ? { targetManual: false } : {}),
       }])
       return
     }
-    onChange(mapping.map(item => item.fieldId === fieldId
-      ? { ...item, [side]: value, [manualKey]: Boolean(value) }
-      : item))
+
+    onChange(mapping.map(item => {
+      if (item.fieldId !== fieldId) return item
+      const next = { ...item, [side]: value, [manualKey]: Boolean(value) }
+      if (mirroredTarget) {
+        next.targetHeader = mirroredTarget
+        next.targetManual = false
+      }
+      return next
+    }))
   }
 
   const visibleFields = useMemo(() => {
@@ -67,8 +87,6 @@ export default function MappingPanel({
       return haystack.includes(term)
     })
   }, [mapping, onlyPending, profile.fields, search])
-
-  const clientChecklistMode = profile.id === 'client' || profile.id === 'workspace:clients'
 
   return (
     <section className="panel mapping-panel">
@@ -133,8 +151,8 @@ export default function MappingPanel({
         <table className="mapping-table">
           <thead>
             <tr>
-              <th>{clientChecklistMode ? 'Check-list Homologação' : 'Grupo'}</th>
-              <th>{clientChecklistMode ? 'Campo no banco de dados' : 'Campo homologado'}</th>
+              <th>{checklistMode ? 'Check-list Homologação' : 'Grupo'}</th>
+              <th>{checklistMode ? 'Campo no banco de dados' : 'Campo homologado'}</th>
               <th>Coluna origem</th>
               <th>Coluna destino</th>
               <th>Situação</th>
@@ -152,23 +170,23 @@ export default function MappingPanel({
                   ? 'partial'
                   : 'none'
 
-              const originSuggestions = !clientChecklistMode && !originHeader
+              const originSuggestions = !checklistMode && !originHeader
                 ? getHeaderSuggestions(originHeaders, field)
                 : []
-              const targetSuggestions = !clientChecklistMode && !targetHeader
+              const targetSuggestions = !checklistMode && !targetHeader
                 ? getHeaderSuggestions(targetHeaders, field)
                 : []
 
               return (
                 <tr key={field.id} className={'mapping-row ' + situation}>
-                  <td className={clientChecklistMode ? 'muted-cell mapping-checklist-cell' : 'muted-cell'}>
-                    {clientChecklistMode && <span className="mapping-checklist-mark" aria-hidden="true">✓</span>}
+                  <td className={checklistMode ? 'muted-cell mapping-checklist-cell' : 'muted-cell'}>
+                    {checklistMode && <span className="mapping-checklist-mark" aria-hidden="true">✓</span>}
                     <span className="mapping-group">
-                      {clientChecklistMode ? (field.checklistLabel ?? field.label) : field.group}
+                      {checklistMode ? (field.checklistLabel ?? field.label) : field.group}
                     </span>
                   </td>
-                  <td className={clientChecklistMode ? 'mapping-database-field' : undefined}>
-                    <strong>{clientChecklistMode ? (field.databaseField || '—') : field.label}</strong>
+                  <td className={checklistMode ? 'mapping-database-field' : undefined}>
+                    <strong>{checklistMode ? (field.databaseField || '—') : field.label}</strong>
                     {field.requiredForMatch && <span className="required">chave</span>}
                   </td>
                   <td>
@@ -203,6 +221,18 @@ export default function MappingPanel({
                       placeholder="Selecionar coluna do destino"
                       ariaLabel={'Coluna de destino para ' + field.label}
                     />
+                    {clientChecklistMode && field.id === 'limiteCheque' && !targetHeader && (
+                      <div className="mapping-target-missing-note">
+                        Ausente no arquivo de destino atual. Esperado: VAL_LIMITE_CREDITO,
+                        VAL_LIMITE_CRETID ou LIMITE_CHEQUE. Reexporte o destino com o Script SQL atualizado.
+                      </div>
+                    )}
+                    {supplierChecklistMode && field.id === 'divisaoFornecedor' && !targetHeader && (
+                      <div className="mapping-target-missing-note">
+                        COD_CLASSIF não existe no arquivo de destino atual. Reexporte o destino
+                        com o Script SQL de Fornecedores atualizado.
+                      </div>
+                    )}
                     {!targetHeader && targetSuggestions.length > 0 && (
                       <div className="mapping-suggestions">
                         <span>Sugestões:</span>

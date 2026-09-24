@@ -57,7 +57,7 @@ const DASHBOARD_ICONS: Record<string, IconName> = {
 }
 
 const FIXED_FILES = [
-  { id: 'importacao', label: 'Importação', helper: 'Até 5 arquivos', icon: 'import' as const },
+  { id: 'importacao', label: 'Importação', helper: 'Quantidade livre', icon: 'import' as const },
   { id: 'internal-products', label: 'Lista de Produtos Internos', helper: 'Código e descrição', icon: 'list' as const },
 ]
 

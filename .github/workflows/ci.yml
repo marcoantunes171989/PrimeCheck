@@ -2,7 +2,7 @@ name: PrimeCheck CI
 
 on:
   push:
-    branches: [homologacao, main]
+    branches: [homologacao-local-validacao, homologacao, main]
   pull_request:
     branches: [main]
 
@@ -26,3 +26,15 @@ jobs:
 
       - name: Typecheck and build
         run: npm run build
+
+      - name: Verify hierarchy display
+        run: npm run verify:hierarchy
+
+      - name: Verify Product Store architecture
+        run: npm run verify:product-store
+
+      - name: Verify typography layout
+        run: npm run verify:typography
+
+      - name: Verify responsive layout
+        run: npm run verify:responsive

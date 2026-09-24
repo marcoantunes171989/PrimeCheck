@@ -1,6 +1,9 @@
 import { clientProfile } from './entities/client'
 import { supplierProfile } from './entities/supplier'
 import { productProfile } from './entities/product'
+import { sectionProfile } from './entities/section'
+import { groupProfile } from './entities/group'
+import { subgroupProfile } from './entities/subgroup'
 import { normalizeHeader } from '../lib/normalizers'
 import type { EntityProfile, FieldDefinition, ImportedFile } from '../types'
 
@@ -158,10 +161,10 @@ const modules: WorkspaceModuleDefinition[] = [
   },
   {
     id: 'products',
-    label: 'Produtos',
+    label: 'Cadastro Base do Produto',
     singular: 'Produto',
     group: 'products',
-    description: 'Cadastro principal de produtos e atributos comerciais, fiscais e operacionais.',
+    description: 'Cadastro-base do produto. Serve de referência para Produto por Loja, códigos de barras, fornecedores, similares e demais vínculos.',
     signals: ['COD_PRODUTO', 'DES_PRODUTO', 'COD_BARRA_PRINCIPAL', 'DES_REDUZIDA'],
     fields: [
       ...productBaseFields,
@@ -188,7 +191,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Produto por Loja',
     singular: 'Produto por Loja',
     group: 'products',
-    description: 'Dados do produto por estabelecimento: preço, custo, estoque, oferta, margem e situação.',
+    description: 'Módulo principal de produtos por estabelecimento. Centraliza preço, custo, estoque, oferta, margem, situação e os vínculos de análise do produto.',
     signals: ['COD_LOJA', 'PRODUTO_LOJA', 'TAB_PRODUTO_LOJA', 'PRECO_LOJA'],
     fields: [
       field('codigoLoja', 'Loja', ['COD_LOJA', 'CODIGO_LOJA', 'LOJA']),
@@ -206,7 +209,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Códigos de Barras',
     singular: 'Código de Barras',
     group: 'products',
-    description: 'Códigos EAN/GTIN vinculados aos produtos.',
+    description: 'Códigos EAN/GTIN vinculados ao produto, com suporte futuro a múltiplos códigos, duplicidades e análises por loja.',
     signals: ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -219,7 +222,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Produto por Fornecedor',
     singular: 'Produto por Fornecedor',
     group: 'products',
-    description: 'Relacionamento entre produto e fornecedor.',
+    description: 'Relacionamento independente entre produto e fornecedor, permitindo validar referências, custos e vínculos de fornecedores.',
     signals: ['PRODUTO_FORNECEDOR', 'COD_FORNECEDOR_PRODUTO', 'COD_FORNECEDOR', 'REFERENCIA_FORNECEDOR'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -234,7 +237,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Produtos Similares',
     singular: 'Produto Similar',
     group: 'products',
-    description: 'Vínculos de produtos similares/substitutos.',
+    description: 'Cadastro e vínculos de produtos similares/substitutos, preparado para posterior associação ao Produto por Loja.',
     signals: ['PRODUTO_SIMILAR', 'COD_PRODUTO_SIMILAR', 'SIMILAR'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -247,7 +250,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'NCM',
     singular: 'NCM',
     group: 'fiscal',
-    description: 'Classificação fiscal NCM.',
+    description: 'Cadastro de referência NCM, utilizado posteriormente nos vínculos fiscais do Produto por Loja.',
     signals: ['NCM', 'COD_NCM'],
     fields: [
       field('ncm', 'NCM', ['NCM', 'COD_NCM']),
@@ -260,7 +263,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'CEST',
     singular: 'CEST',
     group: 'fiscal',
-    description: 'Código Especificador da Substituição Tributária.',
+    description: 'Cadastro de referência CEST, relacionado ao NCM e utilizado nos vínculos fiscais do Produto por Loja.',
     signals: ['CEST', 'COD_CEST'],
     fields: [
       field('cest', 'CEST', ['CEST', 'COD_CEST']),
@@ -304,7 +307,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Benefício Fiscal',
     singular: 'Benefício Fiscal',
     group: 'fiscal',
-    description: 'Benefícios fiscais e vínculos com produto/NCM.',
+    description: 'Cadastro de benefícios fiscais e vínculos com NCM/produto, preparado para associação ao Produto por Loja.',
     signals: ['BENEFICIO_FISCAL', 'COD_BENEFICIO', 'CBENEF'],
     fields: [
       field('codigo', 'Código benefício', ['COD_BENEFICIO', 'CODIGO_BENEFICIO', 'CBENEF']),
@@ -319,7 +322,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Receitas',
     singular: 'Receita',
     group: 'fiscal',
-    description: 'Receitas, composição e ficha técnica vinculada ao produto.',
+    description: 'Receitas, composição e ficha técnica vinculáveis ao Produto por Loja.',
     signals: ['RECEITA', 'FICHA_TECNICA', 'INGREDIENTE', 'COMPOSICAO_PRODUTO'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -335,7 +338,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Informações Nutricionais',
     singular: 'Informação Nutricional',
     group: 'fiscal',
-    description: 'Informações nutricionais vinculadas aos produtos.',
+    description: 'Informações nutricionais vinculáveis ao Produto por Loja.',
     signals: ['NUTRICIONAL', 'CALORIAS', 'VALOR_ENERGETICO', 'PROTEINA', 'CARBOIDRATO'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -355,10 +358,62 @@ export const WORKSPACE_MODULES = modules
 
 export const WORKSPACE_GROUPS: Array<{ id: WorkspaceGroupId; label: string; modules: WorkspaceModuleId[] }> = [
   { id: 'partners', label: 'Parceiros', modules: ['clients', 'suppliers', 'carriers'] },
-  { id: 'structure', label: 'Estrutura de Produtos', modules: ['sections', 'groups', 'subgroups'] },
-  { id: 'products', label: 'Produtos', modules: ['products', 'productStore', 'barcodes', 'productSupplier', 'similarProducts'] },
+  { id: 'structure', label: 'Classificação Mercadológica', modules: ['sections', 'groups', 'subgroups'] },
+  {
+    id: 'products',
+    label: 'Produto por Loja',
+    modules: ['productStore', 'products', 'barcodes', 'similarProducts', 'productSupplier'],
+  },
   { id: 'fiscal', label: 'Fiscal e Conteúdo', modules: ['ncm', 'cest', 'ibpt', 'ibscbs', 'taxBenefit', 'recipes', 'nutrition'] },
 ]
+
+export const PRODUCT_STORE_ARCHITECTURE = {
+  primaryModule: 'productStore' as const,
+  baseModule: 'products' as const,
+  relationshipModules: ['barcodes', 'similarProducts', 'productSupplier'] as const,
+  fiscalReferenceModules: ['ncm', 'cest', 'ibpt', 'ibscbs', 'taxBenefit'] as const,
+  contentModules: ['recipes', 'nutrition'] as const,
+  plannedViews: [
+    'Visão Geral',
+    'Homologação',
+    'Produtos por Loja',
+    'Códigos de Barras',
+    'Custos e Preços',
+    'Fiscal',
+    'Produtos Similares',
+    'Produto por Fornecedor',
+    'Receitas',
+    'Informações Nutricionais',
+    'Auditorias',
+  ] as const,
+}
+
+
+
+/**
+ * Regra de escopo por nome do arquivo.
+ *
+ * Quando o nome identifica explicitamente um módulo, o arquivo fica exclusivo
+ * desse módulo e não pode ser reaproveitado por detecção de cabeçalhos em outro.
+ *
+ * Ex.: CLIENTE_donaire.csv e cliente_intersolid.csv pertencem somente a Clientes,
+ * mesmo que contenham colunas genéricas que também existam em Fornecedores,
+ * Transportadoras ou outros cadastros.
+ *
+ * Arquivos sem prefixo conhecido continuam usando a análise estrutural existente.
+ */
+export const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceModuleId | null => {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const token = normalizeHeader(stem)
+
+  if (token === 'CLIENTE' || token.startsWith('CLIENTE_')) return 'clients'
+  if (token === 'FORNECEDOR' || token.startsWith('FORNECEDOR_')) return 'suppliers'
+  if (token === 'SECAO' || token.startsWith('SECAO_')) return 'sections'
+  if (token === 'GRUPO' || token.startsWith('GRUPO_')) return 'groups'
+  if (token === 'SUBGRUPO' || token.startsWith('SUBGRUPO_')) return 'subgroups'
+
+  return null
+}
 
 const normalized = (values: string[]) => values.map(normalizeHeader).filter(Boolean)
 
@@ -386,17 +441,162 @@ export const getWorkspaceComparisonFileRole = (
   moduleId: WorkspaceModuleId,
   fileName: string,
 ): WorkspaceComparisonFileRole => {
-  if (moduleId !== 'sections') return null
-
   const withoutExtension = fileName.replace(/\.[^.]+$/, '')
   const token = normalizeHeader(withoutExtension)
-  if (!token.startsWith('SECAO_')) return null
 
-  const suffix = token.slice('SECAO_'.length)
+  const prefix = moduleId === 'clients'
+    ? 'CLIENTE_'
+    : moduleId === 'suppliers'
+      ? 'FORNECEDOR_'
+      : moduleId === 'sections'
+        ? 'SECAO_'
+        : moduleId === 'groups'
+          ? 'GRUPO_'
+          : moduleId === 'subgroups'
+            ? 'SUBGRUPO_'
+            : ''
+
+  if (!prefix || !token.startsWith(prefix)) return null
+
+  const suffix = token.slice(prefix.length)
   if (!suffix) return null
 
   if (suffix === 'INTERSOLID' || suffix === 'INTER_SOLID') return 'target'
   return 'origin'
+}
+
+export const WORKSPACE_PAIRED_MODULES: WorkspaceModuleId[] = [
+  'clients',
+  'suppliers',
+  'sections',
+  'groups',
+  'subgroups',
+]
+
+const hasPairCoreStructure = (file: ImportedFile, moduleId: WorkspaceModuleId) => {
+  switch (moduleId) {
+    case 'clients':
+      return hasExactHeader(file, ['COD_CLIENTE'])
+        && hasExactHeader(file, ['DES_CLIENTE'])
+    case 'suppliers':
+      return hasExactHeader(file, ['COD_FORNECEDOR'])
+        && hasExactHeader(file, ['DES_FORNECEDOR'])
+    case 'sections':
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['DES_SECAO'])
+    case 'groups':
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['DES_GRUPO'])
+    case 'subgroups':
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['COD_SUB_GRUPO'])
+        && hasExactHeader(file, ['DES_SUB_GRUPO'])
+    default:
+      return false
+  }
+}
+
+export type WorkspaceModulePairState = {
+  moduleId: WorkspaceModuleId
+  hasAnyFile: boolean
+  originFiles: ImportedFile[]
+  targetFiles: ImportedFile[]
+  incompatibleFiles: ImportedFile[]
+  originReady: boolean
+  targetReady: boolean
+  ready: boolean
+}
+
+export const getWorkspaceModulePairState = (
+  files: ImportedFile[],
+  moduleId: WorkspaceModuleId,
+): WorkspaceModulePairState => {
+  const scoped = files.filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === moduleId)
+  const byPhysicalName = new Map<string, ImportedFile[]>()
+
+  scoped.forEach(file => {
+    const list = byPhysicalName.get(file.name) ?? []
+    list.push(file)
+    byPhysicalName.set(file.name, list)
+  })
+
+  const originFiles: ImportedFile[] = []
+  const targetFiles: ImportedFile[] = []
+  const incompatibleFiles: ImportedFile[] = []
+
+  byPhysicalName.forEach(group => {
+    const representative = group[0]
+    const role = getWorkspaceComparisonFileRole(moduleId, representative.name)
+    const compatibleSheets = group.filter(file => hasPairCoreStructure(file, moduleId))
+
+    if (!role || compatibleSheets.length === 0) {
+      incompatibleFiles.push(representative)
+      return
+    }
+
+    if (role === 'origin') originFiles.push(...compatibleSheets)
+    if (role === 'target') targetFiles.push(...compatibleSheets)
+  })
+
+  return {
+    moduleId,
+    hasAnyFile: scoped.length > 0,
+    originFiles,
+    targetFiles,
+    incompatibleFiles,
+    originReady: originFiles.length > 0,
+    targetReady: targetFiles.length > 0,
+    ready: originFiles.length > 0 && targetFiles.length > 0 && incompatibleFiles.length === 0,
+  }
+}
+
+export const getWorkspacePairReadiness = (files: ImportedFile[]) => {
+  const states = WORKSPACE_PAIRED_MODULES.map(moduleId =>
+    getWorkspaceModulePairState(files, moduleId),
+  )
+
+  const byId = new Map(states.map(state => [state.moduleId, state]))
+  const sectionReady = byId.get('sections')?.ready === true
+  const groupReady = byId.get('groups')?.ready === true
+
+  const relevant = states.filter(state => state.hasAnyFile)
+  const blockers: string[] = []
+
+  relevant.forEach(state => {
+    const label = modules.find(module => module.id === state.moduleId)?.label ?? state.moduleId
+
+    if (state.incompatibleFiles.length > 0) {
+      blockers.push(
+        label + ': existe arquivo com nome do módulo, mas os campos obrigatórios não correspondem ao padrão esperado.',
+      )
+      return
+    }
+
+    if (!state.originReady || !state.targetReady) {
+      const missing = !state.originReady && !state.targetReady
+        ? 'origem e destino'
+        : !state.originReady
+          ? 'origem'
+          : 'destino'
+      blockers.push(label + ': importe o arquivo de ' + missing + ' compatível para continuar.')
+    }
+  })
+
+  if (byId.get('groups')?.hasAnyFile && !sectionReady) {
+    blockers.push('Grupos: importe primeiro os dois arquivos compatíveis de Seções (origem e destino).')
+  }
+
+  if (byId.get('subgroups')?.hasAnyFile && (!sectionReady || !groupReady)) {
+    blockers.push('Subgrupos: importe primeiro os pares completos de Seções e Grupos (origem e destino).')
+  }
+
+  return {
+    states,
+    blockers: [...new Set(blockers)],
+    ready: relevant.length > 0 && blockers.length === 0,
+  }
 }
 
 const fileNameSuggestsModule = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
@@ -425,14 +625,26 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
       const role = getWorkspaceComparisonFileRole('sections', file.name)
       if (!role) return false
 
-      return role === 'target'
-        ? hasExactHeader(file, ['CODIGO']) && hasExactHeader(file, ['DESCRICAO'])
-        : hasExactHeader(file, ['COD_SECAO']) && hasExactHeader(file, ['DES_SECAO'])
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['DES_SECAO'])
     }
-    case 'groups':
-      return hasAnyHeader(file, ['COD_GRUPO', 'DES_GRUPO', 'CODIGO_GRUPO'])
-    case 'subgroups':
-      return hasAnyHeader(file, ['COD_SUBGRUPO', 'DES_SUBGRUPO', 'CODIGO_SUBGRUPO', 'SUB_GRUPO'])
+    case 'groups': {
+      const role = getWorkspaceComparisonFileRole('groups', file.name)
+      if (!role) return false
+
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['DES_GRUPO'])
+    }
+    case 'subgroups': {
+      const role = getWorkspaceComparisonFileRole('subgroups', file.name)
+      if (!role) return false
+
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['COD_SUB_GRUPO'])
+        && hasExactHeader(file, ['DES_SUB_GRUPO'])
+    }
     case 'products':
       return productCode || hasAnyHeader(file, ['DES_PRODUTO', 'DES_REDUZIDA', 'COD_BARRA_PRINCIPAL']) || moduleNameHint
     case 'productStore':
@@ -463,6 +675,16 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
 }
 
 const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
+  const exclusiveModule = getExclusiveWorkspaceModuleFromFileName(file.name)
+  if (exclusiveModule && exclusiveModule !== module.id) {
+    return {
+      score: 0,
+      matched: false,
+      fieldHits: 0,
+      signalHits: 0,
+    }
+  }
+
   const headers = file.headers
   const signalHits = module.signals.filter(signal =>
     headers.some(header => headerMatches(header, [signal])),
@@ -487,8 +709,8 @@ const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinitio
   }
 }
 
-export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMatch[] =>
-  modules.map(module => {
+export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMatch[] => {
+  const detected = modules.map(module => {
     const matchedFiles = files.filter(file => moduleScoreForFile(file, module).matched)
     const matchedFields = module.fields.filter(item =>
       matchedFiles.some(file => file.headers.some(header => headerMatches(header, item.aliases))),
@@ -508,6 +730,16 @@ export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMat
       confidence: Math.min(99, bestScore),
     }
   }).filter(result => result.fileIds.length > 0)
+
+  const hasSections = detected.some(result => result.module.id === 'sections')
+  const hasGroups = detected.some(result => result.module.id === 'groups')
+
+  return detected.filter(result => {
+    if (result.module.id === 'groups') return hasSections
+    if (result.module.id === 'subgroups') return hasSections && hasGroups
+    return true
+  })
+}
 
 export const getWorkspaceModule = (id: string) =>
   modules.find(module => module.id === id)
@@ -542,8 +774,8 @@ const COMPARISON_META: Record<WorkspaceModuleId, {
   suppliers: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['cpfCnpj', 'ie'], showDocumentValidity: true },
   carriers: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['cpfCnpj', 'ie'], showDocumentValidity: true },
   sections: { keyFieldIds: ['codigoSecao'], nameFieldId: 'descricaoSecao', duplicateFieldIds: ['codigoSecao'] },
-  groups: { keyFieldIds: ['codigoSecao', 'codigoGrupo'], nameFieldId: 'descricaoGrupo', duplicateFieldIds: ['codigoGrupo'] },
-  subgroups: { keyFieldIds: ['codigoSecao', 'codigoGrupo', 'codigoSubgrupo'], nameFieldId: 'descricaoSubgrupo', duplicateFieldIds: ['codigoSubgrupo'] },
+  groups: { keyFieldIds: ['codigoSecao', 'codigoGrupo'], nameFieldId: 'descricaoGrupo', duplicateFieldIds: [] },
+  subgroups: { keyFieldIds: ['codigoSecao', 'codigoGrupo', 'codigoSubgrupo'], nameFieldId: 'descricaoSubgrupo', duplicateFieldIds: [] },
   products: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['codigoBarras'] },
   productStore: { keyFieldIds: ['codigoLoja', 'codigoProduto'], nameFieldId: 'codigoProduto', duplicateFieldIds: [] },
   barcodes: { keyFieldIds: ['codigoProduto', 'codigoBarras'], nameFieldId: 'codigoBarras', duplicateFieldIds: ['codigoBarras'] },
@@ -603,6 +835,9 @@ const moduleFieldGroup = (module: WorkspaceModuleDefinition) => {
 const baseProfileForModule = (moduleId: WorkspaceModuleId) => {
   if (moduleId === 'clients') return clientProfile
   if (moduleId === 'suppliers') return supplierProfile
+  if (moduleId === 'sections') return sectionProfile
+  if (moduleId === 'groups') return groupProfile
+  if (moduleId === 'subgroups') return subgroupProfile
   if (moduleId === 'products') return productProfile
   return undefined
 }

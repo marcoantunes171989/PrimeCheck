@@ -1,9 +1,22 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseFiles, formatBytes } from '../lib/files'
-import { analyzeWorkspaceFiles } from '../config/workspaceModules'
+import type { ParseFilesProgress } from '../lib/files'
+import {
+  analyzeWorkspaceFiles,
+  getExclusiveWorkspaceModuleFromFileName,
+  getWorkspaceModulePairState,
+  getWorkspacePairReadiness,
+} from '../config/workspaceModules'
+import ImportProgressBar from '../components/ImportProgressBar'
 import type { ImportedFile } from '../types'
 
-const MAX_FILES = 5
+const formatDuration = (seconds: number) => {
+  const safe = Math.max(0, Math.floor(seconds))
+  const minutes = Math.floor(safe / 60)
+  const remainder = safe % 60
+  if (minutes <= 0) return String(remainder) + 's'
+  return String(minutes) + 'min ' + String(remainder).padStart(2, '0') + 's'
+}
 
 export default function WorkspaceImportPage({
   files,
@@ -24,6 +37,10 @@ export default function WorkspaceImportPage({
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
+  const [warnings, setWarnings] = useState<string[]>([])
+  const [importProgress, setImportProgress] = useState<ParseFilesProgress | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const importStartedAt = useRef<number | null>(null)
 
   const physicalFiles = useMemo(() => {
     const map = new Map<string, ImportedFile[]>()
@@ -41,6 +58,32 @@ export default function WorkspaceImportPage({
   }, [files])
 
   const matches = useMemo(() => analyzeWorkspaceFiles(files), [files])
+  const pairReadiness = useMemo(() => getWorkspacePairReadiness(files), [files])
+  const pairedValidationRequired = pairReadiness.states.some(state => state.hasAnyFile)
+  const pairGateReady = !pairedValidationRequired || pairReadiness.ready
+  const displayWarnings = useMemo(
+    () => [...new Set([...warnings, ...pairReadiness.blockers])],
+    [warnings, pairReadiness.blockers.join('|')],
+  )
+
+  useEffect(() => {
+    if (!busy || importStartedAt.current === null) return
+
+    const updateElapsed = () => {
+      if (importStartedAt.current === null) return
+      setElapsedSeconds((Date.now() - importStartedAt.current) / 1000)
+    }
+
+    updateElapsed()
+    const timer = window.setInterval(updateElapsed, 250)
+    return () => window.clearInterval(timer)
+  }, [busy])
+
+  const remainingSeconds = useMemo(() => {
+    const percent = importProgress?.overallPercent ?? 0
+    if (!busy || percent <= 1 || percent >= 100 || elapsedSeconds <= 0) return null
+    return Math.max(0, Math.round((elapsedSeconds * (100 - percent)) / percent))
+  }, [busy, elapsedSeconds, importProgress?.overallPercent])
 
   const modulesForFile = (name: string) =>
     matches
@@ -48,28 +91,23 @@ export default function WorkspaceImportPage({
       .map(match => match.module.label)
 
   const handleFiles = async (incoming: File[]) => {
-    if (!incoming.length) return
+    if (!incoming.length || busy) return
 
-    const existingNames = new Set(physicalFiles.map(item => item.name))
+    setWarnings([])
     const accepted: File[] = []
     const localErrors: string[] = []
 
     const xmlFiles = incoming.filter(file => /\.xml$/i.test(file.name))
     if (xmlFiles.length > 0) {
       localErrors.push(
-        `${xmlFiles.length.toLocaleString('pt-BR')} arquivo(s) XML não foram importados nesta tela. Para NFC-e, use Validação > Validação NFC-e.`,
+        xmlFiles.length.toLocaleString('pt-BR')
+        + ' arquivo(s) XML não foram importados nesta tela. Para NFC-e, use Validação > Validação NFC-e.',
       )
     }
 
     for (const file of incoming) {
       if (/\.xml$/i.test(file.name)) continue
-      const willBeNew = !existingNames.has(file.name)
-      if (willBeNew && existingNames.size >= MAX_FILES) {
-        localErrors.push(`${file.name}: limite de ${MAX_FILES} arquivos atingido.`)
-        continue
-      }
       accepted.push(file)
-      existingNames.add(file.name)
     }
 
     if (!accepted.length) {
@@ -77,17 +115,127 @@ export default function WorkspaceImportPage({
       return
     }
 
+    const totalBytes = accepted.reduce((total, file) => total + Math.max(file.size, 1), 0)
+    importStartedAt.current = Date.now()
+    setElapsedSeconds(0)
     setBusy(true)
-    const parsed = await parseFiles(accepted)
-    const replacingNames = new Set(accepted.map(file => file.name))
-    const preserved = files.filter(file => !replacingNames.has(file.name))
-    onFilesChange([...preserved, ...parsed.parsed])
-    setErrors([...localErrors, ...parsed.errors])
-    setBusy(false)
+    setImportProgress({
+      fileName: accepted[0]?.name ?? '',
+      fileIndex: 0,
+      totalFiles: accepted.length,
+      completedFiles: 0,
+      phase: 'reading',
+      filePercent: 0,
+      overallPercent: 0,
+      loadedBytes: 0,
+      totalBytes,
+    })
+
+    try {
+      const parsed = await parseFiles(accepted, progress => setImportProgress(progress))
+      const replacingNames = new Set(accepted.map(file => file.name))
+      const preserved = files.filter(file => !replacingNames.has(file.name))
+
+      const blockedNames = new Set<string>()
+
+      const incomingGroupNames = accepted
+        .filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'groups')
+        .map(file => file.name)
+      const incomingSubgroupNames = accepted
+        .filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'subgroups')
+        .map(file => file.name)
+
+      const candidateWithAll = [...preserved, ...parsed.parsed]
+      const sectionReady = getWorkspaceModulePairState(candidateWithAll, 'sections').ready
+
+      if (incomingGroupNames.length > 0 && !sectionReady) {
+        incomingGroupNames.forEach(name => blockedNames.add(name))
+      }
+
+      const candidateWithoutBlockedGroups = [
+        ...preserved,
+        ...parsed.parsed.filter(file => !blockedNames.has(file.name)),
+      ]
+      const groupReady = getWorkspaceModulePairState(candidateWithoutBlockedGroups, 'groups').ready
+
+      if (incomingSubgroupNames.length > 0 && (!sectionReady || !groupReady)) {
+        incomingSubgroupNames.forEach(name => blockedNames.add(name))
+      }
+
+      const dependencyWarnings: string[] = []
+      if (incomingGroupNames.some(name => blockedNames.has(name))) {
+        dependencyWarnings.push(
+          'Grupo não importado. Importe primeiro os dois arquivos compatíveis de Seção (origem e destino) para carregar corretamente as informações de Grupo.',
+        )
+      }
+      if (incomingSubgroupNames.some(name => blockedNames.has(name))) {
+        dependencyWarnings.push(
+          'Subgrupo não importado. Importe primeiro os pares completos de Seção e Grupo (origem e destino) para conseguir importar corretamente as informações de Subgrupo.',
+        )
+      }
+
+      const acceptedParsed = parsed.parsed.filter(file => !blockedNames.has(file.name))
+      onFilesChange([...preserved, ...acceptedParsed])
+      setErrors([...localErrors, ...parsed.errors])
+      setWarnings(dependencyWarnings)
+
+      const elapsed = importStartedAt.current === null
+        ? elapsedSeconds
+        : (Date.now() - importStartedAt.current) / 1000
+
+      setElapsedSeconds(elapsed)
+      setImportProgress(currentProgress => currentProgress
+        ? {
+            ...currentProgress,
+            fileName: accepted[accepted.length - 1]?.name ?? currentProgress.fileName,
+            fileIndex: Math.max(0, accepted.length - 1),
+            completedFiles: accepted.length,
+            phase: parsed.errors.length || dependencyWarnings.length ? 'error' : 'completed',
+            filePercent: 100,
+            overallPercent: 100,
+            loadedBytes: totalBytes,
+            totalBytes,
+          }
+        : null)
+    } finally {
+      importStartedAt.current = null
+      setBusy(false)
+    }
   }
 
   const removeFile = (name: string) => {
+    const moduleId = getExclusiveWorkspaceModuleFromFileName(name)
+    const remainingNames = [...new Set(files.filter(file => file.name !== name).map(file => file.name))]
+    const remainingModules = new Set(
+      remainingNames
+        .map(fileName => getExclusiveWorkspaceModuleFromFileName(fileName))
+        .filter(Boolean),
+    )
+
+    if (moduleId === 'sections' && (remainingModules.has('groups') || remainingModules.has('subgroups'))) {
+      setWarnings([
+        'Não é possível remover Seção enquanto existirem arquivos de Grupo ou Subgrupo. Remova primeiro os módulos dependentes.',
+      ])
+      return
+    }
+
+    if (moduleId === 'groups' && remainingModules.has('subgroups')) {
+      setWarnings([
+        'Não é possível remover Grupo enquanto existirem arquivos de Subgrupo. Remova primeiro os arquivos de Subgrupo.',
+      ])
+      return
+    }
+
+    setWarnings([])
     onFilesChange(files.filter(file => file.name !== name))
+  }
+
+  const clearImportedData = () => {
+    setImportProgress(null)
+    setElapsedSeconds(0)
+    setWarnings([])
+    importStartedAt.current = null
+    onClear()
   }
 
   return (
@@ -97,8 +245,9 @@ export default function WorkspaceImportPage({
           <span className="eyebrow">ETAPA 1 · IMPORTAÇÃO</span>
           <h1>Importe e organize os dados da conversão.</h1>
           <p>
-            Carregue até cinco arquivos de clientes, fornecedores, produtos e estruturas relacionadas.
-            O PrimeCheck identifica os campos e habilita automaticamente os módulos correspondentes.
+            Carregue arquivos de clientes, fornecedores, produtos e estruturas relacionadas, sem limite
+            de quantidade definido pelo PrimeCheck. O sistema identifica os campos e habilita automaticamente
+            os módulos correspondentes.
           </p>
         </div>
         <div className="workspace-import-hero-actions">
@@ -107,26 +256,29 @@ export default function WorkspaceImportPage({
             <span>{storageMessage || 'Persistência local neste navegador.'}</span>
           </div>
           <div className="workspace-import-counter">
-            <strong>{physicalFiles.length}/{MAX_FILES}</strong>
+            <strong>{physicalFiles.length.toLocaleString('pt-BR')}</strong>
             <span>arquivos</span>
           </div>
         </div>
       </section>
 
       <section
-        className={'workspace-dropzone ' + (dragging ? 'dragging' : '')}
-        onDragOver={event => { event.preventDefault(); setDragging(true) }}
+        className={'workspace-dropzone ' + (dragging ? 'dragging' : '') + (busy ? ' busy' : '')}
+        onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={event => {
           event.preventDefault()
           setDragging(false)
-          void handleFiles(Array.from(event.dataTransfer.files))
+          if (!busy) void handleFiles(Array.from(event.dataTransfer.files))
         }}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (!busy) inputRef.current?.click()
+        }}
         role="button"
         tabIndex={0}
+        aria-disabled={busy}
         onKeyDown={event => {
-          if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click()
+          if (!busy && (event.key === 'Enter' || event.key === ' ')) inputRef.current?.click()
         }}
       >
         <input
@@ -141,9 +293,63 @@ export default function WorkspaceImportPage({
           }}
         />
         <div className="workspace-drop-icon">⇧</div>
-        <strong>{busy ? 'Lendo e classificando arquivos…' : 'Arraste os arquivos aqui ou clique para selecionar'}</strong>
-        <span>Até 5 arquivos · CSV, TXT, TSV, XLS, XLSX, XLSM, XLSB e ODS</span>
+        <strong>{busy ? 'Importação em andamento…' : 'Arraste os arquivos aqui ou clique para selecionar'}</strong>
+        <span>Quantidade livre · CSV, TXT, TSV, XLS, XLSX, XLSM, XLSB e ODS</span>
       </section>
+
+      {importProgress && (
+        <ImportProgressBar
+          percent={importProgress.overallPercent}
+          running={busy}
+          title={
+            busy
+              ? (importProgress.phase === 'processing'
+                  ? 'Processando e organizando dados…'
+                  : 'Carregando arquivos…')
+              : importProgress.phase === 'error'
+                ? 'Importação concluída com avisos.'
+                : 'Importação concluída.'
+          }
+          detail={importProgress.fileName || 'Arquivos importados'}
+          meta={(
+            <>
+              <span>
+                <strong>Arquivo atual:</strong>{' '}
+                {Math.min(importProgress.fileIndex + 1, importProgress.totalFiles).toLocaleString('pt-BR')}
+                {' de '}
+                {importProgress.totalFiles.toLocaleString('pt-BR')}
+                {' · '}
+                {importProgress.filePercent}% do arquivo
+              </span>
+              <span>
+                <strong>Concluídos:</strong>{' '}
+                {importProgress.completedFiles.toLocaleString('pt-BR')}
+                {' / '}
+                {importProgress.totalFiles.toLocaleString('pt-BR')}
+              </span>
+              <span>
+                <strong>Dados:</strong>{' '}
+                {formatBytes(importProgress.loadedBytes)}
+                {' / '}
+                {formatBytes(importProgress.totalBytes)}
+              </span>
+              <span><strong>Tempo:</strong> {formatDuration(elapsedSeconds)}</span>
+              <span>
+                <strong>Restante:</strong>{' '}
+                {remainingSeconds === null
+                  ? (busy ? 'calculando…' : 'concluído')
+                  : '~' + formatDuration(remainingSeconds)}
+              </span>
+            </>
+          )}
+        />
+      )}
+
+      {displayWarnings.length > 0 && (
+        <div className="workspace-import-warnings" role="status" aria-live="polite">
+          {displayWarnings.map(warning => <span key={warning}>{warning}</span>)}
+        </div>
+      )}
 
       {errors.length > 0 && (
         <div className="workspace-import-errors">
@@ -170,6 +376,7 @@ export default function WorkspaceImportPage({
                     removeFile(file.name)
                   }}
                   aria-label={'Remover ' + file.name}
+                  disabled={busy}
                 >
                   ×
                 </button>
@@ -193,6 +400,15 @@ export default function WorkspaceImportPage({
         )}
       </section>
 
+      <section className="workspace-dependency-guide" aria-label="Ordem de importação da estrutura de produtos">
+        <strong>Ordem obrigatória da estrutura:</strong>
+        <span>1. Seções</span>
+        <i>→</i>
+        <span>2. Grupos</span>
+        <i>→</i>
+        <span>3. Subgrupos</span>
+      </section>
+
       <section className="workspace-module-preview">
         <div>
           <span className="eyebrow">MÓDULOS IDENTIFICADOS</span>
@@ -212,15 +428,28 @@ export default function WorkspaceImportPage({
 
       <div className="workspace-import-action">
         <div>
-          <strong>{matches.length ? 'Dados prontos para organização.' : 'Aguardando arquivos reconhecidos.'}</strong>
-          <span>Os arquivos processados ficam salvos localmente neste navegador até você limpar os dados.</span>
+          <strong>
+            {!files.length
+              ? 'Aguardando arquivos reconhecidos.'
+              : !pairGateReady
+                ? 'Complete os pares de origem e destino antes de continuar.'
+                : matches.length
+                  ? 'Dados prontos para organização.'
+                  : 'Aguardando arquivos reconhecidos.'}
+          </strong>
+          <span>
+            {!pairGateReady
+              ? 'O avanço só é liberado quando os módulos importados possuem origem e destino compatíveis e as dependências estruturais estão completas.'
+              : 'Os arquivos processados ficam salvos localmente neste navegador até você limpar os dados.'}
+          </span>
         </div>
         <div className="workspace-import-action-buttons">
           {files.length > 0 && (
             <button
               type="button"
               className="button workspace-clear-button"
-              onClick={onClear}
+              onClick={clearImportedData}
+              disabled={busy}
             >
               Limpar dados importados
             </button>
@@ -228,7 +457,8 @@ export default function WorkspaceImportPage({
           <button
             type="button"
             className="button primary large workspace-organize-button"
-            disabled={!files.length || !matches.length || busy || restoring}
+            disabled={!files.length || !matches.length || !pairGateReady || busy || restoring}
+            title={!pairGateReady ? 'Complete os arquivos de origem/destino e as dependências antes de avançar.' : undefined}
             onClick={onContinue}
           >
             Organizar dados e abrir módulos

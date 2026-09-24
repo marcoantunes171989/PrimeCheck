@@ -1,0 +1,421 @@
+/* ==========================================================================
+   PrimeCheck — camada responsiva global
+   Objetivo: preservar conteúdo, ordem visual e legibilidade sem overflow da página.
+   Tabelas largas permanecem dentro do próprio painel, sem gerar scroll horizontal
+   no documento inteiro.
+   ========================================================================== */
+
+:root {
+  --pc-page-gutter: clamp(12px, 1.6vw, 28px);
+  --pc-content-max: 1680px;
+  --pc-control-height: 38px;
+}
+
+html,
+body,
+#root,
+.app-shell,
+.workspace-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 320px;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+.workspace-shell,
+.workspace-main,
+.workspace-main > main,
+.workspace-main > section,
+.workspace-main > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-main {
+  overflow-x: clip;
+}
+
+.workspace-main main {
+  min-width: 0;
+}
+
+.workspace-main img,
+.workspace-main video,
+.workspace-main canvas,
+.workspace-main svg {
+  max-width: 100%;
+}
+
+.workspace-main input,
+.workspace-main select,
+.workspace-main textarea,
+.workspace-main button {
+  max-width: 100%;
+}
+
+.workspace-main pre {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre;
+}
+
+.workspace-main p,
+.workspace-main small,
+.workspace-main label,
+.workspace-main td,
+.workspace-main th {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Evita que filhos de flex/grid forcem a largura da página. */
+.workspace-main :where(
+  article,
+  section,
+  header,
+  footer,
+  nav,
+  form,
+  fieldset,
+  [class*="grid"],
+  [class*="card"],
+  [class*="panel"],
+  [class*="head"],
+  [class*="hero"],
+  [class*="content"],
+  [class*="summary"],
+  [class*="filters"],
+  [class*="toolbar"]
+) {
+  min-width: 0;
+}
+
+/* Escala visual única para títulos de tela. */
+@media screen {
+  .workspace-main h1 {
+    margin-top: 0;
+    font-size: clamp(24px, 2vw, 32px) !important;
+    line-height: 1.1 !important;
+    letter-spacing: -.025em !important;
+  }
+
+  .workspace-main h2 {
+    font-size: clamp(17px, 1.35vw, 21px);
+    line-height: 1.2;
+  }
+
+  .workspace-main h3 {
+    font-size: clamp(15px, 1.1vw, 18px);
+    line-height: 1.25;
+  }
+}
+
+/* Tabelas: nenhuma coluna pode ampliar a página inteira.
+   O scroll, quando inevitável, fica contido no componente. */
+.workspace-main :where(
+  .table-wrap,
+  [class*="table-wrap"],
+  [class*="table-container"],
+  [class*="table-shell"],
+  [class*="results-table"],
+  [class*="records-table"]
+) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.workspace-main table {
+  max-width: none;
+}
+
+.workspace-main table th,
+.workspace-main table td {
+  vertical-align: top;
+}
+
+/* Textos técnicos continuam legíveis e completos. */
+.workspace-main :where(.mono, code, [class*="code"]) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Barra superior do módulo nunca empurra o conteúdo para fora. */
+.workspace-module-bar {
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-module-bar > * {
+  min-width: 0;
+}
+
+/* Sidebar — densidade uniforme e títulos em uma linha. */
+.sidebar:not(.collapsed) .sidebar-item-copy {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sidebar:not(.collapsed) .sidebar-item-copy strong {
+  display: block;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar:not(.collapsed) .sidebar-item-copy small {
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.sidebar:not(.collapsed) [id="sidebar-nav-group:structure"] {
+  grid-template-columns: 30px minmax(0, 1fr) 12px !important;
+  gap: 6px !important;
+  padding-inline: 6px !important;
+}
+
+.sidebar:not(.collapsed) [id="sidebar-nav-group:structure"] .sidebar-item-copy strong {
+  font-size: 11px !important;
+  letter-spacing: -.035em;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.sidebar:not(.collapsed) [id="sidebar-nav-group:structure"] .sidebar-group-chevron {
+  width: 12px;
+  min-width: 12px;
+  justify-self: end;
+}
+
+/* Grandes grids operacionais: reduzem colunas sem alterar a ordem dos dados. */
+@media (max-width: 1450px) {
+  .general-dashboard-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .general-dashboard-entities {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .nfce-analytics-kpis,
+  .nfce-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 1199px) {
+  :root {
+    --pc-page-gutter: 18px;
+  }
+
+  .workspace-main :where(
+    .workspace-import-page,
+    .workspace-data-page,
+    .module-page,
+    .module-comparison-page,
+    .general-dashboard-page,
+    .internal-products-page,
+    .nfce-page,
+    .nfce-analytics-page
+  ) {
+    width: calc(100% - (var(--pc-page-gutter) * 2)) !important;
+    max-width: var(--pc-content-max);
+    margin-inline: auto;
+  }
+
+  .general-dashboard-grid,
+  .general-dashboard-grid-main,
+  .nfce-analytics-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .coverage-content {
+    grid-template-columns: 150px minmax(0, 1fr) !important;
+  }
+
+  .workspace-main :where(.hero, [class*="-hero"], [class*="-head"]) {
+    min-width: 0;
+  }
+}
+
+/* Tablet: mantém tabelas como tabelas; cards passam a duas colunas. */
+@media (max-width: 900px) {
+  :root {
+    --pc-page-gutter: 12px;
+    --pc-control-height: 36px;
+  }
+
+  .workspace-main h1 {
+    font-size: clamp(23px, 4vw, 28px) !important;
+  }
+
+  .workspace-module-bar {
+    min-height: 46px;
+    height: auto;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .workspace-module-bar > div:first-child {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .workspace-main :where(
+    .general-dashboard-kpis,
+    .general-dashboard-entities,
+    .nfce-analytics-kpis,
+    .nfce-summary-grid,
+    .dataset-summary,
+    .result-summary,
+    [class*="kpi-grid"]
+  ) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .coverage-content {
+    grid-template-columns: 1fr !important;
+    justify-items: center;
+  }
+
+  .coverage-groups {
+    width: 100%;
+  }
+
+  .workspace-main table {
+    font-size: 12px;
+  }
+
+  .workspace-main :where(input, select, textarea, button) {
+    font-size: 13px;
+  }
+
+  .workspace-main :where(
+    .workspace-import-hero,
+    .workspace-data-head,
+    .module-comparison-head,
+    .general-dashboard-hero,
+    .nfce-analytics-hero,
+    .internal-products-head
+  ) {
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+
+/* Smartphone: uma coluna para painéis, sem alterar a sequência original. */
+@media (max-width: 640px) {
+  :root {
+    --pc-page-gutter: 9px;
+  }
+
+  .workspace-main h1 {
+    font-size: 24px !important;
+  }
+
+  .workspace-main h2 {
+    font-size: 17px;
+  }
+
+  .workspace-main :where(
+    .general-dashboard-kpis,
+    .general-dashboard-entities,
+    .nfce-analytics-kpis,
+    .nfce-summary-grid,
+    .dataset-summary,
+    .result-summary,
+    [class*="kpi-grid"]
+  ) {
+    grid-template-columns: 1fr !important;
+  }
+
+  .workspace-main :where(
+    .workspace-import-hero,
+    .workspace-data-head,
+    .module-comparison-head,
+    .general-dashboard-hero,
+    .nfce-analytics-hero,
+    .internal-products-head
+  ) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workspace-main :where(
+    .workspace-import-hero > *,
+    .workspace-data-head > *,
+    .module-comparison-head > *,
+    .general-dashboard-hero > *,
+    .nfce-analytics-hero > *,
+    .internal-products-head > *
+  ) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .workspace-main table {
+    font-size: 11.5px;
+  }
+
+  .workspace-main :where(input, select, textarea, button) {
+    font-size: 12px;
+  }
+
+  .workspace-main :where(td, th) {
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+
+  .general-dashboard-actions,
+  .nfce-analytics-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
+
+/* Telas muito estreitas: preserva conteúdo e controles utilizáveis. */
+@media (max-width: 420px) {
+  .workspace-main h1 {
+    font-size: 22px !important;
+  }
+
+  .workspace-module-bar {
+    padding-inline: 9px;
+  }
+
+  .workspace-main :where(button, input, select, textarea) {
+    min-height: 34px;
+  }
+
+  .workspace-main :where(.button-row, [class*="actions"], [class*="toolbar"]) {
+    flex-wrap: wrap;
+  }
+}
+
+/* Impressão mantém sua própria composição e não herda as restrições de viewport. */
+@media print {
+  html,
+  body,
+  #root,
+  .app-shell,
+  .workspace-shell,
+  .workspace-main {
+    overflow: visible !important;
+    max-width: none !important;
+  }
+}

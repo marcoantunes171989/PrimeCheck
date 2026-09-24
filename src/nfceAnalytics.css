@@ -13,8 +13,9 @@
 .nfce-analytics-hero h1 {
   margin: 4px 0 6px;
   color: var(--primary);
-  font-size: clamp(28px, 3vw, 40px);
-  line-height: 1.05;
+  font-size: clamp(26px, 2.2vw, 34px);
+  line-height: 1.08;
+  letter-spacing: -.025em;
 }
 .nfce-analytics-hero p {
   max-width: 900px;

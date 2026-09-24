@@ -1,14 +1,14 @@
 :root {
   --font-sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --fs-2xs: 12px;
-  --fs-xs: 13px;
-  --fs-sm: 14px;
-  --fs-md: 15px;
-  --fs-base: 16px;
-  --fs-lg: 18px;
-  --fs-xl: 20px;
-  --fs-2xl: 24px;
-  --fs-3xl: 32px;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-base: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 19px;
+  --fs-2xl: 22px;
+  --fs-3xl: 28px;
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
@@ -5680,6 +5680,16 @@ body {
   background: rgba(243,133,37,.78) !important;
 }
 
+.workspace-organize-button:disabled,
+.workspace-import-action .button.primary:disabled {
+  background: #d6dde1 !important;
+  border-color: #d6dde1 !important;
+  color: #77858d !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+  filter: none !important;
+}
+
 .module-page,
 .workspace-import-page,
 .workspace-data-page,
@@ -10199,4 +10209,943 @@ footer {
   .mapping-checklist-cell {
     min-width: 190px;
   }
+}
+
+
+/* Script SQL do destino — módulo Clientes */
+.module-comparison-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-sql-open {
+  white-space: nowrap;
+}
+
+.client-sql-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(1, 46, 70, .36);
+  backdrop-filter: blur(3px);
+}
+
+.client-sql-modal {
+  width: min(960px, 96vw);
+  max-height: min(88dvh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #cfdbe1;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(1, 46, 70, .18);
+}
+
+.client-sql-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #e5ecef;
+}
+
+.client-sql-modal-head h2 {
+  margin: 4px 0 4px;
+  color: var(--primary);
+  font-size: var(--fs-xl);
+}
+
+.client-sql-modal-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.client-sql-modal-close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d7e0e5;
+  border-radius: 9px;
+  background: #fff;
+  color: #55646e;
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.client-sql-modal-close:hover {
+  background: #f7f9fa;
+  color: var(--primary);
+}
+
+.client-sql-modal-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-bottom: 1px solid #edf1f3;
+  background: #fbfcfd;
+  color: #52616a;
+  font-size: var(--fs-xs);
+}
+
+.client-sql-modal-note strong {
+  color: var(--primary);
+}
+
+.client-sql-code {
+  flex: 1 1 auto;
+  min-height: 300px;
+  margin: 0;
+  padding: 18px 22px;
+  overflow: auto;
+  background: #f7f9fa;
+  color: #172630;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.client-sql-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid #e5ecef;
+  background: #fff;
+}
+
+@media (max-width: 720px) {
+  .module-comparison-head-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .module-comparison-head-actions .button {
+    width: 100%;
+  }
+
+  .client-sql-modal-backdrop {
+    padding: 10px;
+  }
+
+  .client-sql-modal {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 12px;
+  }
+
+  .client-sql-modal-head,
+  .client-sql-modal-actions {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .client-sql-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .client-sql-modal-actions .button {
+    width: 100%;
+  }
+
+  .client-sql-code {
+    min-height: 240px;
+    padding: 14px;
+    font-size: 11.5px;
+  }
+}
+
+
+.mapping-target-missing-note {
+  margin-top: 5px;
+  padding: 6px 8px;
+  border: 1px solid #f2d19b;
+  border-radius: 7px;
+  background: #fff8eb;
+  color: #8a5400;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+
+/* Diagnóstico rápido — enquadramento completo sem barra lateral */
+.technical-diagnosis {
+  min-width: 0;
+}
+
+.technical-diagnosis-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.technical-diagnosis-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.technical-diagnosis-table th,
+.technical-diagnosis-table td {
+  min-width: 0 !important;
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.technical-diagnosis-table th:nth-child(1),
+.technical-diagnosis-table td:nth-child(1) { width: 3%; }
+
+.technical-diagnosis-table th:nth-child(2),
+.technical-diagnosis-table td:nth-child(2) { width: 9%; }
+
+.technical-diagnosis-table th:nth-child(3),
+.technical-diagnosis-table td:nth-child(3) { width: 12%; }
+
+.technical-diagnosis-table th:nth-child(4),
+.technical-diagnosis-table td:nth-child(4) { width: 11%; }
+
+.technical-diagnosis-table th:nth-child(5),
+.technical-diagnosis-table td:nth-child(5) { width: 9%; }
+
+.technical-diagnosis-table th:nth-child(6),
+.technical-diagnosis-table td:nth-child(6) { width: 10%; }
+
+.technical-diagnosis-table th:nth-child(7),
+.technical-diagnosis-table td:nth-child(7) { width: 8%; }
+
+.technical-diagnosis-table th:nth-child(8),
+.technical-diagnosis-table td:nth-child(8) { width: 20%; }
+
+.technical-diagnosis-table th:nth-child(9),
+.technical-diagnosis-table td:nth-child(9) { width: 4%; }
+
+.technical-diagnosis-table th:nth-child(10),
+.technical-diagnosis-table td:nth-child(10) { width: 7%; }
+
+.technical-diagnosis-table th:nth-child(11),
+.technical-diagnosis-table td:nth-child(11) { width: 7%; }
+
+.technical-diagnosis-table .column-filter-row input,
+.technical-diagnosis-table .column-filter-row select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.technical-diagnosis-table .review-chip,
+.technical-diagnosis-table .analysis-action-button {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.2;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.technical-diagnosis-table .reason-cell,
+.technical-diagnosis-table .compare-value-cell {
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+
+/* Diagnóstico rápido — conteúdo contido, sem sobreposição nem rolagem lateral */
+.technical-diagnosis-table {
+  table-layout: fixed !important;
+}
+
+.technical-diagnosis-table th,
+.technical-diagnosis-table td {
+  min-width: 0 !important;
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.technical-diagnosis-table td > *,
+.technical-diagnosis-table th > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.technical-diagnosis-table .quick-kind,
+.technical-diagnosis-table .quick-duplicate-status,
+.technical-diagnosis-table .status,
+.technical-diagnosis-table .review-chip,
+.technical-diagnosis-table .analysis-action-button {
+  max-width: 100%;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-align: center;
+}
+
+.technical-diagnosis-table .quick-duplicate-status {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  line-height: 1.15;
+  padding: 4px 5px;
+}
+
+.technical-diagnosis-table .reason-cell,
+.technical-diagnosis-table .compare-value-cell,
+.technical-diagnosis-table .block-muted,
+.technical-diagnosis-table .mono {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.technical-diagnosis-table th:nth-child(7),
+.technical-diagnosis-table td:nth-child(7) { width: 10%; }
+
+.technical-diagnosis-table th:nth-child(8),
+.technical-diagnosis-table td:nth-child(8) { width: 18%; }
+
+.technical-diagnosis-table th:nth-child(10),
+.technical-diagnosis-table td:nth-child(10) { width: 7%; }
+
+.technical-diagnosis-table th:nth-child(11),
+.technical-diagnosis-table td:nth-child(11) { width: 7%; }
+
+.technical-diagnosis-table .column-filter-row th {
+  overflow: visible;
+}
+
+.technical-diagnosis-table .column-filter-row input,
+.technical-diagnosis-table .column-filter-row select {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
+}
+
+.technical-diagnosis-table-wrap {
+  overflow-x: clip !important;
+}
+
+
+/* Importação — progresso completo e quantidade livre */
+.workspace-import-counter {
+  min-width: 102px;
+}
+
+.workspace-import-counter strong {
+  white-space: nowrap;
+}
+
+.workspace-dropzone.busy {
+  pointer-events: none;
+  cursor: progress;
+  opacity: .72;
+}
+
+.workspace-import-progress {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid #d6e2e8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(1, 46, 70, .06);
+}
+
+.workspace-import-progress.is-running {
+  border-color: #aac6d3;
+}
+
+.workspace-import-progress.is-complete {
+  border-color: #c8dfd1;
+  background: #fbfefc;
+}
+
+.workspace-import-progress-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.workspace-import-progress-head > div:first-child {
+  min-width: 0;
+}
+
+.workspace-import-progress-head strong,
+.workspace-import-progress-head small {
+  display: block;
+}
+
+.workspace-import-progress-head strong {
+  margin-top: 3px;
+  color: var(--primary);
+  font-size: var(--fs-base);
+  line-height: 1.25;
+}
+
+.workspace-import-progress-head small {
+  max-width: min(760px, 70vw);
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-import-progress-percent {
+  flex: 0 0 auto;
+  min-width: 106px;
+  text-align: right;
+}
+
+.workspace-import-progress-percent strong {
+  margin: 0;
+  color: var(--primary);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.workspace-import-progress-percent span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
+.workspace-import-progress-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef2;
+}
+
+.workspace-import-progress-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width .18s ease;
+}
+
+.workspace-import-progress.is-complete .workspace-import-progress-track i {
+  background: #22c55e;
+}
+
+.workspace-import-progress-meta {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) 140px 150px;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+
+.workspace-import-progress-meta span {
+  min-width: 0;
+  color: #60717b;
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+}
+
+.workspace-import-progress-meta strong {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .workspace-import-progress-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .workspace-import-progress {
+    padding: 12px;
+  }
+
+  .workspace-import-progress-head {
+    gap: 10px;
+  }
+
+  .workspace-import-progress-head small {
+    max-width: 58vw;
+  }
+
+  .workspace-import-progress-percent {
+    min-width: 82px;
+  }
+
+  .workspace-import-progress-percent strong {
+    font-size: 24px;
+  }
+
+  .workspace-import-progress-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* =========================================================
+   Progresso global de importação — suave e consistente
+   ========================================================= */
+.global-import-progress {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid #d6e2e8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(1, 46, 70, .06);
+  overflow: hidden;
+}
+
+.global-import-progress.is-running {
+  border-color: #aac6d3;
+}
+
+.global-import-progress.is-complete {
+  border-color: #c8dfd1;
+  background: #fbfefc;
+}
+
+.global-import-progress-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.global-import-progress-head > div {
+  min-width: 0;
+}
+
+.global-import-progress-head strong,
+.global-import-progress-head small {
+  display: block;
+}
+
+.global-import-progress-head strong {
+  color: var(--primary);
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+}
+
+.global-import-progress-head small {
+  max-width: min(860px, 72vw);
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-import-progress-head > b {
+  flex: 0 0 auto;
+  min-width: 70px;
+  color: var(--primary);
+  font-size: 27px;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.global-import-progress-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef2;
+}
+
+.global-import-progress-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: width .08s linear;
+  will-change: width;
+}
+
+.global-import-progress.is-complete .global-import-progress-track i {
+  background: #22c55e;
+}
+
+.global-import-progress-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px 18px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+
+.global-import-progress-meta span {
+  min-width: 0;
+  color: #60717b;
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+}
+
+.global-import-progress-meta strong {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.global-import-progress.is-compact {
+  margin-top: 9px;
+  padding: 10px 11px;
+  box-shadow: none;
+}
+
+.global-import-progress.is-compact .global-import-progress-head strong {
+  font-size: var(--fs-xs);
+}
+
+.global-import-progress.is-compact .global-import-progress-head small,
+.global-import-progress.is-compact .global-import-progress-meta span {
+  font-size: var(--fs-2xs);
+}
+
+.global-import-progress.is-compact .global-import-progress-head > b {
+  min-width: 56px;
+  font-size: 22px;
+}
+
+.global-import-progress.is-compact .global-import-progress-track {
+  height: 9px;
+  margin-top: 9px;
+}
+
+.drop-zone.busy,
+.workspace-dropzone.busy {
+  pointer-events: none;
+  cursor: progress;
+  opacity: .76;
+}
+
+@media (max-width: 620px) {
+  .global-import-progress {
+    padding: 12px;
+  }
+
+  .global-import-progress-head {
+    gap: 10px;
+  }
+
+  .global-import-progress-head small {
+    max-width: 60vw;
+  }
+
+  .global-import-progress-head > b {
+    min-width: 58px;
+    font-size: 23px;
+  }
+
+  .global-import-progress-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+}
+
+
+/* Dependências da estrutura de produtos */
+.workspace-import-warnings {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.workspace-import-warnings span {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid #f0c98c;
+  border-radius: 9px;
+  background: #fff8eb;
+  color: #875100;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.workspace-dependency-guide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d8e3e8;
+  border-radius: 10px;
+  background: #fbfcfd;
+  color: #5e6d76;
+  font-size: var(--fs-xs);
+}
+
+.workspace-dependency-guide strong {
+  color: var(--primary);
+}
+
+.workspace-dependency-guide span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef4f7;
+  color: var(--primary);
+  font-weight: 750;
+}
+
+.workspace-dependency-guide i {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 900;
+}
+
+@media (max-width: 620px) {
+  .workspace-dependency-guide {
+    align-items: flex-start;
+  }
+}
+
+
+/* Contexto visual da hierarquia — Grupos e Subgrupos */
+.record-code-with-context {
+  min-width: 0;
+  vertical-align: top;
+}
+
+.record-code-with-context > strong {
+  display: block;
+  color: var(--primary);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.record-code-with-context small {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 3px;
+  color: #6b7b85;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 10.5px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.record-code-with-context small span {
+  flex: 0 0 auto;
+  color: #7d8b94;
+}
+
+.record-code-with-context small b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #314751;
+  font-weight: 700;
+}
+
+
+/* Hierarquia visual inline — não participa da validação */
+.hierarchy-inline-label {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px 7px;
+  flex-wrap: wrap;
+  color: #4f626d;
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.hierarchy-inline-label span,
+.hierarchy-inline-label strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hierarchy-inline-label span {
+  color: #657782;
+  font-weight: 600;
+}
+
+.hierarchy-inline-label strong {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.hierarchy-inline-label i {
+  flex: 0 0 auto;
+  color: #c1ccd2;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .hierarchy-inline-label {
+    gap: 5px;
+    font-size: var(--fs-xs);
+  }
+}
+
+
+/* Filtro por nível hierárquico — Grupos e Subgrupos */
+.hierarchy-filter-control {
+  display: grid;
+  grid-template-columns: minmax(116px, 0.42fr) minmax(140px, 1fr);
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.hierarchy-filter-control select,
+.hierarchy-filter-control input {
+  width: 100%;
+  min-width: 0;
+}
+
+.hierarchy-filter-control select {
+  font-weight: 700;
+  color: var(--primary);
+  background: #f8fbfc;
+}
+
+@media (max-width: 920px) {
+  .hierarchy-filter-control {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* =========================================================
+   Calibração tipográfica global — PrimeCheck
+   ========================================================= */
+:root {
+  --fs-page-title: clamp(26px, 2.2vw, 34px);
+  --fs-page-title-compact: clamp(24px, 2vw, 30px);
+  --fs-section-title: 17px;
+}
+
+/* Mantém os títulos de tela proporcionais ao restante da interface. */
+.hero h1,
+.module-hero h1,
+.workspace-import-hero h1,
+.workspace-data-head h1,
+.internal-products-head h1 {
+  font-size: var(--fs-page-title) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.025em !important;
+}
+
+.module-comparison-head h1 {
+  font-size: var(--fs-page-title-compact) !important;
+  line-height: 1.1 !important;
+}
+
+/* Menu lateral: densidade mais refinada, sem perder legibilidade. */
+.sidebar-item-copy,
+.sidebar:not(.collapsed) .sidebar-item-copy {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sidebar-item-copy strong,
+.sidebar:not(.collapsed) .sidebar-item-copy strong {
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.sidebar-item-copy small,
+.sidebar:not(.collapsed) .sidebar-item-copy small {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.sidebar-section-title,
+.sidebar:not(.collapsed) .sidebar-section-title,
+.sidebar-section-inline {
+  font-size: 11px;
+}
+
+.sidebar-group-children button,
+.sidebar-nav .sidebar-child {
+  font-size: 11px;
+}
+
+/* Classificação Mercadológica deve permanecer sempre em uma única linha.
+   Reduzimos somente o necessário e reservamos a coluna da seta. */
+.sidebar [id="sidebar-nav-group:structure"] {
+  grid-template-columns: 30px minmax(0, 1fr) 12px !important;
+  column-gap: 6px !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-icon {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-copy strong {
+  font-size: 11.5px;
+  line-height: 1.1;
+  letter-spacing: -.025em;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-copy small {
+  white-space: nowrap;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-chevron,
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-group-chevron {
+  width: 12px;
+  height: 12px;
+  justify-self: end;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-chevron .sidebar-glyph,
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-group-chevron .sidebar-glyph {
+  width: 12px;
+  height: 12px;
 }

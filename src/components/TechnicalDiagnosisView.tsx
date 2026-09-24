@@ -337,7 +337,7 @@ export default function TechnicalDiagnosisView({
           />
         </div>
 
-        <div className="table-wrap stable-filter-table-wrap">
+        <div className="table-wrap stable-filter-table-wrap technical-diagnosis-table-wrap">
           <table className="technical-diagnosis-table analytic-report-table">
             <thead>
               <tr>
