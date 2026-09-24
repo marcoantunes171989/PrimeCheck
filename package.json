@@ -19,7 +19,8 @@
     "verify:nfce-xml-search": "npx --yes tsx scripts/verify-nfce-xml-search.mts",
     "verify:nfce-menu-label": "npx --yes tsx scripts/verify-nfce-menu-label.mts",
     "verify:nfce-xml-format": "npx --yes tsx scripts/verify-nfce-xml-format.mts",
-    "verify:build-info": "npx --yes tsx scripts/verify-build-info.mts"
+    "verify:build-info": "npx --yes tsx scripts/verify-build-info.mts",
+    "verify:local-served-script": "node scripts/verify-local-served-script.mjs"
   },
   "dependencies": {
     "@br-validators/core": "^1.10.0-data.41",
