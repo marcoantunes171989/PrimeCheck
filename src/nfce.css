@@ -1409,3 +1409,91 @@
     padding-inline: 10px;
   }
 }
+
+
+/* XML bruto NFC-e — árvore fixa baseada na mesma estrutura da aba Tags XML */
+.nfce-modal-body.nfce-modal-body-xml {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.nfce-modal-body.nfce-modal-body-xml > .nfce-raw-view {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.nfce-static-xml-tree {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px 0 18px;
+  background: #fff;
+}
+.nfce-static-xml-declaration,
+.nfce-static-xml-row {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-height: 32px;
+  padding-top: 5px;
+  padding-right: 14px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #edf2f5;
+  background: #fff;
+}
+.nfce-static-xml-declaration {
+  padding-left: 12px;
+  background: #f7fafc;
+}
+.nfce-static-xml-declaration code {
+  min-width: 0;
+  color: #476171;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.nfce-static-xml-row:hover {
+  background: #f8fbfd;
+}
+.nfce-static-xml-closing {
+  background: #fbfcfd;
+}
+.nfce-static-xml-guide {
+  flex: 0 0 16px;
+  width: 16px;
+  color: #93a7b2;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  user-select: none;
+}
+.nfce-static-xml-value {
+  flex: 1 1 220px;
+  min-width: 0;
+  color: #d96500;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.nfce-static-xml-tree .nfce-xml-attrs {
+  flex: 1 1 240px;
+}
+@media (max-width: 720px) {
+  .nfce-static-xml-row,
+  .nfce-static-xml-declaration {
+    padding-right: 9px;
+  }
+  .nfce-static-xml-value {
+    flex-basis: 160px;
+  }
+}

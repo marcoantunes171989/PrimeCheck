@@ -25,7 +25,6 @@ import {
 } from '../lib/workspaceStorage'
 import ImportProgressBar from '../components/ImportProgressBar'
 import { xmlEntryMatchesSearch } from '../lib/nfceXmlSearch'
-import { formatXmlForDisplay } from '../lib/nfceXmlFormat'
 import '../nfce.css'
 
 const PAGE_SIZE = 20
@@ -236,6 +235,57 @@ const XmlNode = ({
   )
 }
 
+const StaticXmlNode = ({
+  element,
+  depth = 0,
+}: {
+  element: Element
+  depth?: number
+}) => {
+  const children = Array.from(element.children)
+  const name = elementName(element)
+  const value = directText(element)
+  const attributes = Array.from(element.attributes)
+  const empty = children.length === 0 && !value
+
+  return (
+    <div className="nfce-static-xml-node">
+      <div
+        className="nfce-static-xml-row"
+        style={{ paddingLeft: `${12 + depth * 18}px` }}
+      >
+        <span className="nfce-static-xml-guide" aria-hidden="true">{children.length ? '⌄' : '·'}</span>
+        <code className="nfce-xml-tag">{empty ? `<${name} />` : `<${name}>`}</code>
+        {attributes.length > 0 && (
+          <small className="nfce-xml-attrs">{attributes.map(attr => `${attr.name}="${attr.value}"`).join(' ')}</small>
+        )}
+        {value && <span className="nfce-static-xml-value">{value}</span>}
+        {!empty && children.length === 0 && (
+          <code className="nfce-xml-tag nfce-xml-tag-close">{`</${name}>`}</code>
+        )}
+      </div>
+
+      {children.map((child, index) => (
+        <StaticXmlNode
+          key={`${name}-${index}-${elementName(child)}`}
+          element={child}
+          depth={depth + 1}
+        />
+      ))}
+
+      {children.length > 0 && (
+        <div
+          className="nfce-static-xml-row nfce-static-xml-closing"
+          style={{ paddingLeft: `${12 + depth * 18}px` }}
+        >
+          <span className="nfce-static-xml-guide" aria-hidden="true">·</span>
+          <code className="nfce-xml-tag nfce-xml-tag-close">{`</${name}>`}</code>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const statusClass = (item: NfceSummary) => {
   if (!item.validXml || !item.isNfce) return 'error'
   if (item.statusCode === '100') return 'ok'
@@ -364,8 +414,6 @@ export default function NfceValidatorPage() {
   const [storageMessage, setStorageMessage] = useState('Restaurando XMLs salvos para este IP…')
 
   const detail = useMemo(() => selected ? parseNfceDetail(selected) : null, [selected])
-  const formattedRawXml = useMemo(() => selected ? formatXmlForDisplay(selected.rawXml) : '', [selected])
-  const formattedRawXmlLines = useMemo(() => formattedRawXml ? formattedRawXml.split('\n') : [], [formattedRawXml])
   const expandedXmlKeySet = useMemo(() => new Set(expandedXmlKeys), [expandedXmlKeys])
 
   useEffect(() => {
@@ -623,10 +671,15 @@ export default function NfceValidatorPage() {
   const closeDocument = () => setSelected(null)
 
   const rootElement = useMemo(() => {
-    if (!selected || modalTab !== 'tags') return null
+    if (!selected) return null
     const doc = new DOMParser().parseFromString(selected.rawXml, 'application/xml')
     return doc.documentElement
-  }, [modalTab, selected])
+  }, [selected])
+
+  const xmlDeclaration = useMemo(
+    () => selected?.rawXml.match(/^\s*(<\?xml[\s\S]*?\?>)/i)?.[1] ?? '',
+    [selected],
+  )
 
   const xmlEntries = useMemo(
     () => rootElement ? buildXmlSearchEntries(rootElement) : [],
@@ -1262,25 +1315,27 @@ export default function NfceValidatorPage() {
               )}
 
               {modalTab === 'xml' && (
-                <section className="nfce-raw-view" data-formatted-xml="true">
+                <section className="nfce-raw-view" data-static-xml="true">
                   <div className="nfce-raw-head">
                     <div>
-                      <span className="eyebrow">ARQUIVO ORIGINAL</span>
+                      <span className="eyebrow">ARQUIVO ORIGINAL · ESTRUTURA XML FIXA</span>
                       <h3>{selected.fileName}</h3>
-                      <p>Indentação, linhas e numeração são aplicadas somente para leitura. “Copiar XML” preserva exatamente o arquivo importado.</p>
+                      <p>Mesma estrutura da aba Tags XML, porém totalmente aberta e fixa para leitura contínua do documento.</p>
                     </div>
                     <div className="nfce-raw-actions">
-                      <span className="nfce-raw-format-badge">Formatado para leitura</span>
+                      <span className="nfce-raw-format-badge">Todos os níveis expandidos</span>
                       <button className="button secondary" type="button" onClick={() => void copyXml()}>Copiar XML</button>
                     </div>
                   </div>
-                  <div className="nfce-raw-code" role="region" aria-label="XML formatado para leitura">
-                    {formattedRawXmlLines.map((line, index) => (
-                      <div className="nfce-raw-line" key={`${index}-${line.slice(0, 24)}`}>
-                        <span className="nfce-raw-line-number" aria-hidden="true">{index + 1}</span>
-                        <code>{line || ' '}</code>
+
+                  <div className="nfce-static-xml-tree" role="region" aria-label="XML bruto estruturado e totalmente expandido">
+                    {xmlDeclaration && (
+                      <div className="nfce-static-xml-declaration">
+                        <span className="nfce-static-xml-guide" aria-hidden="true">·</span>
+                        <code>{xmlDeclaration}</code>
                       </div>
-                    ))}
+                    )}
+                    {rootElement && <StaticXmlNode element={rootElement} />}
                   </div>
                 </section>
               )}
