@@ -319,6 +319,11 @@ export function parseNfceDetail(summary: NfceSummary): NfceDetail {
   }
 }
 
+export const normalizeShortCean = (value: string) => {
+  const normalized = String(value ?? '').trim()
+  return /^\d{1,7}$/.test(normalized) ? normalized : ''
+}
+
 export const nfceSearchText = (item: NfceSummary) => [
   item.fileName,
   item.accessKey,

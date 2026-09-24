@@ -14,7 +14,8 @@
     "verify:hierarchy": "npx --yes tsx scripts/verify-hierarchy-display.mts",
     "verify:product-store": "npx --yes tsx scripts/verify-product-store-architecture.mts",
     "verify:typography": "npx --yes tsx scripts/verify-typography-layout.mts",
-    "verify:responsive": "npx --yes tsx scripts/verify-responsive-layout.mts"
+    "verify:responsive": "npx --yes tsx scripts/verify-responsive-layout.mts",
+    "verify:nfce-short-ean": "npx --yes tsx scripts/verify-nfce-short-ean.mts"
   },
   "dependencies": {
     "@br-validators/core": "^1.10.0-data.41",
