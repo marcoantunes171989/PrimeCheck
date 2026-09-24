@@ -319,7 +319,7 @@ export function parseNfceDetail(summary: NfceSummary): NfceDetail {
   }
 }
 
-export const normalizeShortCean = (value: string) => {
+export const normalizeShortCProd = (value: string) => {
   const normalized = String(value ?? '').trim()
   return /^\d{1,7}$/.test(normalized) ? normalized : ''
 }

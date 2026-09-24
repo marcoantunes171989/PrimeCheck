@@ -4,7 +4,7 @@ import {
   formatNfceDocument,
   formatNfceMoney,
   normalizeNfceSearch,
-  normalizeShortCean,
+  normalizeShortCProd,
   parseNfceDetail,
   type NfceDetail,
   type NfceSummary,
@@ -41,11 +41,10 @@ type ConsumerRow = {
   lastIssueDate: string
 }
 
-type BarcodeRow = {
+type ProductCodeRow = {
   key: string
-  barcode: string
+  productCode: string
   description: string
-  code: string
   fileName: string
   nfceNumber: string
   series: string
@@ -257,7 +256,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       setSortKey('value')
       setDirection('desc')
     } else if (view === 'barcodes') {
-      setSortKey('barcode')
+      setSortKey('productCode')
       setDirection('asc')
     } else {
       setSortKey('')
@@ -352,19 +351,18 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     return [...map.values()]
   }, [periodDetails])
 
-  const shortBarcodeRows = useMemo<BarcodeRow[]>(() => {
-    const rows: BarcodeRow[] = []
+  const shortProductCodeRows = useMemo<ProductCodeRow[]>(() => {
+    const rows: ProductCodeRow[] = []
 
     periodDetails.forEach(({ summary, detail }) => {
       detail.items.forEach((item, itemIndex) => {
-        const barcode = normalizeShortCean(item.ean)
-        if (!barcode) return
+        const productCode = normalizeShortCProd(item.code)
+        if (!productCode) return
 
         rows.push({
-          key: `${summary.id}|${item.index || itemIndex + 1}|${barcode}`,
-          barcode,
+          key: `${summary.id}|${item.index || itemIndex + 1}|${productCode}`,
+          productCode,
           description: item.description || 'Sem descrição',
-          code: item.code,
           fileName: summary.fileName,
           nfceNumber: summary.number,
           series: summary.series,
@@ -425,7 +423,6 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       const factor = direction === 'asc' ? 1 : -1
       let result = 0
       if (sortKey === 'description') result = collator.compare(left.description, right.description)
-      else if (sortKey === 'code') result = collator.compare(left.code, right.code)
       else if (sortKey === 'barcode') result = collator.compare(left.barcode, right.barcode)
       else if (sortKey === 'ncm') result = collator.compare(left.ncm, right.ncm)
       else if (sortKey === 'cfop') result = collator.compare(left.cfop, right.cfop)
@@ -457,12 +454,11 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     })
   }, [consumerRows, direction, search, sortKey])
 
-  const barcodeFiltered = useMemo(() => {
+  const productCodeFiltered = useMemo(() => {
     const query = normalizeNfceSearch(search)
-    const rows = shortBarcodeRows.filter(row => searchIncludes(query, [
-      row.barcode,
+    const rows = shortProductCodeRows.filter(row => searchIncludes(query, [
+      row.productCode,
       row.description,
-      row.code,
       row.fileName,
       row.nfceNumber,
       row.series,
@@ -473,20 +469,19 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       const factor = direction === 'asc' ? 1 : -1
       let result = 0
       if (sortKey === 'description') result = collator.compare(left.description, right.description)
-      else if (sortKey === 'code') result = collator.compare(left.code, right.code)
       else if (sortKey === 'fileName') result = collator.compare(left.fileName, right.fileName)
       else if (sortKey === 'nfceNumber') result = collator.compare(left.nfceNumber, right.nfceNumber)
       else if (sortKey === 'issueDate') result = timestamp(left.issueDate) - timestamp(right.issueDate)
-      else result = collator.compare(left.barcode, right.barcode)
+      else result = collator.compare(left.productCode, right.productCode)
       return result * factor
     })
-  }, [direction, search, shortBarcodeRows, sortKey])
+  }, [direction, search, shortProductCodeRows, sortKey])
 
   const currentRows = view === 'products'
     ? productFiltered
     : view === 'consumers'
       ? consumerFiltered
-      : barcodeFiltered
+      : productCodeFiltered
 
   const totalPages = Math.max(1, Math.ceil(currentRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -504,7 +499,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       ? 'Produtos mais vendidos'
       : view === 'consumers'
         ? 'Consumidores identificados'
-        : 'Códigos de barras menores que 8 dígitos'
+        : 'Códigos de produto menores que 8 dígitos'
 
   return (
     <main className="nfce-analytics-page">
@@ -514,7 +509,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
           <h1>{title}</h1>
           <p>
             {view === 'barcodes'
-              ? <>Leitura direta da tag <code>&lt;cEAN&gt;</code> dos itens das NFC-e autorizadas, exibindo somente valores numéricos com menos de 8 dígitos e a origem de cada XML.</>
+              ? <>Leitura direta da tag <code>&lt;cProd&gt;</code> dos itens das NFC-e autorizadas, exibindo somente códigos numéricos com menos de 8 dígitos e a origem de cada XML.</>
               : 'Indicadores calculados a partir das NFC-e autorizadas armazenadas no PrimeCheck para este ambiente.'}
           </p>
         </div>
@@ -637,7 +632,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
             <div className="nfce-analytics-card-head table">
               <div>
                 <span className="eyebrow">
-                  {view === 'products' ? 'PRODUTOS DO PERÍODO' : view === 'consumers' ? 'CONSUMIDORES' : 'ANÁLISE DE GTIN'}
+                  {view === 'products' ? 'PRODUTOS DO PERÍODO' : view === 'consumers' ? 'CONSUMIDORES' : 'ANÁLISE DE CÓDIGO DO PRODUTO'}
                 </span>
                 <h2>{title}</h2>
               </div>
@@ -681,21 +676,19 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                   </tbody>
                 </table>
               ) : view === 'barcodes' ? (
-                <table className="nfce-analytics-table nfce-short-barcodes-table">
+                <table className="nfce-analytics-table nfce-short-product-codes-table">
                   <thead><tr>
-                    <th><SortButton label="Código de barras (<cEAN>)" field="barcode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                    <th><SortButton label="Código do produto (<cProd>)" field="productCode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Descrição" field="description" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                    <th><SortButton label="Código produto" field="code" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Arquivo XML de origem" field="fileName" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="NFC-e" field="nfceNumber" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Emissão" field="issueDate" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                   </tr></thead>
                   <tbody>
-                    {(pageRows as BarcodeRow[]).map(row => (
+                    {(pageRows as ProductCodeRow[]).map(row => (
                       <tr key={row.key}>
-                        <td><code className="nfce-short-barcode">{row.barcode}</code></td>
+                        <td><code className="nfce-short-product-code">{row.productCode}</code></td>
                         <td><strong>{row.description}</strong></td>
-                        <td>{row.code || '—'}</td>
                         <td><span className="nfce-source-file">{row.fileName}</span></td>
                         <td>
                           <span className="nfce-source-document">

@@ -290,7 +290,7 @@
 .nfce-analytics-table th button span { color: var(--accent); }
 .nfce-analytics-table td { color: #354653; }
 .nfce-analytics-table td strong { color: var(--primary); }
-.nfce-short-barcode {
+.nfce-short-product-code {
   display: inline-flex;
   padding: 4px 7px;
   border-radius: 7px;
@@ -340,7 +340,7 @@
 }
 
 
-/* NFC-e — cEAN curto com origem do XML */
+/* NFC-e — cProd curto com origem do XML */
 .nfce-analytics-hero code {
   padding: 1px 5px;
   border-radius: 5px;
@@ -351,38 +351,33 @@
   font-weight: 800;
 }
 
-.nfce-short-barcodes-table {
-  min-width: 900px;
+.nfce-short-product-codes-table {
+  min-width: 820px;
 }
 
-.nfce-short-barcodes-table th:nth-child(1),
-.nfce-short-barcodes-table td:nth-child(1) {
-  width: 150px;
+.nfce-short-product-codes-table th:nth-child(1),
+.nfce-short-product-codes-table td:nth-child(1) {
+  width: 180px;
   white-space: nowrap;
 }
 
-.nfce-short-barcodes-table th:nth-child(2),
-.nfce-short-barcodes-table td:nth-child(2) {
-  min-width: 220px;
+.nfce-short-product-codes-table th:nth-child(2),
+.nfce-short-product-codes-table td:nth-child(2) {
+  min-width: 240px;
 }
 
-.nfce-short-barcodes-table th:nth-child(3),
-.nfce-short-barcodes-table td:nth-child(3) {
-  width: 130px;
-}
-
-.nfce-short-barcodes-table th:nth-child(4),
-.nfce-short-barcodes-table td:nth-child(4) {
+.nfce-short-product-codes-table th:nth-child(3),
+.nfce-short-product-codes-table td:nth-child(3) {
   min-width: 210px;
 }
 
-.nfce-short-barcodes-table th:nth-child(5),
-.nfce-short-barcodes-table td:nth-child(5) {
+.nfce-short-product-codes-table th:nth-child(4),
+.nfce-short-product-codes-table td:nth-child(4) {
   width: 130px;
 }
 
-.nfce-short-barcodes-table th:nth-child(6),
-.nfce-short-barcodes-table td:nth-child(6) {
+.nfce-short-product-codes-table th:nth-child(5),
+.nfce-short-product-codes-table td:nth-child(5) {
   width: 150px;
   white-space: nowrap;
 }
@@ -412,7 +407,7 @@
 }
 
 @media (max-width: 720px) {
-  .nfce-short-barcodes-table {
-    min-width: 760px;
+  .nfce-short-product-codes-table {
+    min-width: 720px;
   }
 }

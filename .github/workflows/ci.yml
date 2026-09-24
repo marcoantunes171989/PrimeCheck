@@ -39,5 +39,5 @@ jobs:
       - name: Verify responsive layout
         run: npm run verify:responsive
 
-      - name: Verify NFC-e short cEAN
-        run: npm run verify:nfce-short-ean
+      - name: Verify NFC-e short cProd
+        run: npm run verify:nfce-short-cprod
