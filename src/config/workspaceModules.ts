@@ -534,8 +534,8 @@ const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinitio
   }
 }
 
-export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMatch[] =>
-  modules.map(module => {
+export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMatch[] => {
+  const detected = modules.map(module => {
     const matchedFiles = files.filter(file => moduleScoreForFile(file, module).matched)
     const matchedFields = module.fields.filter(item =>
       matchedFiles.some(file => file.headers.some(header => headerMatches(header, item.aliases))),
@@ -555,6 +555,16 @@ export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMat
       confidence: Math.min(99, bestScore),
     }
   }).filter(result => result.fileIds.length > 0)
+
+  const hasSections = detected.some(result => result.module.id === 'sections')
+  const hasGroups = detected.some(result => result.module.id === 'groups')
+
+  return detected.filter(result => {
+    if (result.module.id === 'groups') return hasSections
+    if (result.module.id === 'subgroups') return hasSections && hasGroups
+    return true
+  })
+}
 
 export const getWorkspaceModule = (id: string) =>
   modules.find(module => module.id === id)
