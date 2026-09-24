@@ -24,6 +24,7 @@ export default function MappingPanel({
   const [search, setSearch] = useState('')
   const [onlyPending, setOnlyPending] = useState(false)
 
+  const clientChecklistMode = profile.id === 'client' || profile.id === 'workspace:clients'
   const coverage = mappingCoverage(mapping)
   const total = profile.fields.length || coverage.total
   const both = coverage.both
@@ -32,18 +33,32 @@ export default function MappingPanel({
   const update = (fieldId: string, side: 'originHeader' | 'targetHeader', value: string) => {
     const manualKey = side === 'originHeader' ? 'originManual' : 'targetManual'
     const current = mapping.find(item => item.fieldId === fieldId)
+    const mirroredTarget = clientChecklistMode && side === 'originHeader' && value
+      ? targetHeaders.find(header => normalizeHeader(header) === normalizeHeader(value)) ?? ''
+      : ''
+
     if (!current) {
       onChange([...mapping, {
         fieldId,
         originHeader: side === 'originHeader' ? value : '',
-        targetHeader: side === 'targetHeader' ? value : '',
+        targetHeader: side === 'targetHeader'
+          ? value
+          : mirroredTarget,
         [manualKey]: Boolean(value),
+        ...(mirroredTarget ? { targetManual: false } : {}),
       }])
       return
     }
-    onChange(mapping.map(item => item.fieldId === fieldId
-      ? { ...item, [side]: value, [manualKey]: Boolean(value) }
-      : item))
+
+    onChange(mapping.map(item => {
+      if (item.fieldId !== fieldId) return item
+      const next = { ...item, [side]: value, [manualKey]: Boolean(value) }
+      if (mirroredTarget) {
+        next.targetHeader = mirroredTarget
+        next.targetManual = false
+      }
+      return next
+    }))
   }
 
   const visibleFields = useMemo(() => {
@@ -67,8 +82,6 @@ export default function MappingPanel({
       return haystack.includes(term)
     })
   }, [mapping, onlyPending, profile.fields, search])
-
-  const clientChecklistMode = profile.id === 'client' || profile.id === 'workspace:clients'
 
   return (
     <section className="panel mapping-panel">
