@@ -1,14 +1,14 @@
 :root {
   --font-sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --fs-2xs: 12px;
-  --fs-xs: 13px;
-  --fs-sm: 14px;
-  --fs-md: 15px;
-  --fs-base: 16px;
-  --fs-lg: 18px;
-  --fs-xl: 20px;
-  --fs-2xl: 24px;
-  --fs-3xl: 32px;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-base: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 19px;
+  --fs-2xl: 22px;
+  --fs-3xl: 28px;
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
@@ -11051,4 +11051,101 @@ footer {
   .hierarchy-filter-control {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* =========================================================
+   Calibração tipográfica global — PrimeCheck
+   ========================================================= */
+:root {
+  --fs-page-title: clamp(26px, 2.2vw, 34px);
+  --fs-page-title-compact: clamp(24px, 2vw, 30px);
+  --fs-section-title: 17px;
+}
+
+/* Mantém os títulos de tela proporcionais ao restante da interface. */
+.hero h1,
+.module-hero h1,
+.workspace-import-hero h1,
+.workspace-data-head h1,
+.internal-products-head h1 {
+  font-size: var(--fs-page-title) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.025em !important;
+}
+
+.module-comparison-head h1 {
+  font-size: var(--fs-page-title-compact) !important;
+  line-height: 1.1 !important;
+}
+
+/* Menu lateral: densidade mais refinada, sem perder legibilidade. */
+.sidebar-item-copy,
+.sidebar:not(.collapsed) .sidebar-item-copy {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sidebar-item-copy strong,
+.sidebar:not(.collapsed) .sidebar-item-copy strong {
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.sidebar-item-copy small,
+.sidebar:not(.collapsed) .sidebar-item-copy small {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.sidebar-section-title,
+.sidebar:not(.collapsed) .sidebar-section-title,
+.sidebar-section-inline {
+  font-size: 11px;
+}
+
+.sidebar-group-children button,
+.sidebar-nav .sidebar-child {
+  font-size: 11px;
+}
+
+/* Classificação Mercadológica deve permanecer sempre em uma única linha.
+   Reduzimos somente o necessário e reservamos a coluna da seta. */
+.sidebar [id="sidebar-nav-group:structure"] {
+  grid-template-columns: 30px minmax(0, 1fr) 12px !important;
+  column-gap: 6px !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-icon {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-copy strong {
+  font-size: 11.5px;
+  line-height: 1.1;
+  letter-spacing: -.025em;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-copy small {
+  white-space: nowrap;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-chevron,
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-group-chevron {
+  width: 12px;
+  height: 12px;
+  justify-self: end;
+}
+
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-item-chevron .sidebar-glyph,
+.sidebar [id="sidebar-nav-group:structure"] .sidebar-group-chevron .sidebar-glyph {
+  width: 12px;
+  height: 12px;
 }
