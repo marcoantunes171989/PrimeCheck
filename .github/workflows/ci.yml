@@ -50,3 +50,6 @@ jobs:
 
       - name: Verify NFC-e formatted XML view
         run: npm run verify:nfce-xml-format
+
+      - name: Verify build SHA and served bundle
+        run: npm run verify:build-info

@@ -795,6 +795,17 @@
   line-height: 1.4;
   text-align: center;
 }
+.nfce-modal-body.nfce-modal-body-xml {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.nfce-modal-body.nfce-modal-body-xml > .nfce-raw-view {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}
 .nfce-raw-view {
   display: flex;
   flex-direction: column;
@@ -1337,4 +1348,13 @@
   .nfce-toolbar-controls .button {
     margin-left: 0;
   }
+}
+
+
+/* XML bruto NFC-e — ocupa integralmente a área útil do modal */
+.nfce-modal-body-xml .nfce-raw-view pre {
+  height: 100%;
+}
+.nfce-modal-body-xml .nfce-raw-view pre code {
+  min-height: 100%;
 }

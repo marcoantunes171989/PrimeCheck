@@ -1000,7 +1000,7 @@ export default function NfceValidatorPage() {
             </nav>
 
             <div
-              className="nfce-modal-body"
+              className={`nfce-modal-body${modalTab === 'xml' ? ' nfce-modal-body-xml' : ''}`}
               ref={modalBodyRef}
               onScroll={event => {
                 latestUiRef.current = {
