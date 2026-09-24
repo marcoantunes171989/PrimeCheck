@@ -2,6 +2,7 @@ import { clientProfile } from './entities/client'
 import { supplierProfile } from './entities/supplier'
 import { productProfile } from './entities/product'
 import { sectionProfile } from './entities/section'
+import { groupProfile } from './entities/group'
 import { normalizeHeader } from '../lib/normalizers'
 import type { EntityProfile, FieldDefinition, ImportedFile } from '../types'
 
@@ -380,6 +381,7 @@ const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceMod
   if (token === 'CLIENTE' || token.startsWith('CLIENTE_')) return 'clients'
   if (token === 'FORNECEDOR' || token.startsWith('FORNECEDOR_')) return 'suppliers'
   if (token === 'SECAO' || token.startsWith('SECAO_')) return 'sections'
+  if (token === 'GRUPO' || token.startsWith('GRUPO_')) return 'groups'
 
   return null
 }
@@ -410,13 +412,18 @@ export const getWorkspaceComparisonFileRole = (
   moduleId: WorkspaceModuleId,
   fileName: string,
 ): WorkspaceComparisonFileRole => {
-  if (moduleId !== 'sections') return null
-
   const withoutExtension = fileName.replace(/\.[^.]+$/, '')
   const token = normalizeHeader(withoutExtension)
-  if (!token.startsWith('SECAO_')) return null
 
-  const suffix = token.slice('SECAO_'.length)
+  const prefix = moduleId === 'sections'
+    ? 'SECAO_'
+    : moduleId === 'groups'
+      ? 'GRUPO_'
+      : ''
+
+  if (!prefix || !token.startsWith(prefix)) return null
+
+  const suffix = token.slice(prefix.length)
   if (!suffix) return null
 
   if (suffix === 'INTERSOLID' || suffix === 'INTER_SOLID') return 'target'
@@ -452,8 +459,14 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
       return hasExactHeader(file, ['COD_SECAO'])
         && hasExactHeader(file, ['DES_SECAO'])
     }
-    case 'groups':
-      return hasAnyHeader(file, ['COD_GRUPO', 'DES_GRUPO', 'CODIGO_GRUPO'])
+    case 'groups': {
+      const role = getWorkspaceComparisonFileRole('groups', file.name)
+      if (!role) return false
+
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['DES_GRUPO'])
+    }
     case 'subgroups':
       return hasAnyHeader(file, ['COD_SUBGRUPO', 'DES_SUBGRUPO', 'CODIGO_SUBGRUPO', 'SUB_GRUPO'])
     case 'products':
@@ -637,6 +650,7 @@ const baseProfileForModule = (moduleId: WorkspaceModuleId) => {
   if (moduleId === 'clients') return clientProfile
   if (moduleId === 'suppliers') return supplierProfile
   if (moduleId === 'sections') return sectionProfile
+  if (moduleId === 'groups') return groupProfile
   if (moduleId === 'products') return productProfile
   return undefined
 }
