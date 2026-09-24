@@ -180,7 +180,7 @@ export default function WorkspaceImportPage({
             fileName: accepted[accepted.length - 1]?.name ?? currentProgress.fileName,
             fileIndex: Math.max(0, accepted.length - 1),
             completedFiles: accepted.length,
-            phase: parsed.errors.length ? 'error' : 'completed',
+            phase: parsed.errors.length || dependencyWarnings.length ? 'error' : 'completed',
             filePercent: 100,
             overallPercent: 100,
             loadedBytes: totalBytes,
