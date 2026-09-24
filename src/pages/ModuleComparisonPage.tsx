@@ -3,6 +3,7 @@ import HomologationApp from '../HomologationApp'
 import clientDestinationSql from '../sql/cliente-destino-intersolid.sql?raw'
 import supplierDestinationSql from '../sql/fornecedor-destino-intersolid.sql?raw'
 import groupDestinationSql from '../sql/grupo-destino-intersolid.sql?raw'
+import subgroupDestinationSql from '../sql/subgrupo-destino-intersolid.sql?raw'
 import {
   getWorkspaceComparisonFileRole,
   getWorkspaceEntityProfile,
@@ -73,7 +74,7 @@ const pickInitialPair = (names: string[], moduleId: WorkspaceModuleDefinition['i
     }
   }
 
-  if (moduleId === 'sections' || moduleId === 'groups') {
+  if (moduleId === 'sections' || moduleId === 'groups' || moduleId === 'subgroups') {
     return {
       origin: names.find(name => getWorkspaceComparisonFileRole(moduleId, name) === 'origin') ?? '',
       target: names.find(name => getWorkspaceComparisonFileRole(moduleId, name) === 'target') ?? '',
@@ -117,13 +118,15 @@ export default function ModuleComparisonPage({
   const [supplierSqlCopied, setSupplierSqlCopied] = useState(false)
   const [groupSqlOpen, setGroupSqlOpen] = useState(false)
   const [groupSqlCopied, setGroupSqlCopied] = useState(false)
+  const [subgroupSqlOpen, setSubgroupSqlOpen] = useState(false)
+  const [subgroupSqlCopied, setSubgroupSqlCopied] = useState(false)
 
   const originOptions = useMemo(
     () => module.id === 'clients'
       ? physicalNames.filter(name => clientFileRole(name) === 'origin')
       : module.id === 'suppliers'
         ? physicalNames.filter(name => supplierFileRole(name) === 'origin')
-        : module.id === 'sections' || module.id === 'groups'
+        : module.id === 'sections' || module.id === 'groups' || module.id === 'subgroups'
           ? physicalNames.filter(name => getWorkspaceComparisonFileRole(module.id, name) === 'origin')
           : physicalNames,
     [module.id, physicalNames],
@@ -133,7 +136,7 @@ export default function ModuleComparisonPage({
       ? physicalNames.filter(name => clientFileRole(name) === 'target')
       : module.id === 'suppliers'
         ? physicalNames.filter(name => supplierFileRole(name) === 'target')
-        : module.id === 'sections' || module.id === 'groups'
+        : module.id === 'sections' || module.id === 'groups' || module.id === 'subgroups'
           ? physicalNames.filter(name => getWorkspaceComparisonFileRole(module.id, name) === 'target')
           : physicalNames,
     [module.id, physicalNames],
@@ -142,7 +145,8 @@ export default function ModuleComparisonPage({
   const supplierPairReady = module.id !== 'suppliers' || (originOptions.length > 0 && targetOptions.length > 0)
   const sectionPairReady = module.id !== 'sections' || (originOptions.length > 0 && targetOptions.length > 0)
   const groupPairReady = module.id !== 'groups' || (originOptions.length > 0 && targetOptions.length > 0)
-  const pairReady = clientPairReady && supplierPairReady && sectionPairReady && groupPairReady
+  const subgroupPairReady = module.id !== 'subgroups' || (originOptions.length > 0 && targetOptions.length > 0)
+  const pairReady = clientPairReady && supplierPairReady && sectionPairReady && groupPairReady && subgroupPairReady
 
   useEffect(() => {
     const stored = loadWorkspaceComparisonSelection(module.id)
@@ -178,6 +182,13 @@ export default function ModuleComparisonPage({
           getWorkspaceComparisonFileRole('groups', stored.originName) === 'origin'
           && getWorkspaceComparisonFileRole('groups', stored.targetName) === 'target'
         )
+      )
+      && (
+        module.id !== 'subgroups'
+        || (
+          getWorkspaceComparisonFileRole('subgroups', stored.originName) === 'origin'
+          && getWorkspaceComparisonFileRole('subgroups', stored.targetName) === 'target'
+        )
       ),
     )
     const pair = storedIsValid && stored
@@ -209,7 +220,9 @@ export default function ModuleComparisonPage({
         ? 'sections:checklist-v1'
         : module.id === 'groups'
           ? 'groups:checklist-v1'
-          : module.id
+          : module.id === 'subgroups'
+            ? 'subgroups:checklist-v1'
+            : module.id
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
@@ -244,6 +257,13 @@ export default function ModuleComparisonPage({
         getWorkspaceComparisonFileRole('groups', originName) === 'origin'
         && getWorkspaceComparisonFileRole('groups', targetName) === 'target'
       )
+    )
+    && (
+      module.id !== 'subgroups'
+      || (
+        getWorkspaceComparisonFileRole('subgroups', originName) === 'origin'
+        && getWorkspaceComparisonFileRole('subgroups', targetName) === 'target'
+      )
     ),
   )
   const persistedMapping = useMemo(
@@ -266,7 +286,7 @@ export default function ModuleComparisonPage({
   )
 
   const swap = () => {
-    if (module.id === 'clients' || module.id === 'suppliers' || module.id === 'sections' || module.id === 'groups') return
+    if (module.id === 'clients' || module.id === 'suppliers' || module.id === 'sections' || module.id === 'groups' || module.id === 'subgroups') return
     setOriginName(targetName)
     setTargetName(originName)
   }
@@ -361,19 +381,50 @@ export default function ModuleComparisonPage({
     URL.revokeObjectURL(url)
   }
 
+  const copySubgroupSql = async () => {
+    try {
+      await navigator.clipboard.writeText(subgroupDestinationSql)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = subgroupDestinationSql
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      textarea.remove()
+    }
+
+    setSubgroupSqlCopied(true)
+    window.setTimeout(() => setSubgroupSqlCopied(false), 1800)
+  }
+
+  const downloadSubgroupSql = () => {
+    const blob = new Blob([subgroupDestinationSql], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'subgrupo-destino-intersolid.sql'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }
+
   useEffect(() => {
-    if (!clientSqlOpen && !supplierSqlOpen && !groupSqlOpen) return
+    if (!clientSqlOpen && !supplierSqlOpen && !groupSqlOpen && !subgroupSqlOpen) return
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       setClientSqlOpen(false)
       setSupplierSqlOpen(false)
       setGroupSqlOpen(false)
+      setSubgroupSqlOpen(false)
     }
 
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [clientSqlOpen, supplierSqlOpen, groupSqlOpen])
+  }, [clientSqlOpen, supplierSqlOpen, groupSqlOpen, subgroupSqlOpen])
 
   return (
     <main className="module-comparison-page">
@@ -414,6 +465,15 @@ export default function ModuleComparisonPage({
               Script SQL do destino
             </button>
           )}
+          {module.id === 'subgroups' && (
+            <button
+              type="button"
+              className="button secondary client-sql-open"
+              onClick={() => setSubgroupSqlOpen(true)}
+            >
+              Script SQL do destino
+            </button>
+          )}
           <button type="button" className="button ghost" onClick={onBackToImport}>
             Gerenciar arquivos
           </button>
@@ -449,7 +509,9 @@ export default function ModuleComparisonPage({
                       ? ' · Seções de origem'
                       : module.id === 'groups'
                         ? ' · Grupos de origem'
-                        : '')
+                        : module.id === 'subgroups'
+                          ? ' · Subgrupos de origem'
+                          : '')
               : module.id === 'clients'
                 ? 'Padrão: CLIENTE_[nome fantasia].csv'
                 : module.id === 'suppliers'
@@ -458,7 +520,9 @@ export default function ModuleComparisonPage({
                     ? 'Padrão: SECAO_[cliente].csv'
                     : module.id === 'groups'
                       ? 'Padrão: GRUPO_[cliente].csv'
-                      : 'Aguardando seleção'}
+                      : module.id === 'subgroups'
+                        ? 'Padrão: SUBGRUPO_[cliente].csv'
+                        : 'Aguardando seleção'}
           </small>
         </div>
 
@@ -466,7 +530,7 @@ export default function ModuleComparisonPage({
           type="button"
           className="comparison-swap"
           onClick={swap}
-          disabled={!originName || !targetName || module.id === 'clients' || module.id === 'suppliers' || module.id === 'sections' || module.id === 'groups'}
+          disabled={!originName || !targetName || module.id === 'clients' || module.id === 'suppliers' || module.id === 'sections' || module.id === 'groups' || module.id === 'subgroups'}
           title={
             module.id === 'clients'
               ? 'Em Clientes, CLIENTE_intersolid é sempre o destino'
@@ -476,7 +540,9 @@ export default function ModuleComparisonPage({
                 ? 'Em Seções, o arquivo Intersolid é sempre o destino'
                 : module.id === 'groups'
                   ? 'Em Grupos, GRUPO_intersolid é sempre o destino'
-                  : 'Trocar origem e destino'
+                  : module.id === 'subgroups'
+                    ? 'Em Subgrupos, SUBGRUPO_intersolid é sempre o destino'
+                    : 'Trocar origem e destino'
           }
           aria-label={
             module.id === 'clients'
@@ -487,7 +553,9 @@ export default function ModuleComparisonPage({
                 ? 'Origem e destino fixos para Seções'
                 : module.id === 'groups'
                   ? 'Origem e destino fixos para Grupos'
-                  : 'Trocar arquivo de origem e destino'
+                  : module.id === 'subgroups'
+                    ? 'Origem e destino fixos para Subgrupos'
+                    : 'Trocar arquivo de origem e destino'
           }
         >
           ⇄
@@ -521,7 +589,9 @@ export default function ModuleComparisonPage({
                       ? ' · Destino Intersolid'
                       : module.id === 'groups'
                         ? ' · Destino Intersolid'
-                        : '')
+                        : module.id === 'subgroups'
+                          ? ' · Destino Intersolid'
+                          : '')
               : module.id === 'clients'
                 ? 'Padrão obrigatório: CLIENTE_intersolid.csv'
                 : module.id === 'suppliers'
@@ -530,7 +600,9 @@ export default function ModuleComparisonPage({
                     ? 'Padrão obrigatório: SECAO_intersolid.csv'
                     : module.id === 'groups'
                       ? 'Padrão obrigatório: GRUPO_intersolid.csv'
-                      : 'Aguardando seleção'}
+                      : module.id === 'subgroups'
+                        ? 'Padrão obrigatório: SUBGRUPO_intersolid.csv'
+                        : 'Aguardando seleção'}
           </small>
         </div>
       </section>
@@ -547,7 +619,9 @@ export default function ModuleComparisonPage({
                 ? 'Use SECAO_[cliente].csv como origem e SECAO_intersolid.csv como destino. Somente os campos Código/Descrição da estrutura de Seções serão considerados.'
                 : module.id === 'groups'
                   ? 'Use GRUPO_[cliente].csv como origem e GRUPO_intersolid.csv como destino. A homologação considera COD_SECAO + COD_GRUPO como vínculo e valida DES_GRUPO.'
-                  : `O PrimeCheck identificou ${physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo. Volte à Importação e carregue a base de origem e a base convertida/destino.`
+                  : module.id === 'subgroups'
+                    ? 'Use SUBGRUPO_[cliente].csv como origem e SUBGRUPO_intersolid.csv como destino. A homologação considera COD_SECAO + COD_GRUPO + COD_SUB_GRUPO como vínculo e valida DES_SUB_GRUPO.'
+                    : `O PrimeCheck identificou ${physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo. Volte à Importação e carregue a base de origem e a base convertida/destino.`
             }
           </span>
           <button type="button" className="button primary" onClick={onBackToImport}>
@@ -566,7 +640,9 @@ export default function ModuleComparisonPage({
                 ? 'Para Seções, a origem deve seguir SECAO_[cliente] e o destino deve ser SECAO_intersolid.'
                 : module.id === 'groups'
                   ? 'Para Grupos, a origem deve seguir GRUPO_[cliente] e o destino deve ser GRUPO_intersolid.'
-                  : 'Os nomes dos arquivos podem variar livremente; a identificação do módulo é feita pelos campos encontrados.'}
+                  : module.id === 'subgroups'
+                    ? 'Para Subgrupos, a origem deve seguir SUBGRUPO_[cliente] e o destino deve ser SUBGRUPO_intersolid.'
+                    : 'Os nomes dos arquivos podem variar livremente; a identificação do módulo é feita pelos campos encontrados.'}
           </span>
         </section>
       ) : (
@@ -754,6 +830,61 @@ export default function ModuleComparisonPage({
                 {groupSqlCopied ? 'Copiado!' : 'Copiar SQL'}
               </button>
               <button type="button" className="button primary" onClick={downloadGroupSql}>
+                Baixar .sql
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {module.id === 'subgroups' && subgroupSqlOpen && (
+        <div
+          className="client-sql-modal-backdrop"
+          role="presentation"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setSubgroupSqlOpen(false)
+          }}
+        >
+          <section
+            className="client-sql-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subgroup-sql-modal-title"
+          >
+            <header className="client-sql-modal-head">
+              <div>
+                <span className="eyebrow">EXPORTAÇÃO DO DESTINO</span>
+                <h2 id="subgroup-sql-modal-title">Script SQL · Subgrupos</h2>
+                <p>
+                  Execute esta consulta no banco de destino para gerar o arquivo utilizado na homologação.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="client-sql-modal-close"
+                onClick={() => setSubgroupSqlOpen(false)}
+                aria-label="Fechar script SQL"
+                title="Fechar"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="client-sql-modal-note">
+              <strong>Arquivo:</strong>
+              <span>subgrupo-destino-intersolid.sql</span>
+            </div>
+
+            <pre className="client-sql-code"><code>{subgroupDestinationSql}</code></pre>
+
+            <footer className="client-sql-modal-actions">
+              <button type="button" className="button ghost" onClick={() => setSubgroupSqlOpen(false)}>
+                Fechar
+              </button>
+              <button type="button" className="button secondary" onClick={copySubgroupSql}>
+                {subgroupSqlCopied ? 'Copiado!' : 'Copiar SQL'}
+              </button>
+              <button type="button" className="button primary" onClick={downloadSubgroupSql}>
                 Baixar .sql
               </button>
             </footer>
