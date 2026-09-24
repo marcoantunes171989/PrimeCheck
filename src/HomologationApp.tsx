@@ -32,6 +32,18 @@ type IssueOccurrence = {
   duplicate?: IssueDuplicateInfo
 }
 
+type VisualHierarchyContext = {
+  sectionNames: Record<string, string>
+  groupNames: Record<string, string>
+}
+
+const normalizeHierarchyCode = (value: unknown) => {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+  if (/^\d+$/.test(text)) return text.replace(/^0+(?=\d)/, '')
+  return text.toLocaleUpperCase('pt-BR')
+}
+
 const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
 const plural = (profile: EntityProfile) => profile.label
@@ -108,6 +120,7 @@ type HomologationAppProps = {
   originLabel?: string
   targetLabel?: string
   dashboardMode?: boolean
+  visualHierarchy?: VisualHierarchyContext
   initialMapping?: FieldMapping[]
   onMappingChange?: (mapping: FieldMapping[]) => void
   restoreCompletedReport?: boolean
@@ -199,6 +212,7 @@ function App({
   originLabel = 'Origem',
   targetLabel = 'Destino',
   dashboardMode = false,
+  visualHierarchy,
   initialMapping,
   onMappingChange,
   restoreCompletedReport = false,
@@ -462,6 +476,36 @@ function App({
     setSelectedClient(next.clients.find(client => client.key === clientKey) ?? null)
   }
 
+  const hierarchyForClient = (client: ClientComparison) => {
+    if (!visualHierarchy) {
+      return {
+        sectionCode: '',
+        sectionName: '',
+        groupCode: '',
+        groupName: '',
+      }
+    }
+
+    const keyParts = client.key.split('/').map(part => part.trim())
+    const sectionField = client.fields.find(field => field.fieldId === 'codigoSecao')
+    const groupField = client.fields.find(field => field.fieldId === 'codigoGrupo')
+    const sectionCode = normalizeHierarchyCode(
+      sectionField?.originValue || sectionField?.targetValue || keyParts[0],
+    )
+    const groupCode = normalizeHierarchyCode(
+      groupField?.originValue || groupField?.targetValue || keyParts[1],
+    )
+
+    return {
+      sectionCode,
+      sectionName: sectionCode ? visualHierarchy.sectionNames[sectionCode] ?? '' : '',
+      groupCode,
+      groupName: sectionCode && groupCode
+        ? visualHierarchy.groupNames[sectionCode + '|' + groupCode] ?? ''
+        : '',
+    }
+  }
+
   const filteredClients = useMemo(() => {
     if (!report) return []
     const term = search.trim().toLocaleUpperCase('pt-BR')
@@ -494,12 +538,18 @@ function App({
         ...Object.values(client.originRow),
         ...Object.values(client.targetRow ?? {}),
       ].some(value => String(value ?? '').toLocaleUpperCase('pt-BR').includes(term))
+      const hierarchy = hierarchyForClient(client)
+      const hierarchyHit = [
+        hierarchy.sectionName,
+        hierarchy.groupName,
+      ].some(value => value.toLocaleUpperCase('pt-BR').includes(term))
       return client.key.toLocaleUpperCase('pt-BR').includes(term)
         || client.name.toLocaleUpperCase('pt-BR').includes(term)
         || fieldHit
         || rawHit
+        || hierarchyHit
     })
-  }, [report, search, statusFilter, clientColumnFilters])
+  }, [report, search, statusFilter, clientColumnFilters, visualHierarchy])
 
   const originDuplicateLookup = useMemo(() => {
     const lookup = new Map<string, IssueDuplicateInfo>()
@@ -1189,6 +1239,8 @@ function App({
                           const doc = client.fields.find(f => f.fieldId === 'cpfCnpj')?.originValue ?? ''
                           const validation = validateCpfCnpj(doc)
                           const reviewed = reviewedClientKeys.has(client.key)
+                          const hierarchy = hierarchyForClient(client)
+                          const showHierarchy = resultProfile.id === 'group' || resultProfile.id === 'subgroup'
                           return <tr key={client.key} className={reviewed ? 'row-reviewed' : ''}>
                             <td className="selection-column">
                               <input
@@ -1197,7 +1249,23 @@ function App({
                                 onChange={() => setSelectedClientKeys(current => toggleStringSet(current, client.key))}
                               />
                             </td>
-                            <td className="mono">{client.key}</td>
+                            <td className={showHierarchy ? 'record-code-with-context' : 'mono'}>
+                              {showHierarchy ? (
+                                <>
+                                  <strong className="mono">{client.key}</strong>
+                                  <small>
+                                    <span>Seção {hierarchy.sectionCode || '—'}:</span>
+                                    <b>{hierarchy.sectionName || '—'}</b>
+                                  </small>
+                                  {resultProfile.id === 'subgroup' && (
+                                    <small>
+                                      <span>Grupo {hierarchy.groupCode || '—'}:</span>
+                                      <b>{hierarchy.groupName || '—'}</b>
+                                    </small>
+                                  )}
+                                </>
+                              ) : client.key}
+                            </td>
                             <td><strong>{client.name || '—'}</strong></td>
                             <td>{client.found ? 'Sim' : 'Não'}</td>
                             <td><StatusBadge status={client.status} /></td>
