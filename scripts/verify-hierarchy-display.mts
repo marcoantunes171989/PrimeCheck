@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   buildHierarchyVisual,
+  hierarchySearchValue,
   isGroupHierarchyProfile,
   isSubgroupHierarchyProfile,
 } from '../src/lib/hierarchyDisplay'
@@ -61,6 +62,31 @@ assert.equal(
   'PESCADOS | PEIXE | PEIXE CONGELADO',
 )
 
+assert.equal(
+  hierarchySearchValue(groupClient as any, 'workspace:groups', 'SECTION'),
+  'PESCADOS',
+)
+assert.equal(
+  hierarchySearchValue(groupClient as any, 'workspace:groups', 'GROUP'),
+  'PEIXE',
+)
+assert.equal(
+  hierarchySearchValue(subgroupClient as any, 'workspace:subgroups', 'SECTION'),
+  'PESCADOS',
+)
+assert.equal(
+  hierarchySearchValue(subgroupClient as any, 'workspace:subgroups', 'GROUP'),
+  'PEIXE',
+)
+assert.equal(
+  hierarchySearchValue(subgroupClient as any, 'workspace:subgroups', 'SUBGROUP'),
+  'PEIXE CONGELADO',
+)
+assert.equal(
+  hierarchySearchValue(subgroupClient as any, 'workspace:subgroups', 'ALL'),
+  'PESCADOS | PEIXE | PEIXE CONGELADO',
+)
+
 const fallbackClient = {
   ...subgroupClient,
   targetRow: {
@@ -83,4 +109,4 @@ assert.equal(
   'PESCADOS | PEIXE | PEIXE CONGELADO',
 )
 
-console.log('Hierarchy display verification: OK')
+console.log('Hierarchy display and level search verification: OK')
