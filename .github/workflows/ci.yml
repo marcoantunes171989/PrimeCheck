@@ -42,6 +42,9 @@ jobs:
       - name: Verify dashboard navigation
         run: npm run verify:dashboard-navigation
 
+      - name: Verify authentication gate
+        run: npm run verify:auth-gate
+
       - name: Verify NFC-e product search filters
         run: npm run verify:nfce-short-cprod
 
