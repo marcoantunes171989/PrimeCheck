@@ -462,7 +462,7 @@
   cursor: default;
 }
 .nfce-product-lookup-table {
-  min-width: 620px;
+  min-width: 760px;
 }
 .nfce-product-lookup-table th:first-child,
 .nfce-product-lookup-table td:first-child {
@@ -472,6 +472,21 @@
 .nfce-product-lookup-table th:nth-child(2),
 .nfce-product-lookup-table td:nth-child(2) {
   min-width: 340px;
+}
+.nfce-product-lookup-table th:nth-child(3),
+.nfce-product-lookup-table td:nth-child(3) {
+  width: 180px;
+  white-space: nowrap;
+}
+.nfce-sales-package {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: #edf4f7;
+  color: var(--primary);
+  font-weight: 800;
 }
 @media (max-width: 1220px) {
   .nfce-product-query-filters {
@@ -489,6 +504,6 @@
     width: 100%;
   }
   .nfce-product-lookup-table {
-    min-width: 560px;
+    min-width: 700px;
   }
 }
