@@ -83,3 +83,52 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "O fluxo exato validar-local.cmd -> PowerShell falhou com codigo $LASTEXITCODE."
           }
+
+      - name: Execute final PrimeCheck server path
+        shell: powershell
+        run: |
+          $env:PRIMECHECK_NO_OPEN = "1"
+          $serverScript = Join-Path $PWD "scripts\serve-primecheck-local.ps1"
+
+          $server = Start-Process powershell -ArgumentList @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", "`"$serverScript`""
+          ) -PassThru -WindowStyle Hidden
+
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 40; $i++) {
+              try {
+                $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/" -TimeoutSec 2
+                if ($response.StatusCode -eq 200 -and $response.Content -match "PrimeCheck") {
+                  $ready = $true
+                  break
+                }
+              } catch {}
+              Start-Sleep -Milliseconds 500
+            }
+
+            if (-not $ready) {
+              throw "O servidor definitivo nao respondeu HTTP 200 na porta 4177."
+            }
+
+            $sidebar = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/components/Sidebar.tsx").Content
+            $analytics = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/pages/NfceAnalyticsPage.tsx").Content
+
+            if ($sidebar -notmatch "Pesquisa por produtos") {
+              throw "Servidor definitivo nao entregou o menu Pesquisa por produtos."
+            }
+            if ($analytics -notmatch "Consulta de produtos") {
+              throw "Servidor definitivo nao entregou a tela Consulta de produtos."
+            }
+
+            Write-Host "Servidor definitivo PrimeCheck OK na porta 4177."
+          }
+          finally {
+            $listeners = Get-NetTCPConnection -LocalPort 4177 -State Listen -ErrorAction SilentlyContinue
+            foreach ($listener in $listeners) {
+              Stop-Process -Id $listener.OwningProcess -Force -ErrorAction SilentlyContinue
+            }
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+          }
