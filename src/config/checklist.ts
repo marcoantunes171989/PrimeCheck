@@ -475,17 +475,17 @@ const CLIENT_CHECKLIST_CONFIG: Record<string, {
   },
   condicaoPagamento: {
     checklistLabel: 'condição de pagamento',
-    databaseField: 'des_observacao',
-    originExactAliases: ['DES_OBSERVACAO'],
-    targetExactAliases: ['DES_OBSERVACAO'],
-    targetSourceAliases: ['OBSERVACAO'],
-  },
-  observacao: {
-    checklistLabel: 'observação',
     databaseField: '',
     originExactAliases: [],
     targetExactAliases: [],
     targetSourceAliases: [],
+  },
+  observacao: {
+    checklistLabel: 'observação',
+    databaseField: 'DES_OBSERVACAO',
+    originExactAliases: ['DES_OBSERVACAO'],
+    targetExactAliases: ['DES_OBSERVACAO'],
+    targetSourceAliases: ['OBSERVACAO'],
   },
 }
 
