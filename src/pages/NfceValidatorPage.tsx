@@ -25,6 +25,7 @@ import {
 } from '../lib/workspaceStorage'
 import ImportProgressBar from '../components/ImportProgressBar'
 import { xmlEntryMatchesSearch } from '../lib/nfceXmlSearch'
+import { formatXmlForDisplay } from '../lib/nfceXmlFormat'
 import '../nfce.css'
 
 const PAGE_SIZE = 20
@@ -363,6 +364,7 @@ export default function NfceValidatorPage() {
   const [storageMessage, setStorageMessage] = useState('Restaurando XMLs salvos para este IP…')
 
   const detail = useMemo(() => selected ? parseNfceDetail(selected) : null, [selected])
+  const formattedRawXml = useMemo(() => selected ? formatXmlForDisplay(selected.rawXml) : '', [selected])
   const expandedXmlKeySet = useMemo(() => new Set(expandedXmlKeys), [expandedXmlKeys])
 
   useEffect(() => {
@@ -1262,12 +1264,13 @@ export default function NfceValidatorPage() {
                 <section className="nfce-raw-view">
                   <div className="nfce-raw-head">
                     <div>
-                      <span className="eyebrow">ARQUIVO ORIGINAL</span>
+                      <span className="eyebrow">ARQUIVO ORIGINAL · VISUALIZAÇÃO FORMATADA</span>
                       <h3>{selected.fileName}</h3>
+                      <p>Indentação e quebras de linha são aplicadas somente para leitura. “Copiar XML” preserva exatamente o arquivo importado.</p>
                     </div>
                     <button className="button secondary" type="button" onClick={() => void copyXml()}>Copiar XML</button>
                   </div>
-                  <pre>{selected.rawXml}</pre>
+                  <pre aria-label="XML formatado para leitura"><code>{formattedRawXml}</code></pre>
                 </section>
               )}
             </div>
