@@ -23,13 +23,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [1/6] Encerrando qualquer preview antigo na porta 4173...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":4173" ^| findstr "LISTENING"') do (
-  echo Encerrando PID %%P...
-  taskkill /PID %%P /F >nul 2>&1
-)
-timeout /t 1 /nobreak >nul
-echo Porta 4173 liberada.
+echo [1/6] Preparando ambiente local isolado por versao...
+echo O servidor antigo da porta 4173 nao sera reutilizado.
 echo.
 
 if not exist node_modules (
@@ -63,19 +58,32 @@ echo.
 for /f "delims=" %%S in ('git rev-parse HEAD') do set "EXPECTED_SHA=%%S"
 set "VITE_PRIMECHECK_SHA=%EXPECTED_SHA%"
 
-echo Acesso nesta maquina:
-echo   http://localhost:4173
+for /f "delims=" %%P in ('powershell -NoProfile -Command "$s='%EXPECTED_SHA%'; 4200 + ([Convert]::ToInt32($s.Substring(0,4),16) %% 1000)"') do set "LOCAL_PORT=%%P"
+
+echo Porta exclusiva desta versao: %LOCAL_PORT%
 echo.
-echo O modo local usa Vite DEV para evitar bundle antigo e service worker.
+echo Encerrando qualquer processo antigo somente nesta porta...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":%LOCAL_PORT%" ^| findstr "LISTENING"') do (
+  echo Encerrando PID %%P...
+  taskkill /PID %%P /F >nul 2>&1
+)
+timeout /t 1 /nobreak >nul
+
+echo.
+echo Acesso desta versao:
+echo   http://localhost:%LOCAL_PORT%
+echo.
+echo NAO USE http://localhost:4173 para esta homologacao.
+echo O modo local usa uma porta exclusiva por SHA para impedir versao antiga.
 echo.
 
-start "PrimeCheck Local" /min cmd /c "cd /d ""%~dp0"" && set ""VITE_PRIMECHECK_SHA=%EXPECTED_SHA%"" && npm run serve:local"
+start "PrimeCheck Local %LOCAL_PORT%" /min cmd /c "cd /d ""%~dp0"" && set ""VITE_PRIMECHECK_SHA=%EXPECTED_SHA%"" && npm run serve:local -- --port %LOCAL_PORT%"
 
 echo.
 echo [6/6] Confirmando fonte servida e executando smoke test no Edge...
 set "SERVE_OK="
 for /L %%I in (1,1,30) do (
-  node scripts\verify-local-served-build.mjs "http://localhost:4173" "%EXPECTED_SHA%" >nul 2>&1
+  node scripts\verify-local-served-build.mjs "http://localhost:%LOCAL_PORT%" "%EXPECTED_SHA%" >nul 2>&1
   if not errorlevel 1 (
     set "SERVE_OK=1"
     goto :sourceok
@@ -86,7 +94,7 @@ for /L %%I in (1,1,30) do (
 echo [ERRO] O Vite local nao entregou a versao esperada.
 echo SHA esperado: %EXPECTED_SHA%
 echo.
-node scripts\verify-local-served-build.mjs "http://localhost:4173" "%EXPECTED_SHA%"
+node scripts\verify-local-served-build.mjs "http://localhost:%LOCAL_PORT%" "%EXPECTED_SHA%"
 pause
 exit /b 1
 
@@ -112,11 +120,15 @@ set "SMOKE_DIR=%TEMP%\primecheck-edge-smoke-%RANDOM%"
 set "SMOKE_FILE=%TEMP%\primecheck-edge-smoke-%RANDOM%.html"
 if exist "%SMOKE_DIR%" rmdir /s /q "%SMOKE_DIR%"
 
-"%EDGE_EXE%" --headless=new --disable-gpu --no-first-run --disable-extensions --user-data-dir="%SMOKE_DIR%" --virtual-time-budget=7000 --dump-dom "http://localhost:4173/?smoke=%EXPECTED_SHA%" > "%SMOKE_FILE%" 2>nul
+"%EDGE_EXE%" --headless=new --disable-gpu --no-first-run --disable-extensions --user-data-dir="%SMOKE_DIR%" --virtual-time-budget=7000 --dump-dom "http://localhost:%LOCAL_PORT%/?smoke=%EXPECTED_SHA%" > "%SMOKE_FILE%" 2>nul
 
 findstr /C:"PrimeCheck" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
 findstr /C:"Processamento local" "%SMOKE_FILE%" >nul
+if errorlevel 1 goto :smokeerror
+findstr /C:"Pesquisa por produtos" "%SMOKE_FILE%" >nul
+if errorlevel 1 goto :smokeerror
+findstr /C:"Consulta de produtos" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
 findstr /C:"%EXPECTED_SHA:~0,12%" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
@@ -130,9 +142,9 @@ echo [OK] Edge executou o React e confirmou a interface PrimeCheck.
 echo [OK] SHA carregado: %EXPECTED_SHA%
 echo.
 echo Acesso validado:
-echo   http://localhost:4173/?build=%EXPECTED_SHA%
+echo   http://localhost:%LOCAL_PORT%/?build=%EXPECTED_SHA%
 echo.
-start "" "http://localhost:4173/?build=%EXPECTED_SHA%"
+start "" "http://localhost:%LOCAL_PORT%/?build=%EXPECTED_SHA%"
 exit /b 0
 
 :smokeerror
