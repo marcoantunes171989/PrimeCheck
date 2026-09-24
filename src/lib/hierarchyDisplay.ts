@@ -14,6 +14,8 @@ export type HierarchyVisual = {
   displayLabel: string
 }
 
+export type HierarchySearchLevel = 'ALL' | 'SECTION' | 'GROUP' | 'SUBGROUP'
+
 export const isGroupHierarchyProfile = (profileId: string) =>
   profileId === 'group' || profileId === 'workspace:groups'
 
@@ -85,4 +87,27 @@ export const buildHierarchyVisual = (
     groupName,
     displayLabel,
   }
+}
+
+
+export const hierarchySearchValue = (
+  client: ClientComparison,
+  profileId: string,
+  level: HierarchySearchLevel,
+  context?: VisualHierarchyContext,
+) => {
+  const hierarchy = buildHierarchyVisual(client, profileId, context)
+  const recordName = client.name || ''
+
+  if (level === 'SECTION') return hierarchy.sectionName || hierarchy.sectionCode
+  if (level === 'GROUP') {
+    return isGroupHierarchyProfile(profileId)
+      ? recordName
+      : hierarchy.groupName || hierarchy.groupCode
+  }
+  if (level === 'SUBGROUP') {
+    return isSubgroupHierarchyProfile(profileId) ? recordName : ''
+  }
+
+  return hierarchy.displayLabel
 }
