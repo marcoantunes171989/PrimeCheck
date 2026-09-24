@@ -14,6 +14,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <script id="primecheck-local-cleanup">
+      (() => {
+        const local = ['localhost', '127.0.0.1', '::1'].includes(location.hostname)
+        if (!local) return
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations()
+            .then(items => Promise.all(items.map(item => item.unregister())))
+            .catch(() => undefined)
+        }
+        if ('caches' in window) {
+          caches.keys()
+            .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+            .catch(() => undefined)
+        }
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
