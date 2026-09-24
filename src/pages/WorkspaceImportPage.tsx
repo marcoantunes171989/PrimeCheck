@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseFiles, formatBytes } from '../lib/files'
 import type { ParseFilesProgress } from '../lib/files'
 import { analyzeWorkspaceFiles } from '../config/workspaceModules'
+import ImportProgressBar from '../components/ImportProgressBar'
 import type { ImportedFile } from '../types'
 
 const formatDuration = (seconds: number) => {
@@ -218,68 +219,51 @@ export default function WorkspaceImportPage({
       </section>
 
       {importProgress && (
-        <section
-          className={'workspace-import-progress ' + (busy ? 'is-running' : 'is-complete')}
-          aria-live="polite"
-        >
-          <div className="workspace-import-progress-head">
-            <div>
-              <span className="eyebrow">{busy ? 'IMPORTAÇÃO EM ANDAMENTO' : 'ÚLTIMA IMPORTAÇÃO'}</span>
-              <strong>
-                {busy
-                  ? (importProgress.phase === 'processing' ? 'Processando e organizando dados…' : 'Carregando arquivos…')
-                  : importProgress.phase === 'error'
-                    ? 'Importação concluída com avisos.'
-                    : 'Importação concluída.'}
-              </strong>
-              <small title={importProgress.fileName}>{importProgress.fileName || 'Arquivos importados'}</small>
-            </div>
-            <div className="workspace-import-progress-percent">
-              <strong>{importProgress.overallPercent}%</strong>
+        <ImportProgressBar
+          percent={importProgress.overallPercent}
+          running={busy}
+          title={
+            busy
+              ? (importProgress.phase === 'processing'
+                  ? 'Processando e organizando dados…'
+                  : 'Carregando arquivos…')
+              : importProgress.phase === 'error'
+                ? 'Importação concluída com avisos.'
+                : 'Importação concluída.'
+          }
+          detail={importProgress.fileName || 'Arquivos importados'}
+          meta={(
+            <>
               <span>
+                <strong>Arquivo atual:</strong>{' '}
+                {Math.min(importProgress.fileIndex + 1, importProgress.totalFiles).toLocaleString('pt-BR')}
+                {' de '}
+                {importProgress.totalFiles.toLocaleString('pt-BR')}
+                {' · '}
+                {importProgress.filePercent}% do arquivo
+              </span>
+              <span>
+                <strong>Concluídos:</strong>{' '}
                 {importProgress.completedFiles.toLocaleString('pt-BR')}
                 {' / '}
                 {importProgress.totalFiles.toLocaleString('pt-BR')}
-                {' arquivos'}
               </span>
-            </div>
-          </div>
-
-          <div
-            className="workspace-import-progress-track"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={importProgress.overallPercent}
-            aria-label="Progresso da importação"
-          >
-            <i style={{ width: String(importProgress.overallPercent) + '%' }} />
-          </div>
-
-          <div className="workspace-import-progress-meta">
-            <span>
-              <strong>Arquivo atual:</strong>{' '}
-              {Math.min(importProgress.fileIndex + 1, importProgress.totalFiles).toLocaleString('pt-BR')}
-              {' de '}
-              {importProgress.totalFiles.toLocaleString('pt-BR')}
-              {' · '}
-              {importProgress.filePercent}% do arquivo
-            </span>
-            <span>
-              <strong>Dados:</strong>{' '}
-              {formatBytes(importProgress.loadedBytes)}
-              {' / '}
-              {formatBytes(importProgress.totalBytes)}
-            </span>
-            <span><strong>Tempo:</strong> {formatDuration(elapsedSeconds)}</span>
-            <span>
-              <strong>Restante:</strong>{' '}
-              {remainingSeconds === null
-                ? (busy ? 'calculando…' : 'concluído')
-                : '~' + formatDuration(remainingSeconds)}
-            </span>
-          </div>
-        </section>
+              <span>
+                <strong>Dados:</strong>{' '}
+                {formatBytes(importProgress.loadedBytes)}
+                {' / '}
+                {formatBytes(importProgress.totalBytes)}
+              </span>
+              <span><strong>Tempo:</strong> {formatDuration(elapsedSeconds)}</span>
+              <span>
+                <strong>Restante:</strong>{' '}
+                {remainingSeconds === null
+                  ? (busy ? 'calculando…' : 'concluído')
+                  : '~' + formatDuration(remainingSeconds)}
+              </span>
+            </>
+          )}
+        />
       )}
 
       {errors.length > 0 && (
