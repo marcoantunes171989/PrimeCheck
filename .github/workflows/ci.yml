@@ -110,17 +110,19 @@ jobs:
               throw "PrimeCheck nao respondeu HTTP 200 na porta 4177."
             }
 
-            $sidebar = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/components/Sidebar.tsx" -TimeoutSec 3).Content
-            $analytics = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/pages/NfceAnalyticsPage.tsx" -TimeoutSec 3).Content
+            $expectedSha = (git rev-parse HEAD).Trim()
+            $buildInfoResponse = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/build-info.json" -TimeoutSec 3 -Headers @{ "Cache-Control" = "no-cache" }
+            $buildInfo = $buildInfoResponse.Content | ConvertFrom-Json
 
-            if ($sidebar -notmatch "Pesquisa por produtos") {
-              throw "Preview local nao entregou o menu Pesquisa por produtos."
-            }
-            if ($analytics -notmatch "Consulta de produtos") {
-              throw "Preview local nao entregou a tela Consulta de produtos."
+            if ($buildInfo.sha -ne $expectedSha) {
+              throw "Preview local serviu SHA $($buildInfo.sha), esperado $expectedSha."
             }
 
-            Write-Host "PrimeCheck validar-local.cmd OK em http://127.0.0.1:4177/"
+            if ($response.Content -notmatch "<title>PrimeCheck \| Homologa") {
+              throw "Preview local respondeu, mas o HTML nao e do PrimeCheck."
+            }
+
+            Write-Host "PrimeCheck validar-local.cmd OK em http://127.0.0.1:4177/ - SHA $expectedSha"
           }
           finally {
             $listeners = Get-NetTCPConnection -LocalPort 4177 -State Listen -ErrorAction SilentlyContinue
