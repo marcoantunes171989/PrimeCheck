@@ -1,6 +1,7 @@
 import { clientProfile } from './entities/client'
 import { supplierProfile } from './entities/supplier'
 import { productProfile } from './entities/product'
+import { sectionProfile } from './entities/section'
 import { normalizeHeader } from '../lib/normalizers'
 import type { EntityProfile, FieldDefinition, ImportedFile } from '../types'
 
@@ -378,6 +379,7 @@ const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceMod
 
   if (token === 'CLIENTE' || token.startsWith('CLIENTE_')) return 'clients'
   if (token === 'FORNECEDOR' || token.startsWith('FORNECEDOR_')) return 'suppliers'
+  if (token === 'SECAO' || token.startsWith('SECAO_')) return 'sections'
 
   return null
 }
@@ -447,9 +449,8 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
       const role = getWorkspaceComparisonFileRole('sections', file.name)
       if (!role) return false
 
-      return role === 'target'
-        ? hasExactHeader(file, ['CODIGO']) && hasExactHeader(file, ['DESCRICAO'])
-        : hasExactHeader(file, ['COD_SECAO']) && hasExactHeader(file, ['DES_SECAO'])
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['DES_SECAO'])
     }
     case 'groups':
       return hasAnyHeader(file, ['COD_GRUPO', 'DES_GRUPO', 'CODIGO_GRUPO'])
@@ -635,6 +636,7 @@ const moduleFieldGroup = (module: WorkspaceModuleDefinition) => {
 const baseProfileForModule = (moduleId: WorkspaceModuleId) => {
   if (moduleId === 'clients') return clientProfile
   if (moduleId === 'suppliers') return supplierProfile
+  if (moduleId === 'sections') return sectionProfile
   if (moduleId === 'products') return productProfile
   return undefined
 }
