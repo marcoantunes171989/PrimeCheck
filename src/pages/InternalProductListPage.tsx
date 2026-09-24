@@ -8,6 +8,7 @@ import {
   type InternalProductSnapshot,
 } from '../lib/internalProductStorage'
 import { asText, normalizeHeader, stripAccents } from '../lib/normalizers'
+import ImportProgressBar from '../components/ImportProgressBar'
 
 type SortKey = 'code' | 'description'
 type SortDirection = 'asc' | 'desc'
@@ -63,8 +64,14 @@ const findHeader = (headers: string[], aliases: string[]) => {
   })
 }
 
-const buildSnapshot = async (file: File): Promise<InternalProductSnapshot> => {
-  const parsedSheets = await parseFile(file)
+const buildSnapshot = async (
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<InternalProductSnapshot> => {
+  const parsedSheets = await parseFile(file, (_phase, ratio) => {
+    onProgress?.(Math.min(90, Math.round(ratio * 90)))
+  })
+  onProgress?.(93)
   const rows: InternalProductRow[] = []
   const codeHeaders = new Set<string>()
   const descriptionHeaders = new Set<string>()
@@ -96,6 +103,8 @@ const buildSnapshot = async (file: File): Promise<InternalProductSnapshot> => {
     })
   })
 
+  onProgress?.(96)
+
   if (!rows.length) {
     const detail = unmatchedSheets.length
       ? ` Planilhas analisadas: ${unmatchedSheets.join(', ')}.`
@@ -126,6 +135,11 @@ export default function InternalProductListPage() {
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState('')
+  const [importProgress, setImportProgress] = useState<{
+    percent: number
+    fileName: string
+    status: 'running' | 'complete' | 'error'
+  } | null>(null)
   const [globalSearch, setGlobalSearch] = useState('')
   const [codeSearch, setCodeSearch] = useState('')
   const [descriptionSearch, setDescriptionSearch] = useState('')
@@ -176,16 +190,29 @@ export default function InternalProductListPage() {
   }
 
   const handleImport = async (file: File) => {
+    if (busy || restoring) return
+
     setBusy(true)
     setError('')
+    setImportProgress({ percent: 0, fileName: file.name, status: 'running' })
+
     try {
-      const next = await buildSnapshot(file)
+      const next = await buildSnapshot(file, percent => {
+        setImportProgress({ percent, fileName: file.name, status: 'running' })
+      })
+
+      setImportProgress({ percent: 97, fileName: file.name, status: 'running' })
       await saveInternalProductList(next)
+      setImportProgress({ percent: 100, fileName: file.name, status: 'complete' })
+
       setSnapshot(next)
       clearSearch(false)
       setSortKey('code')
       setSortDirection('asc')
     } catch (caught) {
+      setImportProgress(current => current
+        ? { ...current, status: 'error' }
+        : { percent: 0, fileName: file.name, status: 'error' })
       setError(caught instanceof Error ? caught.message : 'Não foi possível importar o arquivo.')
     } finally {
       setBusy(false)
@@ -196,6 +223,7 @@ export default function InternalProductListPage() {
     await clearInternalProductList()
     setSnapshot(null)
     setError('')
+    setImportProgress(null)
     clearSearch(false)
   }
 
@@ -327,6 +355,27 @@ export default function InternalProductListPage() {
         </strong>
         <span>1 arquivo · CSV, TXT, TSV, XLS, XLSX, XLSM, XLSB e ODS</span>
       </section>
+
+      {importProgress && (
+        <ImportProgressBar
+          percent={importProgress.percent}
+          running={importProgress.status === 'running'}
+          title={
+            importProgress.status === 'running'
+              ? 'Importando e identificando produtos…'
+              : importProgress.status === 'error'
+                ? 'Importação interrompida.'
+                : 'Lista de produtos importada com sucesso.'
+          }
+          detail={importProgress.fileName}
+          meta={(
+            <>
+              <span><strong>Arquivo:</strong> {importProgress.fileName}</span>
+              <span><strong>Etapa:</strong> {importProgress.percent < 90 ? 'Leitura' : importProgress.percent < 97 ? 'Organização' : 'Persistência local'}</span>
+            </>
+          )}
+        />
+      )}
 
       {error && (
         <div className="workspace-import-errors">
