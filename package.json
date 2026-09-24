@@ -22,7 +22,8 @@
     "verify:build-info": "npx --yes tsx scripts/verify-build-info.mts",
     "verify:local-served-script": "node scripts/verify-local-served-script.mjs",
     "preview:local": "vite preview --host 127.0.0.1 --port 4177 --strictPort",
-    "verify:dashboard-navigation": "npx --yes tsx scripts/verify-dashboard-navigation.mts"
+    "verify:dashboard-navigation": "npx --yes tsx scripts/verify-dashboard-navigation.mts",
+    "verify:auth-gate": "npx --yes tsx scripts/verify-auth-gate.mts"
   },
   "dependencies": {
     "@br-validators/core": "^1.10.0-data.41",
