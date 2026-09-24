@@ -178,28 +178,48 @@ try {
   Write-Host "[OK] Porta $Port responde HTTP 200 com PrimeCheck e codigo atualizado." -ForegroundColor Green
 
   Write-Host ""
-  Write-Host "[7/7] Executando smoke real no Microsoft Edge..."
-  $edgeCandidates = @(
-    "$env:ProgramFiles(x86)\Microsoft\Edge\Application\msedge.exe",
-    "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
+  Write-Host "[7/7] Executando smoke real em navegador Chromium..."
+  $browserCandidates = @(
+    @{ Name = "Microsoft Edge"; Path = "$env:ProgramFiles(x86)\Microsoft\Edge\Application\msedge.exe" },
+    @{ Name = "Microsoft Edge"; Path = "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe" },
+    @{ Name = "Google Chrome"; Path = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe" },
+    @{ Name = "Google Chrome"; Path = "$env:ProgramFiles(x86)\Google\Chrome\Application\chrome.exe" }
   )
-  $edge = $edgeCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 
-  if (-not $edge) {
-    $edgeCommand = Get-Command msedge.exe -ErrorAction SilentlyContinue
-    if ($edgeCommand) { $edge = $edgeCommand.Source }
-  }
-  if (-not $edge) {
-    Fail "Microsoft Edge nao encontrado para o smoke test."
+  $browser = $null
+  $browserName = ""
+  foreach ($candidate in $browserCandidates) {
+    if ($candidate.Path -and (Test-Path $candidate.Path)) {
+      $browser = $candidate.Path
+      $browserName = $candidate.Name
+      break
+    }
   }
 
-  $smokeDir = Join-Path $env:TEMP "primecheck-edge-$shortSha"
-  $domFile = Join-Path $env:TEMP "primecheck-edge-$shortSha.html"
-  $edgeErr = Join-Path $env:TEMP "primecheck-edge-$shortSha.err"
+  if (-not $browser) {
+    foreach ($commandName in @("msedge.exe", "chrome.exe")) {
+      $command = Get-Command $commandName -ErrorAction SilentlyContinue
+      if ($command) {
+        $browser = $command.Source
+        $browserName = if ($commandName -eq "msedge.exe") { "Microsoft Edge" } else { "Google Chrome" }
+        break
+      }
+    }
+  }
+
+  if (-not $browser) {
+    Fail "Nenhum navegador Chromium compativel foi encontrado para o smoke test."
+  }
+
+  Write-Host "Navegador de smoke: $browserName"
+
+  $smokeDir = Join-Path $env:TEMP "primecheck-browser-$shortSha"
+  $domFile = Join-Path $env:TEMP "primecheck-browser-$shortSha.html"
+  $browserErr = Join-Path $env:TEMP "primecheck-browser-$shortSha.err"
   Remove-Item $smokeDir -Recurse -Force -ErrorAction SilentlyContinue
-  Remove-Item $domFile, $edgeErr -Force -ErrorAction SilentlyContinue
+  Remove-Item $domFile, $browserErr -Force -ErrorAction SilentlyContinue
 
-  $edgeArgs = @(
+  $browserArgs = @(
     "--headless=new",
     "--disable-gpu",
     "--no-first-run",
@@ -210,12 +230,12 @@ try {
     $url
   )
 
-  $edgeProcess = Start-Process -FilePath $edge -ArgumentList $edgeArgs -RedirectStandardOutput $domFile -RedirectStandardError $edgeErr -Wait -PassThru
+  $browserProcess = Start-Process -FilePath $browser -ArgumentList $browserArgs -RedirectStandardOutput $domFile -RedirectStandardError $browserErr -Wait -PassThru
 
-  if ($edgeProcess.ExitCode -ne 0) {
-    $edgeErrorText = if (Test-Path $edgeErr) { Get-Content $edgeErr -Raw } else { "" }
-    Write-Host $edgeErrorText
-    Fail "Edge encerrou com codigo $($edgeProcess.ExitCode)."
+  if ($browserProcess.ExitCode -ne 0) {
+    $browserErrorText = if (Test-Path $browserErr) { Get-Content $browserErr -Raw } else { "" }
+    Write-Host $browserErrorText
+    Fail "$browserName encerrou com codigo $($browserProcess.ExitCode)."
   }
 
   $dom = Get-Content $domFile -Raw
@@ -225,7 +245,7 @@ try {
   if ($dom -notmatch [regex]::Escape($shortSha)) { Fail "SHA $shortSha nao apareceu no DOM." }
   if ($dom -match 'data-primecheck-runtime-error') { Fail "React acionou o Error Boundary." }
 
-  Write-Host "[OK] Edge confirmou PrimeCheck, React e SHA $shortSha." -ForegroundColor Green
+  Write-Host "[OK] $browserName confirmou PrimeCheck, React e SHA $shortSha." -ForegroundColor Green
   Write-Host ""
   Write-Host "==================================================" -ForegroundColor Green
   Write-Host "  PRIME CHECK LOCAL PRONTO" -ForegroundColor Green
