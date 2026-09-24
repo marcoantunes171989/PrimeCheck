@@ -342,12 +342,6 @@ function App({
   useEffect(() => setPage(1), [search, statusFilter, issueFieldFilter, activeTab, pageSize, hierarchySearchLevel])
 
   useEffect(() => {
-    if (!showSubgroupHierarchy && hierarchySearchLevel === 'SUBGROUP') {
-      setHierarchySearchLevel('ALL')
-    }
-  }, [showSubgroupHierarchy, hierarchySearchLevel])
-
-  useEffect(() => {
     const handleAfterPrint = () => setIssuePrintItems([])
     window.addEventListener('afterprint', handleAfterPrint)
     return () => window.removeEventListener('afterprint', handleAfterPrint)
@@ -477,6 +471,12 @@ function App({
 
   const showGroupHierarchy = isGroupHierarchyProfile(resultProfile.id)
   const showSubgroupHierarchy = isSubgroupHierarchyProfile(resultProfile.id)
+
+  useEffect(() => {
+    if (!showSubgroupHierarchy && hierarchySearchLevel === 'SUBGROUP') {
+      setHierarchySearchLevel('ALL')
+    }
+  }, [showSubgroupHierarchy, hierarchySearchLevel])
 
   const hierarchyForClient = (client: ClientComparison) =>
     buildHierarchyVisual(client, resultProfile.id, visualHierarchy)
