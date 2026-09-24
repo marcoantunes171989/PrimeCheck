@@ -188,4 +188,5 @@ export const supplierProfile: EntityProfile = {
   recordLabel: 'Fornecedor',
   showDocumentValidity: true,
   duplicateFieldIds: ['cpfCnpj', 'ie'],
+  ambiguousBareTokens: [],
 }
