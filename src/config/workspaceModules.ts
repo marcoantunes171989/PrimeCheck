@@ -377,6 +377,7 @@ const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceMod
   const token = normalizeHeader(stem)
 
   if (token === 'CLIENTE' || token.startsWith('CLIENTE_')) return 'clients'
+  if (token === 'FORNECEDOR' || token.startsWith('FORNECEDOR_')) return 'suppliers'
 
   return null
 }
