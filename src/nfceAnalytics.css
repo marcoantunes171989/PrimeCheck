@@ -513,7 +513,7 @@
   font-weight: 800;
 }
 .nfce-product-lookup-detail-table {
-  min-width: 1480px;
+  min-width: 1180px;
 }
 .nfce-product-lookup-detail-table th:nth-child(4),
 .nfce-product-lookup-detail-table td:nth-child(4) {
@@ -531,10 +531,6 @@
 }
 .nfce-product-lookup-detail-table th:nth-child(7),
 .nfce-product-lookup-detail-table td:nth-child(7) {
-  min-width: 300px;
-}
-.nfce-product-lookup-detail-table th:nth-child(8),
-.nfce-product-lookup-detail-table td:nth-child(8) {
   min-width: 360px;
 }
 .nfce-access-key {
