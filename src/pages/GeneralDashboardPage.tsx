@@ -34,7 +34,13 @@ const formatBytes = (bytes: number) => {
 
 const statusLabel = (count: number) => count > 0 ? 'Dados disponíveis' : 'Aguardando importação'
 
-export default function GeneralDashboardPage({ files }: { files: ImportedFile[] }) {
+export default function GeneralDashboardPage({
+  files,
+  onNavigate,
+}: {
+  files: ImportedFile[]
+  onNavigate: (target: string) => void
+}) {
   const [internalProducts, setInternalProducts] = useState<InternalProductSnapshot | null>(null)
   const [nfceDocuments, setNfceDocuments] = useState<NfceSummary[]>([])
   const [loadingExtras, setLoadingExtras] = useState(true)
@@ -113,33 +119,72 @@ export default function GeneralDashboardPage({ files }: { files: ImportedFile[] 
       label: 'Clientes',
       value: matchById.get('clients')?.rowCount ?? 0,
       helper: 'registros relacionados',
+      target: 'dashboard:clients',
+      enabled: matchById.has('clients'),
     },
     {
       label: 'Fornecedores',
       value: matchById.get('suppliers')?.rowCount ?? 0,
       helper: 'registros relacionados',
+      target: 'dashboard:suppliers',
+      enabled: matchById.has('suppliers'),
     },
     {
       label: 'Transportadoras',
       value: matchById.get('carriers')?.rowCount ?? 0,
       helper: 'registros relacionados',
+      target: 'dashboard:carriers',
+      enabled: matchById.has('carriers'),
     },
     {
       label: 'Lista de Produtos',
       value: internalProducts?.rows.length ?? 0,
       helper: internalProducts ? internalProducts.fileName : 'arquivo não carregado',
+      target: 'internal-products',
+      enabled: Boolean(internalProducts),
     },
     {
       label: 'Produtos',
       value: matchById.get('products')?.rowCount ?? 0,
       helper: 'cadastro principal detectado',
+      target: 'dashboard:products',
+      enabled: matchById.has('products'),
     },
     {
       label: 'XML NFC-e',
       value: nfceDocuments.length,
       helper: nfceDocuments.length ? `${authorizedNfce} autorizadas` : 'nenhum XML carregado',
+      target: 'nfce:overview',
+      enabled: nfceDocuments.length > 0,
     },
   ]
+
+  const navigationGroups = useMemo(() => WORKSPACE_GROUPS.map(group => {
+    const modules = group.modules
+      .map(moduleId => WORKSPACE_MODULES.find(module => module.id === moduleId))
+      .filter((module): module is NonNullable<typeof module> => Boolean(module))
+      .map(module => {
+        const match = matchById.get(module.id)
+        return {
+          id: module.id,
+          label: module.label,
+          description: module.description,
+          rowCount: match?.rowCount ?? 0,
+          files: match?.fileNames.length ?? 0,
+          enabled: Boolean(match),
+        }
+      })
+
+    return {
+      id: group.id,
+      label: GROUP_META[group.id].label,
+      helper: GROUP_META[group.id].short,
+      rows: modules.reduce((total, module) => total + module.rowCount, 0),
+      available: modules.filter(module => module.enabled).length,
+      total: modules.length,
+      modules,
+    }
+  }), [matchById])
 
   const filesWithModules = useMemo(() => files.map(file => ({
     file,
@@ -163,6 +208,9 @@ export default function GeneralDashboardPage({ files }: { files: ImportedFile[] 
           <span>
             Atualizado {updatedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </span>
+          <button type="button" className="dashboard-navigation-button" onClick={() => onNavigate('importacao')}>
+            Importação
+          </button>
           <button type="button" onClick={() => void refreshExtras()} disabled={loadingExtras}>
             {loadingExtras ? 'Atualizando…' : 'Atualizar dados'}
           </button>
@@ -258,7 +306,14 @@ export default function GeneralDashboardPage({ files }: { files: ImportedFile[] 
 
       <section className="general-dashboard-entities">
         {entityCards.map(card => (
-          <article key={card.label} className={card.value ? 'has-data' : ''}>
+          <button
+            type="button"
+            key={card.label}
+            className={['general-dashboard-entity-link', card.value ? 'has-data' : ''].filter(Boolean).join(' ')}
+            onClick={() => card.enabled && onNavigate(card.target)}
+            disabled={!card.enabled}
+            title={card.enabled ? `Abrir ${card.label}` : `${card.label}: aguardando dados`}
+          >
             <div className="general-entity-icon">{card.label.slice(0, 1)}</div>
             <div>
               <span>{card.label}</span>
@@ -266,8 +321,67 @@ export default function GeneralDashboardPage({ files }: { files: ImportedFile[] 
               <small>{card.helper}</small>
             </div>
             <em>{statusLabel(card.value)}</em>
-          </article>
+            <b aria-hidden="true">→</b>
+          </button>
         ))}
+      </section>
+
+      <section className="general-dashboard-card general-dashboard-navigation" aria-label="Navegação rápida entre dashboards e dados">
+        <div className="general-dashboard-card-head">
+          <div>
+            <span className="eyebrow">NAVEGAÇÃO DIRETA</span>
+            <h2>Acesso rápido por área</h2>
+          </div>
+          <small>dashboard ou dados importados</small>
+        </div>
+
+        <div className="general-dashboard-navigation-grid">
+          {navigationGroups.map(group => (
+            <article key={group.id} className={group.available ? 'has-data' : ''}>
+              <header>
+                <div>
+                  <strong>{group.label}</strong>
+                  <small>{group.helper}</small>
+                </div>
+                <span>{group.available}/{group.total}</span>
+              </header>
+              <div className="general-dashboard-navigation-summary">
+                <strong>{formatNumber(group.rows)}</strong>
+                <small>registros relacionados</small>
+              </div>
+              <div className="general-dashboard-navigation-modules">
+                {group.modules.map(module => (
+                  <div key={module.id} className={module.enabled ? 'available' : ''}>
+                    <div>
+                      <strong>{module.label}</strong>
+                      <small>
+                        {module.enabled
+                          ? `${formatNumber(module.rowCount)} registros · ${module.files} arquivo(s)`
+                          : 'Aguardando importação'}
+                      </small>
+                    </div>
+                    <div className="general-dashboard-navigation-actions">
+                      <button
+                        type="button"
+                        disabled={!module.enabled}
+                        onClick={() => module.enabled && onNavigate(`dashboard:${module.id}`)}
+                      >
+                        Dashboard
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!module.enabled}
+                        onClick={() => module.enabled && onNavigate(`data:${module.id}`)}
+                      >
+                        Dados
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="general-dashboard-grid">
