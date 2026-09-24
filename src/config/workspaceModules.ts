@@ -3,6 +3,7 @@ import { supplierProfile } from './entities/supplier'
 import { productProfile } from './entities/product'
 import { sectionProfile } from './entities/section'
 import { groupProfile } from './entities/group'
+import { subgroupProfile } from './entities/subgroup'
 import { normalizeHeader } from '../lib/normalizers'
 import type { EntityProfile, FieldDefinition, ImportedFile } from '../types'
 
@@ -420,7 +421,9 @@ export const getWorkspaceComparisonFileRole = (
     ? 'SECAO_'
     : moduleId === 'groups'
       ? 'GRUPO_'
-      : ''
+      : moduleId === 'subgroups'
+        ? 'SUBGRUPO_'
+        : ''
 
   if (!prefix || !token.startsWith(prefix)) return null
 
@@ -468,8 +471,15 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
         && hasExactHeader(file, ['COD_GRUPO'])
         && hasExactHeader(file, ['DES_GRUPO'])
     }
-    case 'subgroups':
-      return hasAnyHeader(file, ['COD_SUBGRUPO', 'DES_SUBGRUPO', 'CODIGO_SUBGRUPO', 'SUB_GRUPO'])
+    case 'subgroups': {
+      const role = getWorkspaceComparisonFileRole('subgroups', file.name)
+      if (!role) return false
+
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['COD_SUB_GRUPO'])
+        && hasExactHeader(file, ['DES_SUB_GRUPO'])
+    }
     case 'products':
       return productCode || hasAnyHeader(file, ['DES_PRODUTO', 'DES_REDUZIDA', 'COD_BARRA_PRINCIPAL']) || moduleNameHint
     case 'productStore':
@@ -662,6 +672,7 @@ const baseProfileForModule = (moduleId: WorkspaceModuleId) => {
   if (moduleId === 'suppliers') return supplierProfile
   if (moduleId === 'sections') return sectionProfile
   if (moduleId === 'groups') return groupProfile
+  if (moduleId === 'subgroups') return subgroupProfile
   if (moduleId === 'products') return productProfile
   return undefined
 }
