@@ -16,6 +16,7 @@ const bundle = assetFiles.map(name => readFileSync(resolve('dist/assets', name),
 
 assert.match(bundle, /Pesquisa por produtos/)
 assert.match(bundle, /Consulta de produtos/)
+assert.match(bundle, /Embalagem de venda/)
 assert.match(bundle, /Menor que 8 dígitos/)
 assert.match(bundle, /Maior que 8 dígitos/)
 assert.match(bundle, /Processamento local/)
