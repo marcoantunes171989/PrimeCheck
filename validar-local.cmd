@@ -74,7 +74,7 @@ echo.
 echo [6/6] Confirmando versao realmente servida em localhost:4173...
 set "SERVE_OK="
 for /L %%I in (1,1,20) do (
-  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $i=Invoke-RestMethod 'http://127.0.0.1:4173/build-info.json?ts=' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); if ($i.sha -eq '%EXPECTED_SHA%') { exit 0 } else { Write-Host ('SHA servido: ' + $i.sha); exit 2 }" >nul 2>&1
+  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $i=Invoke-RestMethod ('http://127.0.0.1:4173/build-info.json?ts=' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); if ($i.sha -eq '%EXPECTED_SHA%') { exit 0 } else { Write-Host ('SHA servido: ' + $i.sha); exit 2 }" >nul 2>&1
   if not errorlevel 1 (
     set "SERVE_OK=1"
     goto :serverready

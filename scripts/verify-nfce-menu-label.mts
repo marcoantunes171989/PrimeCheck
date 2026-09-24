@@ -21,9 +21,14 @@ assert.equal(packageJson.scripts['preview:lan'], 'vite preview --host 0.0.0.0 --
 assert.match(main, /localValidation = \['localhost', '127\.0\.0\.1', '::1'\]/)
 assert.match(main, /registration\.unregister\(\)/)
 assert.match(main, /caches\.delete\(key\)/)
-assert.match(updater, /\[1\/6\] Buscando/)
-assert.match(updater, /\[2\/6\] Abrindo/)
-assert.match(updater, /\[3\/6\] Atualizando/)
+assert.match(updater, /\[1\/7\] Buscando/)
+assert.match(updater, /\[2\/7\] Abrindo/)
+assert.match(updater, /\[3\/7\] Atualizando/)
+assert.match(updater, /\[5\/7\] Confirmando SHA local = remoto/)
+assert.match(updater, /\[7\/7\] Iniciando validacao local/)
+assert.match(validator, /\[1\/6\] Encerrando/)
+assert.match(validator, /\[3\/6\] Limpando build/)
+assert.match(validator, /\[6\/6\] Confirmando versao realmente servida/)
 
 console.log('NFC-e menu label and local preview freshness verification: OK')
 
