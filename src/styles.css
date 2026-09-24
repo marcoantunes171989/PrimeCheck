@@ -10461,3 +10461,83 @@ footer {
   min-width: 0 !important;
   max-width: none !important;
 }
+
+
+/* Diagnóstico rápido — conteúdo contido, sem sobreposição nem rolagem lateral */
+.technical-diagnosis-table {
+  table-layout: fixed !important;
+}
+
+.technical-diagnosis-table th,
+.technical-diagnosis-table td {
+  min-width: 0 !important;
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.technical-diagnosis-table td > *,
+.technical-diagnosis-table th > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.technical-diagnosis-table .quick-kind,
+.technical-diagnosis-table .quick-duplicate-status,
+.technical-diagnosis-table .status,
+.technical-diagnosis-table .review-chip,
+.technical-diagnosis-table .analysis-action-button {
+  max-width: 100%;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-align: center;
+}
+
+.technical-diagnosis-table .quick-duplicate-status {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  line-height: 1.15;
+  padding: 4px 5px;
+}
+
+.technical-diagnosis-table .reason-cell,
+.technical-diagnosis-table .compare-value-cell,
+.technical-diagnosis-table .block-muted,
+.technical-diagnosis-table .mono {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.technical-diagnosis-table th:nth-child(7),
+.technical-diagnosis-table td:nth-child(7) { width: 10%; }
+
+.technical-diagnosis-table th:nth-child(8),
+.technical-diagnosis-table td:nth-child(8) { width: 18%; }
+
+.technical-diagnosis-table th:nth-child(10),
+.technical-diagnosis-table td:nth-child(10) { width: 7%; }
+
+.technical-diagnosis-table th:nth-child(11),
+.technical-diagnosis-table td:nth-child(11) { width: 7%; }
+
+.technical-diagnosis-table .column-filter-row th {
+  overflow: visible;
+}
+
+.technical-diagnosis-table .column-filter-row input,
+.technical-diagnosis-table .column-filter-row select {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
+}
+
+.technical-diagnosis-table-wrap {
+  overflow-x: clip !important;
+}
