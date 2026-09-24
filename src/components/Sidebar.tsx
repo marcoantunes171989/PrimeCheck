@@ -72,7 +72,7 @@ const NFCE_CHILDREN = [
   { id: 'nfce:overview', label: 'Visão Geral' },
   { id: 'nfce:products', label: 'Produtos mais vendidos' },
   { id: 'nfce:consumers', label: 'Consumidores' },
-  { id: 'nfce:barcodes', label: 'Consulta produto' },
+  { id: 'nfce:barcodes', label: 'Pesquisa por produtos' },
 ]
 
 const normalizeSearch = (value: string) =>
