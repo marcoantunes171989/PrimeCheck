@@ -61,7 +61,9 @@ echo.
 echo [5/6] Iniciando preview local...
 echo.
 echo Acesso nesta maquina:
-echo   http://localhost:4173
+echo   http://127.0.0.1:4173
+echo.
+echo IMPORTANTE: utilize 127.0.0.1 e nao localhost nesta homologacao.
 echo.
 echo Para outros dispositivos da mesma rede, use o endereco Network
 echo exibido pelo Vite abaixo.
@@ -71,10 +73,10 @@ for /f "delims=" %%S in ('git rev-parse HEAD') do set "EXPECTED_SHA=%%S"
 start "PrimeCheck Preview" /min cmd /c "cd /d ""%~dp0"" && npm run preview:lan"
 
 echo.
-echo [6/6] Confirmando versao realmente servida em localhost:4173...
+echo [6/6] Confirmando SHA, HTML e bundle realmente servidos...
 set "SERVE_OK="
 for /L %%I in (1,1,20) do (
-  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $i=Invoke-RestMethod ('http://127.0.0.1:4173/build-info.json?ts=' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); if ($i.sha -eq '%EXPECTED_SHA%') { exit 0 } else { Write-Host ('SHA servido: ' + $i.sha); exit 2 }" >nul 2>&1
+  node scripts\verify-local-served-build.mjs "http://127.0.0.1:4173" "%EXPECTED_SHA%" >nul 2>&1
   if not errorlevel 1 (
     set "SERVE_OK=1"
     goto :serverready
@@ -82,20 +84,22 @@ for /L %%I in (1,1,20) do (
   timeout /t 1 /nobreak >nul
 )
 
-echo [ERRO] O localhost:4173 nao confirmou o SHA atual.
-echo Esperado: %EXPECTED_SHA%
+echo [ERRO] O servidor local nao entregou o bundle esperado.
+echo SHA esperado: %EXPECTED_SHA%
 echo A homologacao NAO sera considerada liberada.
+echo.
+node scripts\verify-local-served-build.mjs "http://127.0.0.1:4173" "%EXPECTED_SHA%"
 pause
 exit /b 1
 
 :serverready
-echo [OK] localhost:4173 esta servindo exatamente o SHA:
+echo [OK] SHA, HTML e JavaScript servidos correspondem a versao atual:
 echo      %EXPECTED_SHA%
 echo.
-echo Acesso:
-echo   http://localhost:4173/?build=%EXPECTED_SHA%
+echo Acesso validado:
+echo   http://127.0.0.1:4173/?build=%EXPECTED_SHA%
 echo.
-start "" "http://localhost:4173/?build=%EXPECTED_SHA%"
+start "" "http://127.0.0.1:4173/?build=%EXPECTED_SHA%"
 exit /b 0
 
 :error
