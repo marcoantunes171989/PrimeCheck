@@ -161,10 +161,10 @@ const modules: WorkspaceModuleDefinition[] = [
   },
   {
     id: 'products',
-    label: 'Produtos',
+    label: 'Cadastro Base do Produto',
     singular: 'Produto',
     group: 'products',
-    description: 'Cadastro principal de produtos e atributos comerciais, fiscais e operacionais.',
+    description: 'Cadastro-base do produto. Serve de referência para Produto por Loja, códigos de barras, fornecedores, similares e demais vínculos.',
     signals: ['COD_PRODUTO', 'DES_PRODUTO', 'COD_BARRA_PRINCIPAL', 'DES_REDUZIDA'],
     fields: [
       ...productBaseFields,
@@ -191,7 +191,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Produto por Loja',
     singular: 'Produto por Loja',
     group: 'products',
-    description: 'Dados do produto por estabelecimento: preço, custo, estoque, oferta, margem e situação.',
+    description: 'Módulo principal de produtos por estabelecimento. Centraliza preço, custo, estoque, oferta, margem, situação e os vínculos de análise do produto.',
     signals: ['COD_LOJA', 'PRODUTO_LOJA', 'TAB_PRODUTO_LOJA', 'PRECO_LOJA'],
     fields: [
       field('codigoLoja', 'Loja', ['COD_LOJA', 'CODIGO_LOJA', 'LOJA']),
@@ -209,7 +209,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Códigos de Barras',
     singular: 'Código de Barras',
     group: 'products',
-    description: 'Códigos EAN/GTIN vinculados aos produtos.',
+    description: 'Códigos EAN/GTIN vinculados ao produto, com suporte futuro a múltiplos códigos, duplicidades e análises por loja.',
     signals: ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -222,7 +222,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Produto por Fornecedor',
     singular: 'Produto por Fornecedor',
     group: 'products',
-    description: 'Relacionamento entre produto e fornecedor.',
+    description: 'Relacionamento independente entre produto e fornecedor, permitindo validar referências, custos e vínculos de fornecedores.',
     signals: ['PRODUTO_FORNECEDOR', 'COD_FORNECEDOR_PRODUTO', 'COD_FORNECEDOR', 'REFERENCIA_FORNECEDOR'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -237,7 +237,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Produtos Similares',
     singular: 'Produto Similar',
     group: 'products',
-    description: 'Vínculos de produtos similares/substitutos.',
+    description: 'Cadastro e vínculos de produtos similares/substitutos, preparado para posterior associação ao Produto por Loja.',
     signals: ['PRODUTO_SIMILAR', 'COD_PRODUTO_SIMILAR', 'SIMILAR'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -250,7 +250,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'NCM',
     singular: 'NCM',
     group: 'fiscal',
-    description: 'Classificação fiscal NCM.',
+    description: 'Cadastro de referência NCM, utilizado posteriormente nos vínculos fiscais do Produto por Loja.',
     signals: ['NCM', 'COD_NCM'],
     fields: [
       field('ncm', 'NCM', ['NCM', 'COD_NCM']),
@@ -263,7 +263,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'CEST',
     singular: 'CEST',
     group: 'fiscal',
-    description: 'Código Especificador da Substituição Tributária.',
+    description: 'Cadastro de referência CEST, relacionado ao NCM e utilizado nos vínculos fiscais do Produto por Loja.',
     signals: ['CEST', 'COD_CEST'],
     fields: [
       field('cest', 'CEST', ['CEST', 'COD_CEST']),
@@ -307,7 +307,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Benefício Fiscal',
     singular: 'Benefício Fiscal',
     group: 'fiscal',
-    description: 'Benefícios fiscais e vínculos com produto/NCM.',
+    description: 'Cadastro de benefícios fiscais e vínculos com NCM/produto, preparado para associação ao Produto por Loja.',
     signals: ['BENEFICIO_FISCAL', 'COD_BENEFICIO', 'CBENEF'],
     fields: [
       field('codigo', 'Código benefício', ['COD_BENEFICIO', 'CODIGO_BENEFICIO', 'CBENEF']),
@@ -322,7 +322,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Receitas',
     singular: 'Receita',
     group: 'fiscal',
-    description: 'Receitas, composição e ficha técnica vinculada ao produto.',
+    description: 'Receitas, composição e ficha técnica vinculáveis ao Produto por Loja.',
     signals: ['RECEITA', 'FICHA_TECNICA', 'INGREDIENTE', 'COMPOSICAO_PRODUTO'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -338,7 +338,7 @@ const modules: WorkspaceModuleDefinition[] = [
     label: 'Informações Nutricionais',
     singular: 'Informação Nutricional',
     group: 'fiscal',
-    description: 'Informações nutricionais vinculadas aos produtos.',
+    description: 'Informações nutricionais vinculáveis ao Produto por Loja.',
     signals: ['NUTRICIONAL', 'CALORIAS', 'VALOR_ENERGETICO', 'PROTEINA', 'CARBOIDRATO'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
@@ -359,9 +359,36 @@ export const WORKSPACE_MODULES = modules
 export const WORKSPACE_GROUPS: Array<{ id: WorkspaceGroupId; label: string; modules: WorkspaceModuleId[] }> = [
   { id: 'partners', label: 'Parceiros', modules: ['clients', 'suppliers', 'carriers'] },
   { id: 'structure', label: 'Estrutura de Produtos', modules: ['sections', 'groups', 'subgroups'] },
-  { id: 'products', label: 'Produtos', modules: ['products', 'productStore', 'barcodes', 'productSupplier', 'similarProducts'] },
+  {
+    id: 'products',
+    label: 'Produto por Loja',
+    modules: ['productStore', 'products', 'barcodes', 'similarProducts', 'productSupplier'],
+  },
   { id: 'fiscal', label: 'Fiscal e Conteúdo', modules: ['ncm', 'cest', 'ibpt', 'ibscbs', 'taxBenefit', 'recipes', 'nutrition'] },
 ]
+
+export const PRODUCT_STORE_ARCHITECTURE = {
+  primaryModule: 'productStore' as const,
+  baseModule: 'products' as const,
+  relationshipModules: ['barcodes', 'similarProducts', 'productSupplier'] as const,
+  fiscalReferenceModules: ['ncm', 'cest', 'ibpt', 'ibscbs', 'taxBenefit'] as const,
+  contentModules: ['recipes', 'nutrition'] as const,
+  plannedViews: [
+    'Visão Geral',
+    'Homologação',
+    'Produtos por Loja',
+    'Códigos de Barras',
+    'Custos e Preços',
+    'Fiscal',
+    'Produtos Similares',
+    'Produto por Fornecedor',
+    'Receitas',
+    'Informações Nutricionais',
+    'Auditorias',
+  ] as const,
+}
+
+
 
 /**
  * Regra de escopo por nome do arquivo.
