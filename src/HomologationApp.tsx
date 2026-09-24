@@ -126,17 +126,13 @@ const canonicalizeClientTargetFiles = (
       const canonical = field.originExactAliases?.[0] ?? field.targetExactAliases?.[0]
       if (!canonical) return []
 
-      const candidates = [
-        canonical,
-        ...(field.targetExactAliases ?? []),
-        ...field.aliases,
-        field.label,
-      ]
-      const candidateTokens = new Set(candidates.map(normalizeHeader).filter(Boolean))
+      const sourceAliases = field.targetSourceAliases ?? []
+      if (!sourceAliases.length) return []
 
+      const sourceTokens = new Set(sourceAliases.map(normalizeHeader).filter(Boolean))
       const rawHeader = file.headers.find(header =>
         !usedRawHeaders.has(header)
-        && candidateTokens.has(normalizeHeader(header)),
+        && sourceTokens.has(normalizeHeader(header)),
       )
 
       if (!rawHeader) return []
