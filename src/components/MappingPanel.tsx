@@ -216,6 +216,12 @@ export default function MappingPanel({
                       placeholder="Selecionar coluna do destino"
                       ariaLabel={'Coluna de destino para ' + field.label}
                     />
+                    {clientChecklistMode && field.id === 'limiteCheque' && !targetHeader && (
+                      <div className="mapping-target-missing-note">
+                        Ausente no arquivo de destino atual. Esperado: VAL_LIMITE_CREDITO,
+                        VAL_LIMITE_CRETID ou LIMITE_CHEQUE. Reexporte o destino com o Script SQL atualizado.
+                      </div>
+                    )}
                     {!targetHeader && targetSuggestions.length > 0 && (
                       <div className="mapping-suggestions">
                         <span>Sugestões:</span>
