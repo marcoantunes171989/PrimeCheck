@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const sidebar = readFileSync(new URL('../src/components/Sidebar.tsx', import.meta.url), 'utf8')
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
@@ -25,3 +26,18 @@ assert.match(updater, /\[2\/6\] Abrindo/)
 assert.match(updater, /\[3\/6\] Atualizando/)
 
 console.log('NFC-e menu label and local preview freshness verification: OK')
+
+
+const readDistText = (dir: string): string =>
+  readdirSync(dir)
+    .map(name => resolve(dir, name))
+    .map(path => statSync(path).isDirectory() ? readDistText(path) : (/\.(?:js|html|css)$/.test(path) ? readFileSync(path, 'utf8') : ''))
+    .join('\n')
+
+const distText = readDistText(resolve('dist'))
+assert.match(distText, /Consulta produto/)
+assert.match(distText, /NFC-e · Consulta produto/)
+assert.doesNotMatch(distText, /Códigos < 8 dígitos/)
+assert.doesNotMatch(distText, /NFC-e · Códigos curtos/)
+
+console.log('Built bundle contains the updated NFC-e menu label: OK')
