@@ -610,7 +610,7 @@ const COMPARISON_META: Record<WorkspaceModuleId, {
   carriers: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['cpfCnpj', 'ie'], showDocumentValidity: true },
   sections: { keyFieldIds: ['codigoSecao'], nameFieldId: 'descricaoSecao', duplicateFieldIds: ['codigoSecao'] },
   groups: { keyFieldIds: ['codigoSecao', 'codigoGrupo'], nameFieldId: 'descricaoGrupo', duplicateFieldIds: [] },
-  subgroups: { keyFieldIds: ['codigoSecao', 'codigoGrupo', 'codigoSubgrupo'], nameFieldId: 'descricaoSubgrupo', duplicateFieldIds: ['codigoSubgrupo'] },
+  subgroups: { keyFieldIds: ['codigoSecao', 'codigoGrupo', 'codigoSubgrupo'], nameFieldId: 'descricaoSubgrupo', duplicateFieldIds: [] },
   products: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['codigoBarras'] },
   productStore: { keyFieldIds: ['codigoLoja', 'codigoProduto'], nameFieldId: 'codigoProduto', duplicateFieldIds: [] },
   barcodes: { keyFieldIds: ['codigoProduto', 'codigoBarras'], nameFieldId: 'codigoBarras', duplicateFieldIds: ['codigoBarras'] },
