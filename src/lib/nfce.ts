@@ -319,9 +319,17 @@ export function parseNfceDetail(summary: NfceSummary): NfceDetail {
   }
 }
 
-export const normalizeShortCProd = (value: string) => {
+export type ProductCodeLengthFilter = 'all' | 'under8' | 'over8'
+
+export const productCodeMatchesLength = (
+  value: string,
+  filter: ProductCodeLengthFilter,
+) => {
   const normalized = String(value ?? '').trim()
-  return /^\d{1,7}$/.test(normalized) ? normalized : ''
+  if (!normalized) return false
+  if (filter === 'all') return true
+  if (!/^\d+$/.test(normalized)) return false
+  return filter === 'under8' ? normalized.length < 8 : normalized.length > 8
 }
 
 export const nfceSearchText = (item: NfceSummary) => [
