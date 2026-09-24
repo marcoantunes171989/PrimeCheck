@@ -511,7 +511,9 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE
       checklistLabel: config.checklistLabel,
       databaseField: config.databaseField,
       originExactAliases: config.originExactAliases,
-      targetExactAliases: config.targetExactAliases,
+      targetExactAliases: config.originExactAliases.length
+        ? config.originExactAliases
+        : config.targetExactAliases,
       aliases,
     }
   })
