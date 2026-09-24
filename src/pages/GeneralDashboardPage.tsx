@@ -4,6 +4,7 @@ import {
   WORKSPACE_GROUPS,
   WORKSPACE_MODULES,
   type WorkspaceGroupId,
+  type WorkspaceModuleDefinition,
 } from '../config/workspaceModules'
 import { loadInternalProductList, type InternalProductSnapshot } from '../lib/internalProductStorage'
 import { initializeWorkspaceScope, loadNfceDocuments } from '../lib/workspaceStorage'
@@ -162,7 +163,7 @@ export default function GeneralDashboardPage({
   const navigationGroups = useMemo(() => WORKSPACE_GROUPS.map(group => {
     const modules = group.modules
       .map(moduleId => WORKSPACE_MODULES.find(module => module.id === moduleId))
-      .filter((module): module is NonNullable<typeof module> => Boolean(module))
+      .filter((module): module is WorkspaceModuleDefinition => Boolean(module))
       .map(module => {
         const match = matchById.get(module.id)
         return {
