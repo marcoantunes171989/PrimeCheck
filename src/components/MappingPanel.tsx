@@ -224,6 +224,12 @@ export default function MappingPanel({
                         VAL_LIMITE_CRETID ou LIMITE_CHEQUE. Reexporte o destino com o Script SQL atualizado.
                       </div>
                     )}
+                    {supplierChecklistMode && field.id === 'divisaoFornecedor' && !targetHeader && (
+                      <div className="mapping-target-missing-note">
+                        COD_CLASSIF não existe no arquivo de destino atual. Reexporte o destino
+                        com o Script SQL de Fornecedores atualizado.
+                      </div>
+                    )}
                     {!targetHeader && targetSuggestions.length > 0 && (
                       <div className="mapping-suggestions">
                         <span>Sugestões:</span>
