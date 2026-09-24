@@ -1,54 +1,71 @@
 # Validação local — PrimeCheck
 
-Branch preparada: `homologacao-local-validacao`
+Branch de homologação: `homologacao-local-validacao`.
 
-Esta branch parte da versão consolidada da `main` e foi criada para validar todas as funcionalidades localmente, sem consumir deployments da Vercel.
+O PrimeCheck volta a utilizar o fluxo simples de homologação local com **Vite Preview em primeiro plano**. Não há daemon, launcher PowerShell, PID oculto ou servidor intermediário.
 
-## Opção mais simples no Windows
+## Fluxo normal no Windows
 
-1. Abra o projeto no computador de desenvolvimento.
-2. Atualize o repositório e entre na branch:
-
-```bash
-git fetch origin
-git checkout homologacao-local-validacao
-git pull origin homologacao-local-validacao
-```
-
-3. Execute:
+Na pasta do projeto:
 
 ```bat
+cd /d C:\Projetos\PrimeCheck
+atualizar-validar-local.cmd
+```
+
+O atualizador:
+
+1. sincroniza a branch `homologacao-local-validacao` com o GitHub;
+2. confirma o SHA local e remoto;
+3. confirma as alterações funcionais esperadas;
+4. chama `validar-local.cmd`.
+
+O `validar-local.cmd`:
+
+1. instala dependências apenas se necessário;
+2. gera um build limpo;
+3. grava o SHA atual no build;
+4. inicia diretamente o Vite Preview em primeiro plano.
+
+## Endereço local fixo do PrimeCheck
+
+```text
+http://127.0.0.1:4177
+```
+
+A porta 4177 é exclusiva para a homologação local do PrimeCheck e evita conflito com outros projetos locais.
+
+## Regra importante
+
+A janela do CMD que mostra o Vite deve permanecer aberta durante a validação.
+
+Quando aparecer algo semelhante a:
+
+```text
+Local: http://127.0.0.1:4177/
+```
+
+o servidor está ativo. Pressionar `Ctrl+C` ou fechar a janela encerra o acesso local.
+
+## Execução manual
+
+Caso seja necessário validar sem atualizar a branch:
+
+```bat
+cd /d C:\Projetos\PrimeCheck
 validar-local.cmd
 ```
 
-O script instala dependências se necessário, gera o build e inicia o Preview Vite.
-
-### Endereços
-
-Nesta máquina:
-
-```text
-http://localhost:4173
-```
-
-Em tablet, notebook ou outro dispositivo conectado à mesma rede, utilize o endereço `Network` exibido no terminal pelo Vite.
-
-## Comandos manuais
+Equivalente técnico:
 
 ```bash
 npm install --no-audit --no-fund
 npm run build
-npm run preview:lan
+npm run preview:local
 ```
 
-Para desenvolvimento com atualização automática:
+## Promoção
 
-```bash
-npm run dev:lan
-```
+Desenvolvimento → homologação local → validação humana → aprovação → `main` → produção/Vercel → smoke test.
 
-O modo `preview:lan` é recomendado para a homologação final porque valida o build compilado, mais próximo do que será publicado na Vercel.
-
-## Fluxo recomendado
-
-Desenvolvimento → validação local → ajustes → aprovação → consolidação na main → um único deployment na Vercel → smoke test.
+Nenhuma alteração da homologação deve ser promovida para `main` antes da validação humana.
