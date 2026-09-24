@@ -411,3 +411,84 @@
     min-width: 720px;
   }
 }
+
+
+/* NFC-e — Consulta de produtos com filtros independentes e DISTINCT por cProd */
+.nfce-product-query-filters {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(190px, 1fr) minmax(190px, 1fr) minmax(170px, .9fr) auto;
+  align-items: end;
+  gap: 11px;
+  padding: 14px 15px;
+  border-bottom: 1px solid #edf2f5;
+  background: #fafcfd;
+}
+.nfce-product-filter-group {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.nfce-product-filter-group > span {
+  color: #60707b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.nfce-product-filter-group input,
+.nfce-product-filter-group select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid #cbd8e0;
+  border-radius: 10px;
+  padding: 0 11px;
+  background: #fff;
+  color: #263946;
+  font-size: var(--fs-xs);
+  outline: none;
+}
+.nfce-product-filter-group input:focus,
+.nfce-product-filter-group select:focus {
+  border-color: #78a2b7;
+  box-shadow: 0 0 0 3px rgba(1,46,70,.06);
+}
+.nfce-product-clear-filters {
+  min-height: 42px;
+  white-space: nowrap;
+}
+.nfce-product-clear-filters:disabled {
+  opacity: .55;
+  cursor: default;
+}
+.nfce-product-lookup-table {
+  min-width: 620px;
+}
+.nfce-product-lookup-table th:first-child,
+.nfce-product-lookup-table td:first-child {
+  width: 220px;
+  white-space: nowrap;
+}
+.nfce-product-lookup-table th:nth-child(2),
+.nfce-product-lookup-table td:nth-child(2) {
+  min-width: 340px;
+}
+@media (max-width: 1220px) {
+  .nfce-product-query-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .nfce-product-clear-filters {
+    justify-self: start;
+  }
+}
+@media (max-width: 720px) {
+  .nfce-product-query-filters {
+    grid-template-columns: 1fr;
+  }
+  .nfce-product-clear-filters {
+    width: 100%;
+  }
+  .nfce-product-lookup-table {
+    min-width: 560px;
+  }
+}
