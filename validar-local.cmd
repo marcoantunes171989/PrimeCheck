@@ -23,20 +23,29 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo [1/4] Encerrando qualquer preview antigo na porta 4173...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":4173" ^| findstr "LISTENING"') do (
+  echo Encerrando PID %%P...
+  taskkill /PID %%P /F >nul 2>&1
+)
+timeout /t 1 /nobreak >nul
+echo Porta 4173 liberada.
+echo.
+
 if not exist node_modules (
-  echo [1/3] Instalando dependencias...
+  echo [2/4] Instalando dependencias...
   call npm install --no-audit --no-fund
   if errorlevel 1 goto :error
 ) else (
-  echo [1/3] Dependencias ja instaladas.
+  echo [2/4] Dependencias ja instaladas.
 )
 
-echo [2/3] Gerando build local...
+echo [3/4] Gerando build local...
 call npm run build
 if errorlevel 1 goto :error
 
 echo.
-echo [3/3] Iniciando preview local...
+echo [4/4] Iniciando preview local...
 echo.
 echo Acesso nesta maquina:
 echo   http://localhost:4173

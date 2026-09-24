@@ -44,3 +44,6 @@ jobs:
 
       - name: Verify NFC-e XML tag search
         run: npm run verify:nfce-xml-search
+
+      - name: Verify NFC-e menu label
+        run: npm run verify:nfce-menu-label

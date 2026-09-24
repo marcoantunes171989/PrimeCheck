@@ -44,11 +44,22 @@ echo [3/5] Atualizando sem misturar branches...
 git pull --ff-only origin homologacao-local-validacao
 if errorlevel 1 goto :giterror
 
-echo [4/5] Versao carregada:
+echo [4/6] Versao carregada:
 git log -1 --oneline
 echo.
 
-echo [5/5] Iniciando validacao local...
+echo [5/6] Confirmando menu NFC-e "Consulta produto"...
+findstr /C:"label: 'Consulta produto'" "src\components\Sidebar.tsx" >nul
+if errorlevel 1 (
+  echo [ERRO] A branch carregada nao contem o menu "Consulta produto".
+  echo Atualizacao interrompida para evitar validar uma versao incorreta.
+  pause
+  exit /b 1
+)
+echo [OK] Menu "Consulta produto" confirmado no codigo-fonte.
+echo.
+
+echo [6/6] Iniciando validacao local...
 echo.
 call validar-local.cmd
 exit /b %errorlevel%
