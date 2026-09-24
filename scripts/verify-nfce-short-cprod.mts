@@ -22,7 +22,7 @@ assert.match(app, /NFC-e · Consulta de produtos/)
 assert.match(page, /: 'Consulta de produtos'/)
 
 assert.match(nfceLib, /unit: text\(prod, 'uCom'\)/)
-assert.match(page, /salesPackage: String\(item\.unit \?\? ''\)\.trim\(\)/)
+assert.match(page, /const salesPackage = String\(item\.unit \?\? ''\)\.trim\(\)/)
 assert.match(page, /label="Embalagem de venda" field="salesPackage"/)
 assert.match(page, /row\.salesPackage \|\| '—'/)
 
