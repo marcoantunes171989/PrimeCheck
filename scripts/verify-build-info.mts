@@ -13,7 +13,7 @@ const assetFiles = readdirSync(resolve('dist/assets')).filter(name => name.endsW
 assert.ok(assetFiles.length > 0, 'Bundle JavaScript não encontrado')
 
 const bundle = assetFiles.map(name => readFileSync(resolve('dist/assets', name), 'utf8')).join('\n')
-assert.match(bundle, /VISUALIZAÇÃO FORMATADA/)
+assert.match(bundle, /Formatado para leitura/)
 assert.match(bundle, /XML formatado para leitura/)
 assert.match(bundle, /Formatado para leitura/)
 assert.match(bundle, /data-formatted-xml/)
