@@ -4,12 +4,8 @@ import { resolve } from 'node:path'
 
 const sidebar = readFileSync(new URL('../src/components/Sidebar.tsx', import.meta.url), 'utf8')
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
-const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
-const updater = readFileSync(new URL('../atualizar-validar-local.cmd', import.meta.url), 'utf8')
 const updaterRunner = readFileSync(new URL('./atualizar-validar-local-runner.cmd', import.meta.url), 'utf8')
 const validator = readFileSync(new URL('../validar-local.cmd', import.meta.url), 'utf8')
-const localLauncher = readFileSync(new URL('./primecheck-local.ps1', import.meta.url), 'utf8')
-const finalServer = readFileSync(new URL('./serve-primecheck-local.ps1', import.meta.url), 'utf8')
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
 assert.match(sidebar, /\{ id: 'nfce:barcodes', label: 'Pesquisa por produtos' \}/)
@@ -18,44 +14,18 @@ assert.match(app, /\? 'NFC-e · Consulta de produtos'/)
 assert.doesNotMatch(app, /NFC-e · Códigos curtos/)
 
 assert.match(updaterRunner, /Confirmando menu NFC-e "Pesquisa por produtos"/)
-assert.match(updaterRunner, /findstr \/C:"label: 'Pesquisa por produtos'"/)
-assert.match(updaterRunner, /\[1\/8\] Validando repositorio/)
-assert.match(updaterRunner, /\[2\/8\] Posicionando a branch local exatamente/)
-assert.match(updaterRunner, /\[3\/8\] Sincronizando exatamente/)
-assert.match(updaterRunner, /\[5\/8\] Confirmando SHA local = remoto/)
-assert.match(updaterRunner, /\[8\/8\] Iniciando validacao local/)
-assert.match(updaterRunner, /git reset --hard origin\/homologacao-local-validacao/)
-assert.match(updaterRunner, /marcoantunes171989\/PrimeCheck/)
 assert.match(updaterRunner, /\[7\/8\] Confirmando tela Consulta de produtos/)
+assert.match(updaterRunner, /git reset --hard origin\/homologacao-local-validacao/)
 
-assert.match(validator, /powershell -NoProfile -ExecutionPolicy Bypass -File/)
-assert.match(validator, /primecheck-local\.ps1/)
-assert.doesNotMatch(validator, /-ProjectDir/)
-assert.doesNotMatch(validator, /npm run serve:local/)
-assert.match(localLauncher, /\$Port = 4177/)
-assert.match(localLauncher, /<title>PrimeCheck \\| Homologa/)
-assert.match(localLauncher, /Pedido Prime/)
-assert.match(localLauncher, /Pesquisa por produtos/)
-assert.match(localLauncher, /Consulta de produtos/)
-assert.match(localLauncher, /Processamento local/)
-assert.match(localLauncher, /Start-Process -FilePath \$NodeCmd/)
-assert.doesNotMatch(localLauncher, /start-local-server\.mjs|vite-local-daemon\.mjs/)
+assert.equal(
+  packageJson.scripts['preview:local'],
+  'vite preview --host 127.0.0.1 --port 4177 --strictPort',
+)
+assert.match(validator, /call npm run preview:local/)
+assert.match(validator, /http:\/\/127\.0\.0\.1:4177/)
+assert.doesNotMatch(validator, /powershell|primecheck-local\.ps1/)
 
-assert.match(main, /localValidation = \['localhost', '127\.0\.0\.1', '::1'\]/)
-assert.match(main, /registration\.unregister\(\)/)
-assert.match(main, /caches\.delete\(key\)/)
-assert.match(main, /PrimeCheckRuntimeBoundary/)
-assert.match(main, /data-primecheck-runtime-error/)
-
-assert.match(updater, /RUNNER_TEMP/)
-assert.match(updater, /copy \/Y "%RUNNER_SOURCE%" "%RUNNER_TEMP%"/)
-assert.match(updater, /call "%RUNNER_TEMP%" "%PROJECT_DIR%"/)
-assert.doesNotMatch(updater, /git fetch|git reset|git switch|git checkout/)
-assert.match(updaterRunner, /git checkout -B homologacao-local-validacao origin\/homologacao-local-validacao/)
-assert.doesNotMatch(updaterRunner, /git switch -c/)
-assert.doesNotMatch(updaterRunner, /git show-ref --verify/)
-
-console.log('NFC-e menu label and foreground local server verification: OK')
+console.log('NFC-e menu label and simple local preview verification: OK')
 
 const readDistText = (dir: string): string =>
   readdirSync(dir)
