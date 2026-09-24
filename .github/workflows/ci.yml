@@ -39,6 +39,9 @@ jobs:
       - name: Verify responsive layout
         run: npm run verify:responsive
 
+      - name: Verify dashboard navigation
+        run: npm run verify:dashboard-navigation
+
       - name: Verify NFC-e product search filters
         run: npm run verify:nfce-short-cprod
 
