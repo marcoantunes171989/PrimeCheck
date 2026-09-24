@@ -10363,3 +10363,16 @@ footer {
     font-size: 11.5px;
   }
 }
+
+
+.mapping-target-missing-note {
+  margin-top: 5px;
+  padding: 6px 8px;
+  border: 1px solid #f2d19b;
+  border-radius: 7px;
+  background: #fff8eb;
+  color: #8a5400;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  line-height: 1.35;
+}
