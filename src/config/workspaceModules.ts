@@ -487,16 +487,31 @@ export const getWorkspaceModulePairState = (
   moduleId: WorkspaceModuleId,
 ): WorkspaceModulePairState => {
   const scoped = files.filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === moduleId)
-  const originFiles = scoped.filter(file =>
-    getWorkspaceComparisonFileRole(moduleId, file.name) === 'origin'
-    && hasPairCoreStructure(file, moduleId),
-  )
-  const targetFiles = scoped.filter(file =>
-    getWorkspaceComparisonFileRole(moduleId, file.name) === 'target'
-    && hasPairCoreStructure(file, moduleId),
-  )
-  const compatibleIds = new Set([...originFiles, ...targetFiles].map(file => file.id))
-  const incompatibleFiles = scoped.filter(file => !compatibleIds.has(file.id))
+  const byPhysicalName = new Map<string, ImportedFile[]>()
+
+  scoped.forEach(file => {
+    const list = byPhysicalName.get(file.name) ?? []
+    list.push(file)
+    byPhysicalName.set(file.name, list)
+  })
+
+  const originFiles: ImportedFile[] = []
+  const targetFiles: ImportedFile[] = []
+  const incompatibleFiles: ImportedFile[] = []
+
+  byPhysicalName.forEach(group => {
+    const representative = group[0]
+    const role = getWorkspaceComparisonFileRole(moduleId, representative.name)
+    const compatibleSheets = group.filter(file => hasPairCoreStructure(file, moduleId))
+
+    if (!role || compatibleSheets.length === 0) {
+      incompatibleFiles.push(representative)
+      return
+    }
+
+    if (role === 'origin') originFiles.push(...compatibleSheets)
+    if (role === 'target') targetFiles.push(...compatibleSheets)
+  })
 
   return {
     moduleId,
