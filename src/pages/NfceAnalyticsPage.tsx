@@ -423,6 +423,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       const factor = direction === 'asc' ? 1 : -1
       let result = 0
       if (sortKey === 'description') result = collator.compare(left.description, right.description)
+      else if (sortKey === 'code') result = collator.compare(left.code, right.code)
       else if (sortKey === 'barcode') result = collator.compare(left.barcode, right.barcode)
       else if (sortKey === 'ncm') result = collator.compare(left.ncm, right.ncm)
       else if (sortKey === 'cfop') result = collator.compare(left.cfop, right.cfop)
