@@ -9,12 +9,12 @@ const updater = readFileSync(new URL('../atualizar-validar-local.cmd', import.me
 const validator = readFileSync(new URL('../validar-local.cmd', import.meta.url), 'utf8')
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
-assert.match(sidebar, /\{ id: 'nfce:barcodes', label: 'Consulta produto' \}/)
+assert.match(sidebar, /\{ id: 'nfce:barcodes', label: 'Pesquisa por produtos' \}/)
 assert.doesNotMatch(sidebar, /Códigos < 8 dígitos/)
-assert.match(app, /\? 'NFC-e · Consulta produto'/)
+assert.match(app, /\? 'NFC-e · Consulta de produtos'/)
 assert.doesNotMatch(app, /NFC-e · Códigos curtos/)
-assert.match(updater, /Confirmando menu NFC-e "Consulta produto"/)
-assert.match(updater, /findstr \/C:"label: 'Consulta produto'"/)
+assert.match(updater, /Confirmando menu NFC-e "Pesquisa por produtos"/)
+assert.match(updater, /findstr \/C:"label: 'Pesquisa por produtos'"/)
 assert.match(validator, /findstr ":4173"/)
 assert.match(validator, /taskkill \/PID %%P \/F/)
 assert.equal(packageJson.scripts['preview:lan'], 'vite preview --host 0.0.0.0 --port 4173 --strictPort')
@@ -40,8 +40,8 @@ const readDistText = (dir: string): string =>
     .join('\n')
 
 const distText = readDistText(resolve('dist'))
-assert.match(distText, /Consulta produto/)
-assert.match(distText, /NFC-e · Consulta produto/)
+assert.match(distText, /Pesquisa por produtos/)
+assert.match(distText, /NFC-e · Consulta de produtos/)
 assert.doesNotMatch(distText, /Códigos < 8 dígitos/)
 assert.doesNotMatch(distText, /NFC-e · Códigos curtos/)
 
