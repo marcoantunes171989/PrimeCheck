@@ -125,12 +125,6 @@ export default function WorkspaceImportPage({
       const preserved = files.filter(file => !replacingNames.has(file.name))
 
       const blockedNames = new Set<string>()
-      const parsedByPhysicalName = new Map<string, ImportedFile[]>()
-      parsed.parsed.forEach(file => {
-        const list = parsedByPhysicalName.get(file.name) ?? []
-        list.push(file)
-        parsedByPhysicalName.set(file.name, list)
-      })
 
       const incomingGroupNames = accepted
         .filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'groups')
