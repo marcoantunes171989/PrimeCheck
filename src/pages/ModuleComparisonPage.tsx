@@ -385,12 +385,16 @@ export default function ModuleComparisonPage({
                   ? ' · Cliente: ' + clientFantasyName(originName)
                   : module.id === 'suppliers'
                     ? ' · Fornecedor de origem'
-                    : '')
+                    : module.id === 'sections'
+                      ? ' · Seções de origem'
+                      : '')
               : module.id === 'clients'
                 ? 'Padrão: CLIENTE_[nome fantasia].csv'
                 : module.id === 'suppliers'
                   ? 'Padrão: FORNECEDOR_[origem].csv'
-                  : 'Aguardando seleção'}
+                  : module.id === 'sections'
+                    ? 'Padrão: SECAO_[cliente].csv'
+                    : 'Aguardando seleção'}
           </small>
         </div>
 
@@ -445,12 +449,16 @@ export default function ModuleComparisonPage({
                   ? ' · Destino Intersolid'
                   : module.id === 'suppliers'
                     ? ' · Destino Intersolid'
-                    : '')
+                    : module.id === 'sections'
+                      ? ' · Destino Intersolid'
+                      : '')
               : module.id === 'clients'
                 ? 'Padrão obrigatório: CLIENTE_intersolid.csv'
                 : module.id === 'suppliers'
                   ? 'Padrão obrigatório: FORNECEDOR_intersolid.csv'
-                  : 'Aguardando seleção'}
+                  : module.id === 'sections'
+                    ? 'Padrão obrigatório: SECAO_intersolid.csv'
+                    : 'Aguardando seleção'}
           </small>
         </div>
       </section>
