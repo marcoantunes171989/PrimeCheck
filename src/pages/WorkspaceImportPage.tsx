@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseFiles, formatBytes } from '../lib/files'
 import type { ParseFilesProgress } from '../lib/files'
-import { analyzeWorkspaceFiles } from '../config/workspaceModules'
+import { analyzeWorkspaceFiles, getExclusiveWorkspaceModuleFromFileName } from '../config/workspaceModules'
 import ImportProgressBar from '../components/ImportProgressBar'
 import type { ImportedFile } from '../types'
 
@@ -32,6 +32,7 @@ export default function WorkspaceImportPage({
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
+  const [warnings, setWarnings] = useState<string[]>([])
   const [importProgress, setImportProgress] = useState<ParseFilesProgress | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const importStartedAt = useRef<number | null>(null)
@@ -80,6 +81,7 @@ export default function WorkspaceImportPage({
   const handleFiles = async (incoming: File[]) => {
     if (!incoming.length || busy) return
 
+    setWarnings([])
     const accepted: File[] = []
     const localErrors: string[] = []
 
@@ -121,8 +123,57 @@ export default function WorkspaceImportPage({
       const parsed = await parseFiles(accepted, progress => setImportProgress(progress))
       const replacingNames = new Set(accepted.map(file => file.name))
       const preserved = files.filter(file => !replacingNames.has(file.name))
-      onFilesChange([...preserved, ...parsed.parsed])
+
+      const blockedNames = new Set<string>()
+      const parsedByPhysicalName = new Map<string, ImportedFile[]>()
+      parsed.parsed.forEach(file => {
+        const list = parsedByPhysicalName.get(file.name) ?? []
+        list.push(file)
+        parsedByPhysicalName.set(file.name, list)
+      })
+
+      const incomingGroupNames = accepted
+        .filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'groups')
+        .map(file => file.name)
+      const incomingSubgroupNames = accepted
+        .filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'subgroups')
+        .map(file => file.name)
+
+      const candidateWithAll = [...preserved, ...parsed.parsed]
+      const initialMatches = analyzeWorkspaceFiles(candidateWithAll)
+      const sectionReady = initialMatches.some(match => match.module.id === 'sections')
+
+      if (incomingGroupNames.length > 0 && !sectionReady) {
+        incomingGroupNames.forEach(name => blockedNames.add(name))
+      }
+
+      const candidateWithoutBlockedGroups = [
+        ...preserved,
+        ...parsed.parsed.filter(file => !blockedNames.has(file.name)),
+      ]
+      const matchesAfterGroupValidation = analyzeWorkspaceFiles(candidateWithoutBlockedGroups)
+      const groupReady = matchesAfterGroupValidation.some(match => match.module.id === 'groups')
+
+      if (incomingSubgroupNames.length > 0 && (!sectionReady || !groupReady)) {
+        incomingSubgroupNames.forEach(name => blockedNames.add(name))
+      }
+
+      const dependencyWarnings: string[] = []
+      if (incomingGroupNames.some(name => blockedNames.has(name))) {
+        dependencyWarnings.push(
+          'Grupo não importado. Importe primeiro o arquivo de Seção para carregar corretamente as informações de Grupo.',
+        )
+      }
+      if (incomingSubgroupNames.some(name => blockedNames.has(name))) {
+        dependencyWarnings.push(
+          'Subgrupo não importado. Importe primeiro os arquivos de Seção e Grupo para conseguir importar corretamente as informações de Subgrupo.',
+        )
+      }
+
+      const acceptedParsed = parsed.parsed.filter(file => !blockedNames.has(file.name))
+      onFilesChange([...preserved, ...acceptedParsed])
       setErrors([...localErrors, ...parsed.errors])
+      setWarnings(dependencyWarnings)
 
       const elapsed = importStartedAt.current === null
         ? elapsedSeconds
@@ -149,12 +200,36 @@ export default function WorkspaceImportPage({
   }
 
   const removeFile = (name: string) => {
+    const moduleId = getExclusiveWorkspaceModuleFromFileName(name)
+    const remainingNames = [...new Set(files.filter(file => file.name !== name).map(file => file.name))]
+    const remainingModules = new Set(
+      remainingNames
+        .map(fileName => getExclusiveWorkspaceModuleFromFileName(fileName))
+        .filter(Boolean),
+    )
+
+    if (moduleId === 'sections' && (remainingModules.has('groups') || remainingModules.has('subgroups'))) {
+      setWarnings([
+        'Não é possível remover Seção enquanto existirem arquivos de Grupo ou Subgrupo. Remova primeiro os módulos dependentes.',
+      ])
+      return
+    }
+
+    if (moduleId === 'groups' && remainingModules.has('subgroups')) {
+      setWarnings([
+        'Não é possível remover Grupo enquanto existirem arquivos de Subgrupo. Remova primeiro os arquivos de Subgrupo.',
+      ])
+      return
+    }
+
+    setWarnings([])
     onFilesChange(files.filter(file => file.name !== name))
   }
 
   const clearImportedData = () => {
     setImportProgress(null)
     setElapsedSeconds(0)
+    setWarnings([])
     importStartedAt.current = null
     onClear()
   }
@@ -266,6 +341,12 @@ export default function WorkspaceImportPage({
         />
       )}
 
+      {warnings.length > 0 && (
+        <div className="workspace-import-warnings" role="status" aria-live="polite">
+          {warnings.map(warning => <span key={warning}>{warning}</span>)}
+        </div>
+      )}
+
       {errors.length > 0 && (
         <div className="workspace-import-errors">
           {errors.map(error => <span key={error}>{error}</span>)}
@@ -313,6 +394,15 @@ export default function WorkspaceImportPage({
             <span>Você pode importar vários arquivos de uma vez e o PrimeCheck separará as informações por módulo.</span>
           </div>
         )}
+      </section>
+
+      <section className="workspace-dependency-guide" aria-label="Ordem de importação da estrutura de produtos">
+        <strong>Ordem obrigatória da estrutura:</strong>
+        <span>1. Seções</span>
+        <i>→</i>
+        <span>2. Grupos</span>
+        <i>→</i>
+        <span>3. Subgrupos</span>
       </section>
 
       <section className="workspace-module-preview">
