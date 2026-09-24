@@ -331,7 +331,7 @@ const CLIENT_CHECKLIST_CONFIG: Record<string, {
     databaseField: 'VAL_LIMITE_CREDITO',
     originExactAliases: ['VAL_LIMITE_CRETID'],
     targetExactAliases: ['VAL_LIMITE_CRETID'],
-    targetSourceAliases: [],
+    targetSourceAliases: ['VAL_LIMITE_CREDITO', 'VAL_LIMITE_CRETID', 'LIMITE_CHEQUE'],
   },
   dataCadastro: {
     checklistLabel: 'data de cadastro',
