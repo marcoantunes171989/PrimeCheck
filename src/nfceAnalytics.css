@@ -416,7 +416,7 @@
 /* NFC-e — Consulta de produtos com filtros independentes e DISTINCT por cProd */
 .nfce-product-query-filters {
   display: grid;
-  grid-template-columns: minmax(260px, 2fr) minmax(190px, 1fr) minmax(190px, 1fr) minmax(170px, .9fr) auto;
+  grid-template-columns: minmax(260px, 2fr) minmax(180px, .9fr) minmax(220px, 1.2fr) minmax(310px, 1.5fr) auto auto;
   align-items: end;
   gap: 11px;
   padding: 14px 15px;
@@ -453,6 +453,30 @@
   border-color: #78a2b7;
   box-shadow: 0 0 0 3px rgba(1,46,70,.06);
 }
+.nfce-product-period-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.nfce-product-period-inputs label {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.nfce-product-period-inputs small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+.nfce-product-nfce-toggle {
+  min-height: 42px;
+  white-space: nowrap;
+}
+.nfce-product-nfce-toggle.active {
+  border-color: var(--accent);
+  background: #fff3e8;
+  color: #a54f08;
+}
 .nfce-product-clear-filters {
   min-height: 42px;
   white-space: nowrap;
@@ -488,9 +512,55 @@
   color: var(--primary);
   font-weight: 800;
 }
-@media (max-width: 1220px) {
+.nfce-product-lookup-detail-table {
+  min-width: 1480px;
+}
+.nfce-product-lookup-detail-table th:nth-child(4),
+.nfce-product-lookup-detail-table td:nth-child(4) {
+  width: 145px;
+}
+.nfce-product-lookup-detail-table th:nth-child(5),
+.nfce-product-lookup-detail-table td:nth-child(5) {
+  width: 72px;
+  text-align: center;
+}
+.nfce-product-lookup-detail-table th:nth-child(6),
+.nfce-product-lookup-detail-table td:nth-child(6) {
+  width: 155px;
+  white-space: nowrap;
+}
+.nfce-product-lookup-detail-table th:nth-child(7),
+.nfce-product-lookup-detail-table td:nth-child(7) {
+  min-width: 300px;
+}
+.nfce-product-lookup-detail-table th:nth-child(8),
+.nfce-product-lookup-detail-table td:nth-child(8) {
+  min-width: 360px;
+}
+.nfce-access-key {
+  display: block;
+  color: #354653;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+@media (max-width: 1400px) {
+  .nfce-product-query-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .nfce-product-filter-search,
+  .nfce-product-period-filter {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 980px) {
   .nfce-product-query-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .nfce-product-filter-search,
+  .nfce-product-period-filter {
+    grid-column: 1 / -1;
   }
   .nfce-product-clear-filters {
     justify-self: start;
@@ -498,6 +568,13 @@
 }
 @media (max-width: 720px) {
   .nfce-product-query-filters {
+    grid-template-columns: 1fr;
+  }
+  .nfce-product-filter-search,
+  .nfce-product-period-filter {
+    grid-column: auto;
+  }
+  .nfce-product-period-inputs {
     grid-template-columns: 1fr;
   }
   .nfce-product-clear-filters {
