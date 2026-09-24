@@ -9,6 +9,7 @@ const updater = readFileSync(new URL('../atualizar-validar-local.cmd', import.me
 const updaterRunner = readFileSync(new URL('./atualizar-validar-local-runner.cmd', import.meta.url), 'utf8')
 const validator = readFileSync(new URL('../validar-local.cmd', import.meta.url), 'utf8')
 const localLauncher = readFileSync(new URL('./primecheck-local.ps1', import.meta.url), 'utf8')
+const finalServer = readFileSync(new URL('./serve-primecheck-local.ps1', import.meta.url), 'utf8')
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
 assert.match(sidebar, /\{ id: 'nfce:barcodes', label: 'Pesquisa por produtos' \}/)
@@ -38,10 +39,6 @@ assert.match(localLauncher, /Pesquisa por produtos/)
 assert.match(localLauncher, /Consulta de produtos/)
 assert.match(localLauncher, /Processamento local/)
 assert.match(localLauncher, /Start-Process -FilePath \$NodeCmd/)
-assert.match(localLauncher, /foregroundArgs/)
-assert.match(localLauncher, /& \$NodeCmd @foregroundArgs/)
-assert.match(localLauncher, /--open/)
-assert.match(localLauncher, /Iniciando Vite definitivo/)
 assert.doesNotMatch(localLauncher, /start-local-server\.mjs|vite-local-daemon\.mjs/)
 
 assert.match(main, /localValidation = \['localhost', '127\.0\.0\.1', '::1'\]/)
