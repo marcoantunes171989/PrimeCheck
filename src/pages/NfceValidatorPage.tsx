@@ -365,6 +365,7 @@ export default function NfceValidatorPage() {
 
   const detail = useMemo(() => selected ? parseNfceDetail(selected) : null, [selected])
   const formattedRawXml = useMemo(() => selected ? formatXmlForDisplay(selected.rawXml) : '', [selected])
+  const formattedRawXmlLines = useMemo(() => formattedRawXml ? formattedRawXml.split('\n') : [], [formattedRawXml])
   const expandedXmlKeySet = useMemo(() => new Set(expandedXmlKeys), [expandedXmlKeys])
 
   useEffect(() => {
@@ -1261,16 +1262,26 @@ export default function NfceValidatorPage() {
               )}
 
               {modalTab === 'xml' && (
-                <section className="nfce-raw-view">
+                <section className="nfce-raw-view" data-formatted-xml="true">
                   <div className="nfce-raw-head">
                     <div>
-                      <span className="eyebrow">ARQUIVO ORIGINAL · VISUALIZAÇÃO FORMATADA</span>
+                      <span className="eyebrow">ARQUIVO ORIGINAL</span>
                       <h3>{selected.fileName}</h3>
-                      <p>Indentação e quebras de linha são aplicadas somente para leitura. “Copiar XML” preserva exatamente o arquivo importado.</p>
+                      <p>Indentação, linhas e numeração são aplicadas somente para leitura. “Copiar XML” preserva exatamente o arquivo importado.</p>
                     </div>
-                    <button className="button secondary" type="button" onClick={() => void copyXml()}>Copiar XML</button>
+                    <div className="nfce-raw-actions">
+                      <span className="nfce-raw-format-badge">Formatado para leitura</span>
+                      <button className="button secondary" type="button" onClick={() => void copyXml()}>Copiar XML</button>
+                    </div>
                   </div>
-                  <pre aria-label="XML formatado para leitura"><code>{formattedRawXml}</code></pre>
+                  <div className="nfce-raw-code" role="region" aria-label="XML formatado para leitura">
+                    {formattedRawXmlLines.map((line, index) => (
+                      <div className="nfce-raw-line" key={`${index}-${line.slice(0, 24)}`}>
+                        <span className="nfce-raw-line-number" aria-hidden="true">{index + 1}</span>
+                        <code>{line || ' '}</code>
+                      </div>
+                    ))}
+                  </div>
                 </section>
               )}
             </div>
