@@ -358,7 +358,7 @@ export const WORKSPACE_MODULES = modules
 
 export const WORKSPACE_GROUPS: Array<{ id: WorkspaceGroupId; label: string; modules: WorkspaceModuleId[] }> = [
   { id: 'partners', label: 'Parceiros', modules: ['clients', 'suppliers', 'carriers'] },
-  { id: 'structure', label: 'Estrutura de Produtos', modules: ['sections', 'groups', 'subgroups'] },
+  { id: 'structure', label: 'Classificação Mercadológica', modules: ['sections', 'groups', 'subgroups'] },
   {
     id: 'products',
     label: 'Produto por Loja',
