@@ -51,7 +51,11 @@ type ProductLookupOccurrence = {
   issueDate: string
 }
 
-type ProductLookupRow = ProductLookupOccurrence
+type ProductLookupRow = {
+  key: string
+  productCode: string
+  description: string
+}
 
 const PAGE_SIZE = 20
 const detailCache = new Map<string, NfceDetail>()
@@ -482,7 +486,11 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     matchingOccurrences.forEach(row => {
       const distinctKey = normalizeNfceSearch(row.productCode)
       if (!distinctKey || distinct.has(distinctKey)) return
-      distinct.set(distinctKey, row)
+      distinct.set(distinctKey, {
+        key: distinctKey,
+        productCode: row.productCode,
+        description: row.description,
+      })
     })
 
     return [...distinct.values()].sort((left, right) => {

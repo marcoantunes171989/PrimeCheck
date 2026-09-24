@@ -26,6 +26,8 @@ assert.match(page, /searchIncludes\(productQuery, \[row\.productCode, row\.descr
 assert.match(page, /row\.nfceNumber/)
 assert.match(page, /row\.series/)
 assert.match(page, /dayKey\(row\.issueDate\) === issueDateFilter/)
+assert.match(page, /type ProductLookupRow = \{[\s\S]*?productCode: string[\s\S]*?description: string[\s\S]*?\}/)
+assert.doesNotMatch(page, /type ProductLookupRow = ProductLookupOccurrence/)
 assert.match(page, /const distinct = new Map<string, ProductLookupRow>\(\)/)
 assert.match(page, /distinct\.has\(distinctKey\)/)
 assert.match(page, /<option value="all">Todos<\/option>/)
