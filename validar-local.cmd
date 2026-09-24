@@ -30,8 +30,8 @@ if errorlevel 1 (
 )
 
 echo [1/5] Preparando ambiente...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":4173" ^| findstr "LISTENING"') do (
-  echo Encerrando servidor anterior PID %%P na porta 4173...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":4177" ^| findstr "LISTENING"') do (
+  echo Encerrando servidor anterior PID %%P na porta 4177...
   taskkill /PID %%P /F >nul 2>&1
 )
 timeout /t 1 /nobreak >nul
@@ -68,7 +68,7 @@ echo SHA atual:
 echo   %EXPECTED_SHA%
 echo.
 echo Acesso local:
-echo   http://127.0.0.1:4173/?build=%EXPECTED_SHA%
+echo   http://127.0.0.1:4177/?build=%EXPECTED_SHA%
 echo.
 echo IMPORTANTE:
 echo   - mantenha esta janela CMD aberta durante a validacao;
