@@ -10872,3 +10872,61 @@ footer {
     gap: 5px;
   }
 }
+
+
+/* Dependências da estrutura de produtos */
+.workspace-import-warnings {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.workspace-import-warnings span {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid #f0c98c;
+  border-radius: 9px;
+  background: #fff8eb;
+  color: #875100;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.workspace-dependency-guide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d8e3e8;
+  border-radius: 10px;
+  background: #fbfcfd;
+  color: #5e6d76;
+  font-size: var(--fs-xs);
+}
+
+.workspace-dependency-guide strong {
+  color: var(--primary);
+}
+
+.workspace-dependency-guide span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef4f7;
+  color: var(--primary);
+  font-weight: 750;
+}
+
+.workspace-dependency-guide i {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 900;
+}
+
+@media (max-width: 620px) {
+  .workspace-dependency-guide {
+    align-items: flex-start;
+  }
+}
