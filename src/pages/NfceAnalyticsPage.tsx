@@ -46,6 +46,7 @@ type ProductLookupOccurrence = {
   key: string
   productCode: string
   description: string
+  salesPackage: string
   nfceNumber: string
   series: string
   issueDate: string
@@ -55,6 +56,7 @@ type ProductLookupRow = {
   key: string
   productCode: string
   description: string
+  salesPackage: string
 }
 
 const PAGE_SIZE = 20
@@ -376,6 +378,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
           key: `${summary.id}|${item.index || itemIndex + 1}|${productCode}`,
           productCode,
           description: item.description || 'Sem descrição',
+          salesPackage: String(item.unit ?? '').trim(),
           nfceNumber: summary.number,
           series: summary.series,
           issueDate: summary.issueDate,
@@ -473,7 +476,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
 
     const matchingOccurrences = productLookupOccurrences
       .filter(row => productCodeMatchesLength(row.productCode, productCodeLength))
-      .filter(row => searchIncludes(productQuery, [row.productCode, row.description]))
+      .filter(row => searchIncludes(productQuery, [row.productCode, row.description, row.salesPackage]))
       .filter(row => !nfceQuery || searchIncludes(nfceQuery, [
         row.nfceNumber,
         row.series,
@@ -490,6 +493,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
         key: distinctKey,
         productCode: row.productCode,
         description: row.description,
+        salesPackage: row.salesPackage,
       })
     })
 
@@ -497,7 +501,9 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       const factor = direction === 'asc' ? 1 : -1
       const result = sortKey === 'description'
         ? collator.compare(left.description, right.description)
-        : collator.compare(left.productCode, right.productCode)
+        : sortKey === 'salesPackage'
+          ? collator.compare(left.salesPackage, right.salesPackage)
+          : collator.compare(left.productCode, right.productCode)
       return result * factor
     })
   }, [
@@ -682,8 +688,8 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                     type="search"
                     value={search}
                     onChange={event => setSearch(event.target.value)}
-                    placeholder="Pesquisar código ou descrição do produto..."
-                    aria-label="Pesquisar produto por código ou descrição"
+                    placeholder="Pesquisar código, descrição ou embalagem..."
+                    aria-label="Pesquisar produto por código, descrição ou embalagem de venda"
                   />
                 </label>
 
@@ -778,12 +784,14 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                   <thead><tr>
                     <th><SortButton label="Código do produto (<cProd>)" field="productCode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Descrição" field="description" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                    <th><SortButton label="Embalagem de venda" field="salesPackage" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                   </tr></thead>
                   <tbody>
                     {(pageRows as ProductLookupRow[]).map(row => (
                       <tr key={row.key}>
                         <td><code className="nfce-short-product-code">{row.productCode}</code></td>
                         <td><strong>{row.description}</strong></td>
+                        <td><span className="nfce-sales-package">{row.salesPackage || '—'}</span></td>
                       </tr>
                     ))}
                   </tbody>
