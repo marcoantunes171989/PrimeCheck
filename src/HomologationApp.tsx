@@ -126,10 +126,18 @@ const canonicalizeClientTargetFiles = (
       const canonical = field.originExactAliases?.[0] ?? field.targetExactAliases?.[0]
       if (!canonical) return []
 
-      const sourceAliases = field.targetSourceAliases ?? []
-      if (!sourceAliases.length) return []
-
+      // Aceita somente equivalências exatas e explicitamente conhecidas:
+      // 1) o nome canônico usado na origem/checklist;
+      // 2) aliases canônicos do destino;
+      // 3) nomes físicos legados já validados no CSV do InterSolid.
+      // Não usa aproximação/fuzzy nesta etapa.
+      const sourceAliases = [
+        canonical,
+        ...(field.targetExactAliases ?? []),
+        ...(field.targetSourceAliases ?? []),
+      ]
       const sourceTokens = new Set(sourceAliases.map(normalizeHeader).filter(Boolean))
+
       const rawHeader = file.headers.find(header =>
         !usedRawHeaders.has(header)
         && sourceTokens.has(normalizeHeader(header)),
