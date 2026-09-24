@@ -61,15 +61,15 @@ if /I not "%LOCAL_SHA%"=="%REMOTE_SHA%" (
 echo [OK] SHA local e remoto confirmados: %LOCAL_SHA%
 echo.
 
-echo [6/7] Confirmando menu NFC-e "Consulta produto"...
-findstr /C:"label: 'Consulta produto'" "src\components\Sidebar.tsx" >nul
+echo [6/7] Confirmando menu NFC-e "Pesquisa por produtos"...
+findstr /C:"label: 'Pesquisa por produtos'" "src\components\Sidebar.tsx" >nul
 if errorlevel 1 (
-  echo [ERRO] A branch carregada nao contem o menu "Consulta produto".
+  echo [ERRO] A branch carregada nao contem o menu "Pesquisa por produtos".
   echo Atualizacao interrompida para evitar validar uma versao incorreta.
   pause
   exit /b 1
 )
-echo [OK] Menu "Consulta produto" confirmado no codigo-fonte.
+echo [OK] Menu "Pesquisa por produtos" confirmado no codigo-fonte.
 echo.
 
 echo [7/7] Iniciando validacao local...
