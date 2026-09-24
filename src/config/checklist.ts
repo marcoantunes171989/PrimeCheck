@@ -268,192 +268,224 @@ const CLIENT_CHECKLIST_CONFIG: Record<string, {
   databaseField: string
   originExactAliases: string[]
   targetExactAliases: string[]
+  targetSourceAliases: string[]
 }> = {
   codigoInterno: {
     checklistLabel: 'código interno',
     databaseField: 'COD_CLIENTE',
     originExactAliases: ['COD_CLIENTE'],
     targetExactAliases: ['COD_CLIENTE'],
+    targetSourceAliases: ['CODIGO_INTERNO'],
   },
   nome: {
     checklistLabel: 'Nome',
     databaseField: 'DES_CLIENTE',
     originExactAliases: ['DES_CLIENTE'],
     targetExactAliases: ['DES_CLIENTE'],
+    targetSourceAliases: ['NOME'],
   },
   apelido: {
     checklistLabel: 'apelido',
     databaseField: 'DES_FANTASIA',
     originExactAliases: ['DES_FANTASIA'],
     targetExactAliases: ['DES_FANTASIA'],
+    targetSourceAliases: ['APELIDO'],
   },
   cpfCnpj: {
     checklistLabel: 'CNPJ/CPF',
     databaseField: 'NUM_CGC',
     originExactAliases: ['NUM_CGC'],
     targetExactAliases: ['NUM_CGC'],
+    targetSourceAliases: ['CNPJ_CPF'],
   },
   ie: {
     checklistLabel: 'IE',
     databaseField: 'NUM_INSC_EST',
     originExactAliases: ['NUM_INSC_EST'],
     targetExactAliases: ['NUM_INSC_EST'],
+    targetSourceAliases: ['INSCRIÇÃO_ESTADUAL'],
   },
   rg: {
     checklistLabel: 'RG',
     databaseField: 'NUM_RG',
     originExactAliases: ['NUM_RG'],
     targetExactAliases: ['NUM_RG'],
+    targetSourceAliases: ['RG'],
   },
   pessoaTipo: {
     checklistLabel: 'Pessoa Física ou Jurídica',
     databaseField: 'FLG_EMPRESA',
     originExactAliases: ['FLG_EMPRESA'],
     targetExactAliases: ['FLG_EMPRESA'],
+    targetSourceAliases: ['FLAG_EMPRESA_CONÊNIO'],
   },
   limiteConvenio: {
     checklistLabel: 'Limite de convênio',
     databaseField: 'VAL_LIMITE_CONV',
     originExactAliases: ['VAL_LIMITE_CONV'],
     targetExactAliases: ['VAL_LIMITE_CONV'],
+    targetSourceAliases: ['LIMITE_CONVÊNIO'],
   },
   limiteCheque: {
     checklistLabel: 'Limite de cheque',
     databaseField: 'VAL_LIMITE_CREDITO',
     originExactAliases: ['VAL_LIMITE_CRETID'],
-    targetExactAliases: ['VAL_LIMITE_CREDITO'],
+    targetExactAliases: ['VAL_LIMITE_CRETID'],
+    targetSourceAliases: [],
   },
   dataCadastro: {
     checklistLabel: 'data de cadastro',
     databaseField: 'DTA_CADASTRO',
     originExactAliases: ['DTA_CADASTRO'],
     targetExactAliases: ['DTA_CADASTRO'],
+    targetSourceAliases: ['DATA_CADASTRO'],
   },
   endereco: {
     checklistLabel: 'endereço',
     databaseField: 'DES_ENDERECO',
     originExactAliases: ['DES_ENDERECO'],
     targetExactAliases: ['DES_ENDERECO'],
+    targetSourceAliases: ['ENDERECO'],
   },
   numeroEndereco: {
     checklistLabel: 'numero',
     databaseField: 'NUM_ENDERECO',
     originExactAliases: ['NUM_ENDERECO'],
     targetExactAliases: ['NUM_ENDERECO'],
+    targetSourceAliases: ['ENDERECO__2'],
   },
   complemento: {
     checklistLabel: 'complemento',
     databaseField: 'DES_COMPLEMENTO',
     originExactAliases: ['DES_COMPLEMENTO'],
     targetExactAliases: ['DES_COMPLEMENTO'],
+    targetSourceAliases: ['COMPLEMENTO'],
   },
   bairro: {
     checklistLabel: 'bairro',
     databaseField: 'DES_BAIRRO',
     originExactAliases: ['DES_BAIRRO'],
     targetExactAliases: ['DES_BAIRRO'],
+    targetSourceAliases: ['BAIRRO'],
   },
   cidade: {
     checklistLabel: 'cidade',
     databaseField: 'DES_CIDADE',
     originExactAliases: ['DES_CIDADE'],
     targetExactAliases: ['DES_CIDADE'],
+    targetSourceAliases: ['CIDADE'],
   },
   uf: {
     checklistLabel: 'sigla',
     databaseField: 'DES_SIGLA',
     originExactAliases: ['DES_SIGLA'],
     targetExactAliases: ['DES_SIGLA'],
+    targetSourceAliases: ['SIGLA'],
   },
   cep: {
     checklistLabel: 'cep',
     databaseField: 'NUM_CEP',
     originExactAliases: ['NUM_CEP'],
     targetExactAliases: ['NUM_CEP'],
+    targetSourceAliases: ['CEP'],
   },
   telefone: {
     checklistLabel: 'telefone',
     databaseField: 'NUM_FONE',
     originExactAliases: ['NUM_FONE'],
     targetExactAliases: ['NUM_FONE'],
+    targetSourceAliases: ['NUMERO_TELEFONE'],
   },
   celular: {
     checklistLabel: 'celular',
     databaseField: 'NUM_CELULAR',
     originExactAliases: ['NUM_CELULAR'],
     targetExactAliases: ['NUM_CELULAR'],
+    targetSourceAliases: ['NUMERO_CELULAR'],
   },
   fax: {
     checklistLabel: 'fax',
     databaseField: 'NUM_FAX',
     originExactAliases: ['NUM_FAX'],
     targetExactAliases: ['NUM_FAX'],
+    targetSourceAliases: ['FAX'],
   },
   contato: {
     checklistLabel: 'contato',
     databaseField: 'DES_CONTATO',
     originExactAliases: ['DES_CONTATO'],
     targetExactAliases: ['DES_CONTATO'],
+    targetSourceAliases: ['NOME_CONTATO'],
   },
   dataNascimento: {
     checklistLabel: 'data de nascimento',
     databaseField: 'DTA_NASCIMENTO',
     originExactAliases: ['DTA_NASCIMENTO'],
     targetExactAliases: ['DTA_NASCIMENTO'],
+    targetSourceAliases: ['DATA_NASCIMENTO'],
   },
   sexo: {
     checklistLabel: 'sexo Masculino ou Feminino',
     databaseField: 'FLG_SEXO',
     originExactAliases: ['FLG_SEXO'],
     targetExactAliases: ['FLG_SEXO'],
+    targetSourceAliases: ['SEXO'],
   },
   estadoCivil: {
     checklistLabel: 'Estado civil',
     databaseField: 'FLG_EST_CIVIL',
     originExactAliases: ['FLG_EST_CIVIL'],
     targetExactAliases: ['FLG_EST_CIVIL'],
+    targetSourceAliases: ['ESTADO_CIVIL'],
   },
   statusCheque: {
     checklistLabel: 'status PDV',
     databaseField: 'cod_status_pdv',
     originExactAliases: ['COD_STATUS_PDV'],
-    targetExactAliases: ['cod_status_pdv'],
+    targetExactAliases: ['COD_STATUS_PDV'],
+    targetSourceAliases: ['STATUS_PDV'],
   },
   statusConvenio: {
     checklistLabel: 'status PDV convênio',
     databaseField: 'COD_STATUS_PDV_CONV',
     originExactAliases: ['COD_STATUS_PDV_CONV'],
     targetExactAliases: ['COD_STATUS_PDV_CONV'],
+    targetSourceAliases: ['STATUS_PDV__2'],
   },
   empresaConvenio: {
     checklistLabel: 'Código convênio',
     databaseField: 'cod_convenio',
     originExactAliases: ['COD_CONVENIO'],
-    targetExactAliases: ['cod_convenio'],
+    targetExactAliases: ['COD_CONVENIO'],
+    targetSourceAliases: ['CODIGO_CONVÊNIO'],
   },
   diaFechamento: {
     checklistLabel: 'Dia de Fechamento convênio',
     databaseField: 'NUM_DIA_FECHA',
     originExactAliases: [],
     targetExactAliases: ['NUM_DIA_FECHA'],
+    targetSourceAliases: [],
   },
   conveniado: {
     checklistLabel: 'convênio',
     databaseField: 'flg_convenio',
     originExactAliases: ['FLG_CONVENIO'],
-    targetExactAliases: ['flg_convenio'],
+    targetExactAliases: ['FLG_CONVENIO'],
+    targetSourceAliases: ['CONVÊNIO'],
   },
   condicaoPagamento: {
     checklistLabel: 'condição de pagamento',
     databaseField: 'des_observacao',
     originExactAliases: ['DES_OBSERVACAO'],
-    targetExactAliases: ['des_observacao'],
+    targetExactAliases: ['DES_OBSERVACAO'],
+    targetSourceAliases: ['OBSERVACAO'],
   },
   observacao: {
     checklistLabel: 'observação',
     databaseField: '',
     originExactAliases: [],
     targetExactAliases: [],
+    targetSourceAliases: [],
   },
 }
 
@@ -504,6 +536,7 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE
     const aliases = [
       ...config.originExactAliases,
       ...config.targetExactAliases,
+      ...config.targetSourceAliases,
     ].filter((value, index, values) => value && values.indexOf(value) === index)
 
     return {
@@ -514,6 +547,7 @@ export const CHECKLIST_FIELDS: FieldDefinition[] = CHECKLIST_FIELDS_BASE
       targetExactAliases: config.originExactAliases.length
         ? config.originExactAliases
         : config.targetExactAliases,
+      targetSourceAliases: config.targetSourceAliases,
       aliases,
     }
   })
