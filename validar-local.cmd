@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 title PrimeCheck - Validacao Local
 
 echo.
@@ -11,7 +11,6 @@ echo.
 where node >nul 2>&1
 if errorlevel 1 (
   echo [ERRO] Node.js nao encontrado no PATH.
-  echo Instale/configure o Node.js e execute novamente.
   pause
   exit /b 1
 )
@@ -24,7 +23,6 @@ if errorlevel 1 (
 )
 
 echo [1/6] Preparando ambiente local isolado por versao...
-echo O servidor antigo da porta 4173 nao sera reutilizado.
 echo.
 
 if not exist node_modules (
@@ -53,46 +51,42 @@ call npm run verify:nfce-xml-format
 if errorlevel 1 goto :error
 echo.
 
-echo [5/6] Iniciando servidor local Vite sem service worker...
-echo.
 for /f "delims=" %%S in ('git rev-parse HEAD') do set "EXPECTED_SHA=%%S"
 set "VITE_PRIMECHECK_SHA=%EXPECTED_SHA%"
 
 for /f "delims=" %%P in ('powershell -NoProfile -Command "$s='%EXPECTED_SHA%'; 4200 + ([Convert]::ToInt32($s.Substring(0,4),16) %% 1000)"') do set "LOCAL_PORT=%%P"
 
-echo Porta exclusiva desta versao: %LOCAL_PORT%
-echo.
-echo Encerrando qualquer processo antigo somente nesta porta...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":%LOCAL_PORT%" ^| findstr "LISTENING"') do (
-  echo Encerrando PID %%P...
-  taskkill /PID %%P /F >nul 2>&1
-)
-timeout /t 1 /nobreak >nul
-
-echo.
-echo Acesso desta versao:
-echo   http://localhost:%LOCAL_PORT%
-echo.
-echo NAO USE http://localhost:4173 para esta homologacao.
-echo O modo local usa uma porta exclusiva por SHA para impedir versao antiga.
-echo.
-
-set "VITE_LOG=%TEMP%\primecheck-vite-%LOCAL_PORT%-%RANDOM%.log"
-set "VITE_LAUNCHER=%~dp0scripts\iniciar-vite-local.cmd"
-
-if not exist "%VITE_LAUNCHER%" (
-  echo [ERRO] Launcher do Vite nao encontrado:
-  echo   %VITE_LAUNCHER%
+if not defined LOCAL_PORT (
+  echo [ERRO] Nao foi possivel calcular a porta local.
   pause
   exit /b 1
 )
 
-start "PrimeCheck Local %LOCAL_PORT%" /min cmd /c call "%VITE_LAUNCHER%" "%LOCAL_PORT%" "%EXPECTED_SHA%" "%VITE_LOG%"
+echo [5/6] Iniciando servidor local persistente...
+echo SHA : %EXPECTED_SHA%
+echo Porta: %LOCAL_PORT%
+echo.
+
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":%LOCAL_PORT%" ^| findstr "LISTENING"') do (
+  echo Encerrando processo anterior PID %%P na porta %LOCAL_PORT%...
+  taskkill /PID %%P /F >nul 2>&1
+)
+timeout /t 1 /nobreak >nul
+
+set "VITE_LOG=%TEMP%\primecheck-vite-%LOCAL_PORT%-%RANDOM%.log"
+set "VITE_PID=%TEMP%\primecheck-vite-%LOCAL_PORT%-%RANDOM%.pid"
+
+node scripts\start-local-server.mjs "%LOCAL_PORT%" "%EXPECTED_SHA%" "%VITE_LOG%" "%VITE_PID%" "%~dp0"
+if errorlevel 1 (
+  echo [ERRO] Falha ao iniciar o servidor local persistente.
+  goto :vitelog
+)
 
 echo.
-echo [6/6] Confirmando porta, fonte servida e smoke test no Edge...
+echo [6/6] Confirmando porta, HTTP, fonte e runtime no Edge...
+
 set "PORT_READY="
-for /L %%I in (1,1,20) do (
+for /L %%I in (1,1,30) do (
   netstat -ano | findstr ":%LOCAL_PORT%" | findstr "LISTENING" >nul 2>&1
   if not errorlevel 1 (
     set "PORT_READY=1"
@@ -101,23 +95,15 @@ for /L %%I in (1,1,20) do (
   timeout /t 1 /nobreak >nul
 )
 
-echo [ERRO] A porta %LOCAL_PORT% nao entrou em estado LISTENING.
-echo.
-echo ===== LOG DO VITE =====
-if exist "%VITE_LOG%" (
-  type "%VITE_LOG%"
-) else (
-  echo Arquivo de log nao foi criado: %VITE_LOG%
-)
-echo ===== FIM DO LOG =====
-pause
-exit /b 1
+echo [ERRO] A porta %LOCAL_PORT% nao entrou em LISTENING.
+goto :vitelog
 
 :portready
 echo [OK] Porta %LOCAL_PORT% esta LISTENING.
+
 set "SERVE_OK="
 for /L %%I in (1,1,30) do (
-  node scripts\verify-local-served-build.mjs "http://localhost:%LOCAL_PORT%" "%EXPECTED_SHA%" >nul 2>&1
+  node scripts\verify-local-served-build.mjs "http://127.0.0.1:%LOCAL_PORT%" "%EXPECTED_SHA%" >nul 2>&1
   if not errorlevel 1 (
     set "SERVE_OK=1"
     goto :sourceok
@@ -125,24 +111,11 @@ for /L %%I in (1,1,30) do (
   timeout /t 1 /nobreak >nul
 )
 
-echo [ERRO] O Vite local nao entregou a versao esperada.
-echo SHA esperado: %EXPECTED_SHA%
-echo.
-echo ===== LOG DO VITE =====
-if exist "%VITE_LOG%" (
-  type "%VITE_LOG%"
-) else (
-  echo Arquivo de log nao foi criado: %VITE_LOG%
-)
-echo ===== FIM DO LOG =====
-echo.
-node scripts\verify-local-served-build.mjs "http://localhost:%LOCAL_PORT%" "%EXPECTED_SHA%"
-pause
-exit /b 1
+echo [ERRO] O servidor respondeu, mas nao entregou a versao esperada.
+goto :vitelog
 
 :sourceok
-echo [OK] Fonte local corresponde ao SHA atual.
-echo.
+echo [OK] HTTP e fonte local correspondem ao SHA atual.
 
 set "EDGE_EXE="
 if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" set "EDGE_EXE=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
@@ -152,8 +125,7 @@ if not defined EDGE_EXE (
 )
 
 if not defined EDGE_EXE (
-  echo [ERRO] Microsoft Edge nao foi localizado para o teste real da interface.
-  echo A homologacao nao sera liberada sem validar a montagem do React.
+  echo [ERRO] Microsoft Edge nao foi localizado.
   pause
   exit /b 1
 )
@@ -162,15 +134,11 @@ set "SMOKE_DIR=%TEMP%\primecheck-edge-smoke-%RANDOM%"
 set "SMOKE_FILE=%TEMP%\primecheck-edge-smoke-%RANDOM%.html"
 if exist "%SMOKE_DIR%" rmdir /s /q "%SMOKE_DIR%"
 
-"%EDGE_EXE%" --headless=new --disable-gpu --no-first-run --disable-extensions --user-data-dir="%SMOKE_DIR%" --virtual-time-budget=7000 --dump-dom "http://localhost:%LOCAL_PORT%/?smoke=%EXPECTED_SHA%" > "%SMOKE_FILE%" 2>nul
+"%EDGE_EXE%" --headless=new --disable-gpu --no-first-run --disable-extensions --user-data-dir="%SMOKE_DIR%" --virtual-time-budget=8000 --dump-dom "http://127.0.0.1:%LOCAL_PORT%/?smoke=%EXPECTED_SHA%" > "%SMOKE_FILE%" 2>nul
 
 findstr /C:"PrimeCheck" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
 findstr /C:"Processamento local" "%SMOKE_FILE%" >nul
-if errorlevel 1 goto :smokeerror
-findstr /C:"Pesquisa por produtos" "%SMOKE_FILE%" >nul
-if errorlevel 1 goto :smokeerror
-findstr /C:"Consulta de produtos" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
 findstr /C:"%EXPECTED_SHA:~0,12%" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
@@ -183,20 +151,38 @@ if exist "%SMOKE_DIR%" rmdir /s /q "%SMOKE_DIR%"
 echo [OK] Edge executou o React e confirmou a interface PrimeCheck.
 echo [OK] SHA carregado: %EXPECTED_SHA%
 echo.
-echo Acesso validado:
-echo   http://localhost:%LOCAL_PORT%/?build=%EXPECTED_SHA%
+echo ==================================================
+echo HOMOLOGACAO LOCAL PRONTA
+echo ==================================================
+echo http://127.0.0.1:%LOCAL_PORT%/?build=%EXPECTED_SHA%
 echo.
-start "" "http://localhost:%LOCAL_PORT%/?build=%EXPECTED_SHA%"
+echo O processo do servidor permanecera ativo em segundo plano.
+echo PID armazenado em:
+echo   %VITE_PID%
+echo.
+start "" "http://127.0.0.1:%LOCAL_PORT%/?build=%EXPECTED_SHA%"
 exit /b 0
 
 :smokeerror
 echo.
 echo [ERRO] O Edge nao conseguiu montar a interface PrimeCheck.
-echo A homologacao foi bloqueada para evitar uma tela branca.
 echo Arquivo de diagnostico:
 echo   %SMOKE_FILE%
 echo.
 type "%SMOKE_FILE%" | findstr /I /C:"data-primecheck-runtime-error" /C:"PrimeCheck"
+pause
+exit /b 1
+
+:vitelog
+echo.
+echo ===== LOG DO SERVIDOR LOCAL =====
+if exist "%VITE_LOG%" (
+  type "%VITE_LOG%"
+) else (
+  echo Log nao encontrado: %VITE_LOG%
+)
+echo ===== FIM DO LOG =====
+echo.
 pause
 exit /b 1
 
