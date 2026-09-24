@@ -20,7 +20,8 @@ select
       tab_fornecedor.dta_cadastro,
       tab_fornecedor.des_email_vend,
       tab_fornecedor.senha_cotacao,
-      tab_fornecedor.num_celular
+      tab_fornecedor.num_celular,
+      tab_fornecedor.cod_classif
 from tab_fornecedor
 inner join tab_cidade
 on (tab_fornecedor.cod_cidade = tab_cidade.cod_cidade)
