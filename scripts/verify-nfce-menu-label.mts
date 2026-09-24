@@ -29,6 +29,7 @@ assert.match(updaterRunner, /\[7\/8\] Confirmando tela Consulta de produtos/)
 
 assert.match(validator, /powershell -NoProfile -ExecutionPolicy Bypass -File/)
 assert.match(validator, /primecheck-local\.ps1/)
+assert.doesNotMatch(validator, /-ProjectDir/)
 assert.doesNotMatch(validator, /npm run serve:local/)
 assert.match(localLauncher, /\$Port = 4177/)
 assert.match(localLauncher, /<title>PrimeCheck \\| Homologa/)
