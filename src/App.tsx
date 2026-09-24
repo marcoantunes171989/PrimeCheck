@@ -9,6 +9,7 @@ import WorkspaceImportPage from './pages/WorkspaceImportPage'
 import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import InternalProductListPage from './pages/InternalProductListPage'
 import GeneralDashboardPage from './pages/GeneralDashboardPage'
+import { usePrimeCheckAuth } from './components/PrimeCheckAuthGate'
 import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceModules'
 import type { ImportedFile } from './types'
 import {
@@ -46,6 +47,7 @@ const staticModuleTitle: Record<'importacao' | 'internal-products' | 'homologaca
 }
 
 export default function App() {
+  const { username: authenticatedUsername, logout } = usePrimeCheckAuth()
   const [module, setModule] = useState<ModuleId>('dashboard:general')
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -217,8 +219,14 @@ export default function App() {
             <span>PrimeCheck</span>
             <strong>{moduleTitle}</strong>
           </div>
-          <div className="workspace-local-badge" title={localBuildSha ? `Build local ${localBuildSha}` : 'Processamento local'}>
-            <i /> Processamento local{localBuildSha ? ` · ${localBuildSha}` : ''}
+          <div className="workspace-auth-actions">
+            <div className="workspace-local-badge" title={localBuildSha ? `Build local ${localBuildSha}` : 'Processamento local'}>
+              <i /> Processamento local{localBuildSha ? ` · ${localBuildSha}` : ''}
+            </div>
+            <span className="workspace-auth-user">{authenticatedUsername}</span>
+            <button type="button" className="workspace-logout-button" onClick={logout}>
+              Sair
+            </button>
           </div>
         </div>
 
