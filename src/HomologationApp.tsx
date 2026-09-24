@@ -339,7 +339,13 @@ function App({
     initialMapping,
   ])
 
-  useEffect(() => setPage(1), [search, statusFilter, issueFieldFilter, activeTab, pageSize])
+  useEffect(() => setPage(1), [search, statusFilter, issueFieldFilter, activeTab, pageSize, hierarchySearchLevel])
+
+  useEffect(() => {
+    if (!showSubgroupHierarchy && hierarchySearchLevel === 'SUBGROUP') {
+      setHierarchySearchLevel('ALL')
+    }
+  }, [showSubgroupHierarchy, hierarchySearchLevel])
 
   useEffect(() => {
     const handleAfterPrint = () => setIssuePrintItems([])
