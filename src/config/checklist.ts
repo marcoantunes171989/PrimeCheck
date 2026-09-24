@@ -459,26 +459,12 @@ const CLIENT_CHECKLIST_CONFIG: Record<string, {
     targetExactAliases: ['COD_CONVENIO'],
     targetSourceAliases: ['CODIGO_CONVÊNIO'],
   },
-  diaFechamento: {
-    checklistLabel: 'Dia de Fechamento convênio',
-    databaseField: 'NUM_DIA_FECHA',
-    originExactAliases: [],
-    targetExactAliases: ['NUM_DIA_FECHA'],
-    targetSourceAliases: [],
-  },
   conveniado: {
     checklistLabel: 'convênio',
     databaseField: 'flg_convenio',
     originExactAliases: ['FLG_CONVENIO'],
     targetExactAliases: ['FLG_CONVENIO'],
     targetSourceAliases: ['CONVÊNIO'],
-  },
-  condicaoPagamento: {
-    checklistLabel: 'condição de pagamento',
-    databaseField: '',
-    originExactAliases: [],
-    targetExactAliases: [],
-    targetSourceAliases: [],
   },
   observacao: {
     checklistLabel: 'observação',
@@ -517,9 +503,7 @@ const CLIENT_CHECKLIST_ORDER = [
   'statusCheque',
   'statusConvenio',
   'empresaConvenio',
-  'diaFechamento',
   'conveniado',
-  'condicaoPagamento',
   'observacao',
 ]
 
