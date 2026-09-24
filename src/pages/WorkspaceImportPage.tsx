@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseFiles, formatBytes } from '../lib/files'
 import type { ParseFilesProgress } from '../lib/files'
-import { analyzeWorkspaceFiles, getExclusiveWorkspaceModuleFromFileName } from '../config/workspaceModules'
+import {
+  analyzeWorkspaceFiles,
+  getExclusiveWorkspaceModuleFromFileName,
+  getWorkspaceModulePairState,
+  getWorkspacePairReadiness,
+} from '../config/workspaceModules'
 import ImportProgressBar from '../components/ImportProgressBar'
 import type { ImportedFile } from '../types'
 
@@ -53,6 +58,13 @@ export default function WorkspaceImportPage({
   }, [files])
 
   const matches = useMemo(() => analyzeWorkspaceFiles(files), [files])
+  const pairReadiness = useMemo(() => getWorkspacePairReadiness(files), [files])
+  const pairedValidationRequired = pairReadiness.states.some(state => state.hasAnyFile)
+  const pairGateReady = !pairedValidationRequired || pairReadiness.ready
+  const displayWarnings = useMemo(
+    () => [...new Set([...warnings, ...pairReadiness.blockers])],
+    [warnings, pairReadiness.blockers.join('|')],
+  )
 
   useEffect(() => {
     if (!busy || importStartedAt.current === null) return
@@ -134,8 +146,7 @@ export default function WorkspaceImportPage({
         .map(file => file.name)
 
       const candidateWithAll = [...preserved, ...parsed.parsed]
-      const initialMatches = analyzeWorkspaceFiles(candidateWithAll)
-      const sectionReady = initialMatches.some(match => match.module.id === 'sections')
+      const sectionReady = getWorkspaceModulePairState(candidateWithAll, 'sections').ready
 
       if (incomingGroupNames.length > 0 && !sectionReady) {
         incomingGroupNames.forEach(name => blockedNames.add(name))
@@ -145,8 +156,7 @@ export default function WorkspaceImportPage({
         ...preserved,
         ...parsed.parsed.filter(file => !blockedNames.has(file.name)),
       ]
-      const matchesAfterGroupValidation = analyzeWorkspaceFiles(candidateWithoutBlockedGroups)
-      const groupReady = matchesAfterGroupValidation.some(match => match.module.id === 'groups')
+      const groupReady = getWorkspaceModulePairState(candidateWithoutBlockedGroups, 'groups').ready
 
       if (incomingSubgroupNames.length > 0 && (!sectionReady || !groupReady)) {
         incomingSubgroupNames.forEach(name => blockedNames.add(name))
@@ -155,12 +165,12 @@ export default function WorkspaceImportPage({
       const dependencyWarnings: string[] = []
       if (incomingGroupNames.some(name => blockedNames.has(name))) {
         dependencyWarnings.push(
-          'Grupo não importado. Importe primeiro o arquivo de Seção para carregar corretamente as informações de Grupo.',
+          'Grupo não importado. Importe primeiro os dois arquivos compatíveis de Seção (origem e destino) para carregar corretamente as informações de Grupo.',
         )
       }
       if (incomingSubgroupNames.some(name => blockedNames.has(name))) {
         dependencyWarnings.push(
-          'Subgrupo não importado. Importe primeiro os arquivos de Seção e Grupo para conseguir importar corretamente as informações de Subgrupo.',
+          'Subgrupo não importado. Importe primeiro os pares completos de Seção e Grupo (origem e destino) para conseguir importar corretamente as informações de Subgrupo.',
         )
       }
 
@@ -335,9 +345,9 @@ export default function WorkspaceImportPage({
         />
       )}
 
-      {warnings.length > 0 && (
+      {displayWarnings.length > 0 && (
         <div className="workspace-import-warnings" role="status" aria-live="polite">
-          {warnings.map(warning => <span key={warning}>{warning}</span>)}
+          {displayWarnings.map(warning => <span key={warning}>{warning}</span>)}
         </div>
       )}
 
@@ -418,8 +428,20 @@ export default function WorkspaceImportPage({
 
       <div className="workspace-import-action">
         <div>
-          <strong>{matches.length ? 'Dados prontos para organização.' : 'Aguardando arquivos reconhecidos.'}</strong>
-          <span>Os arquivos processados ficam salvos localmente neste navegador até você limpar os dados.</span>
+          <strong>
+            {!files.length
+              ? 'Aguardando arquivos reconhecidos.'
+              : !pairGateReady
+                ? 'Complete os pares de origem e destino antes de continuar.'
+                : matches.length
+                  ? 'Dados prontos para organização.'
+                  : 'Aguardando arquivos reconhecidos.'}
+          </strong>
+          <span>
+            {!pairGateReady
+              ? 'O avanço só é liberado quando os módulos importados possuem origem e destino compatíveis e as dependências estruturais estão completas.'
+              : 'Os arquivos processados ficam salvos localmente neste navegador até você limpar os dados.'}
+          </span>
         </div>
         <div className="workspace-import-action-buttons">
           {files.length > 0 && (
@@ -435,7 +457,8 @@ export default function WorkspaceImportPage({
           <button
             type="button"
             className="button primary large workspace-organize-button"
-            disabled={!files.length || !matches.length || busy || restoring}
+            disabled={!files.length || !matches.length || !pairGateReady || busy || restoring}
+            title={!pairGateReady ? 'Complete os arquivos de origem/destino e as dependências antes de avançar.' : undefined}
             onClick={onContinue}
           >
             Organizar dados e abrir módulos
