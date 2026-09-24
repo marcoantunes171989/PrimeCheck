@@ -419,3 +419,189 @@ body {
     max-width: none !important;
   }
 }
+
+
+/* ==========================================================================
+   PrimeCheck — hardening responsivo auditado 2026-09-24
+   Correções cirúrgicas após auditoria de larguras rígidas e wrappers.
+   ========================================================================== */
+
+.workspace-main :where(
+  .main-content,
+  .workspace-import-page,
+  .workspace-data-page,
+  .module-page,
+  .module-comparison-page,
+  .general-dashboard-page,
+  .internal-products-page,
+  .nfce-page,
+  .nfce-analytics-page,
+  .section-head,
+  .results-head,
+  .issues-section-head,
+  .technical-diagnosis-head,
+  .duplicates-head,
+  .table-toolbar,
+  .searchable-toolbar,
+  .filters,
+  .filters-issues,
+  .duplicates-toolbar,
+  .workspace-data-toolbar,
+  .workspace-fields-bar,
+  .comparison-file-selector,
+  .comparison-file-side,
+  .embedded-comparison-summary,
+  .workspace-data-summary,
+  .workspace-import-grid,
+  .internal-products-toolbar
+) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-main :where(
+  .section-head,
+  .results-head,
+  .issues-section-head,
+  .technical-diagnosis-head,
+  .duplicates-head,
+  .table-toolbar,
+  .searchable-toolbar,
+  .filters,
+  .filters-issues,
+  .duplicates-toolbar,
+  .workspace-data-toolbar,
+  .workspace-fields-bar,
+  .comparison-file-selector,
+  .comparison-file-side,
+  .embedded-comparison-summary,
+  .workspace-data-summary,
+  .workspace-import-grid,
+  .internal-products-toolbar
+) > * {
+  min-width: 0;
+}
+
+/* Diagnóstico rápido: não ocultar colunas.
+   Em desktop amplo a tabela usa toda a largura disponível.
+   Abaixo disso, a rolagem fica contida somente no wrapper da tabela. */
+.technical-diagnosis-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto !important;
+  overflow-y: visible;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+@media (min-width: 1200px) {
+  .technical-diagnosis-table-wrap {
+    overflow-x: hidden !important;
+  }
+
+  .technical-diagnosis-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+  }
+}
+
+@media (max-width: 1199px) {
+  .technical-diagnosis-table {
+    width: 100% !important;
+    min-width: 980px !important;
+  }
+
+  .workspace-main :where(
+    .filters,
+    .filters-issues,
+    .duplicates-toolbar,
+    .workspace-data-toolbar,
+    .internal-products-toolbar
+  ) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .workspace-main :where(
+    .results-head,
+    .issues-section-head,
+    .technical-diagnosis-head,
+    .duplicates-head,
+    .table-toolbar
+  ) {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace-main :where(
+    .filters,
+    .filters-issues,
+    .duplicates-toolbar,
+    .workspace-data-toolbar,
+    .internal-products-toolbar,
+    .searchable-toolbar
+  ) {
+    grid-template-columns: 1fr !important;
+  }
+
+  .workspace-main :where(
+    .results-head,
+    .issues-section-head,
+    .technical-diagnosis-head,
+    .duplicates-head,
+    .table-toolbar
+  ) {
+    align-items: stretch;
+  }
+
+  .workspace-main :where(
+    .results-head,
+    .issues-section-head,
+    .technical-diagnosis-head,
+    .duplicates-head,
+    .table-toolbar
+  ) > * {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 820px) {
+  .technical-diagnosis-table {
+    min-width: 860px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-main :where(
+    .result-actions,
+    .issue-print-actions,
+    .duplicates-head-actions,
+    .workspace-import-action-buttons,
+    .module-comparison-head-actions,
+    .internal-products-head-actions
+  ) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .workspace-main :where(
+    .result-actions,
+    .issue-print-actions,
+    .duplicates-head-actions
+  ) > button,
+  .workspace-main :where(
+    .workspace-import-action-buttons,
+    .module-comparison-head-actions,
+    .internal-products-head-actions
+  ) .button {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .pagination span {
+    min-width: 0;
+  }
+}
