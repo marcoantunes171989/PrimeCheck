@@ -10704,3 +10704,171 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* =========================================================
+   Progresso global de importação — suave e consistente
+   ========================================================= */
+.global-import-progress {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid #d6e2e8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(1, 46, 70, .06);
+  overflow: hidden;
+}
+
+.global-import-progress.is-running {
+  border-color: #aac6d3;
+}
+
+.global-import-progress.is-complete {
+  border-color: #c8dfd1;
+  background: #fbfefc;
+}
+
+.global-import-progress-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.global-import-progress-head > div {
+  min-width: 0;
+}
+
+.global-import-progress-head strong,
+.global-import-progress-head small {
+  display: block;
+}
+
+.global-import-progress-head strong {
+  color: var(--primary);
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+}
+
+.global-import-progress-head small {
+  max-width: min(860px, 72vw);
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-import-progress-head > b {
+  flex: 0 0 auto;
+  min-width: 70px;
+  color: var(--primary);
+  font-size: 27px;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.global-import-progress-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef2;
+}
+
+.global-import-progress-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: width .08s linear;
+  will-change: width;
+}
+
+.global-import-progress.is-complete .global-import-progress-track i {
+  background: #22c55e;
+}
+
+.global-import-progress-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px 18px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+
+.global-import-progress-meta span {
+  min-width: 0;
+  color: #60717b;
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+}
+
+.global-import-progress-meta strong {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.global-import-progress.is-compact {
+  margin-top: 9px;
+  padding: 10px 11px;
+  box-shadow: none;
+}
+
+.global-import-progress.is-compact .global-import-progress-head strong {
+  font-size: var(--fs-xs);
+}
+
+.global-import-progress.is-compact .global-import-progress-head small,
+.global-import-progress.is-compact .global-import-progress-meta span {
+  font-size: var(--fs-2xs);
+}
+
+.global-import-progress.is-compact .global-import-progress-head > b {
+  min-width: 56px;
+  font-size: 22px;
+}
+
+.global-import-progress.is-compact .global-import-progress-track {
+  height: 9px;
+  margin-top: 9px;
+}
+
+.drop-zone.busy,
+.workspace-dropzone.busy {
+  pointer-events: none;
+  cursor: progress;
+  opacity: .76;
+}
+
+@media (max-width: 620px) {
+  .global-import-progress {
+    padding: 12px;
+  }
+
+  .global-import-progress-head {
+    gap: 10px;
+  }
+
+  .global-import-progress-head small {
+    max-width: 60vw;
+  }
+
+  .global-import-progress-head > b {
+    min-width: 58px;
+    font-size: 23px;
+  }
+
+  .global-import-progress-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+}
