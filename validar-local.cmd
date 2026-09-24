@@ -120,7 +120,7 @@ findstr /C:"Processamento local" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
 findstr /C:"%EXPECTED_SHA:~0,12%" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
-findstr /C:"data-primecheck-runtime-error="true"" "%SMOKE_FILE%" >nul
+findstr /C:"data-primecheck-runtime-error" "%SMOKE_FILE%" >nul
 if not errorlevel 1 goto :smokeerror
 
 if exist "%SMOKE_FILE%" del /q "%SMOKE_FILE%"
