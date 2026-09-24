@@ -10979,3 +10979,47 @@ footer {
   color: #314751;
   font-weight: 700;
 }
+
+
+/* Hierarquia visual inline — não participa da validação */
+.hierarchy-inline-label {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #4f626d;
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.hierarchy-inline-label span,
+.hierarchy-inline-label strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hierarchy-inline-label span {
+  color: #657782;
+  font-weight: 600;
+}
+
+.hierarchy-inline-label strong {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.hierarchy-inline-label i {
+  flex: 0 0 auto;
+  color: #c1ccd2;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .hierarchy-inline-label {
+    gap: 5px;
+    font-size: var(--fs-xs);
+  }
+}
