@@ -417,13 +417,17 @@ export const getWorkspaceComparisonFileRole = (
   const withoutExtension = fileName.replace(/\.[^.]+$/, '')
   const token = normalizeHeader(withoutExtension)
 
-  const prefix = moduleId === 'sections'
-    ? 'SECAO_'
-    : moduleId === 'groups'
-      ? 'GRUPO_'
-      : moduleId === 'subgroups'
-        ? 'SUBGRUPO_'
-        : ''
+  const prefix = moduleId === 'clients'
+    ? 'CLIENTE_'
+    : moduleId === 'suppliers'
+      ? 'FORNECEDOR_'
+      : moduleId === 'sections'
+        ? 'SECAO_'
+        : moduleId === 'groups'
+          ? 'GRUPO_'
+          : moduleId === 'subgroups'
+            ? 'SUBGRUPO_'
+            : ''
 
   if (!prefix || !token.startsWith(prefix)) return null
 
@@ -432,6 +436,125 @@ export const getWorkspaceComparisonFileRole = (
 
   if (suffix === 'INTERSOLID' || suffix === 'INTER_SOLID') return 'target'
   return 'origin'
+}
+
+export const WORKSPACE_PAIRED_MODULES: WorkspaceModuleId[] = [
+  'clients',
+  'suppliers',
+  'sections',
+  'groups',
+  'subgroups',
+]
+
+const hasPairCoreStructure = (file: ImportedFile, moduleId: WorkspaceModuleId) => {
+  switch (moduleId) {
+    case 'clients':
+      return hasExactHeader(file, ['COD_CLIENTE'])
+        && hasExactHeader(file, ['DES_CLIENTE'])
+    case 'suppliers':
+      return hasExactHeader(file, ['COD_FORNECEDOR'])
+        && hasExactHeader(file, ['DES_FORNECEDOR'])
+    case 'sections':
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['DES_SECAO'])
+    case 'groups':
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['DES_GRUPO'])
+    case 'subgroups':
+      return hasExactHeader(file, ['COD_SECAO'])
+        && hasExactHeader(file, ['COD_GRUPO'])
+        && hasExactHeader(file, ['COD_SUB_GRUPO'])
+        && hasExactHeader(file, ['DES_SUB_GRUPO'])
+    default:
+      return false
+  }
+}
+
+export type WorkspaceModulePairState = {
+  moduleId: WorkspaceModuleId
+  hasAnyFile: boolean
+  originFiles: ImportedFile[]
+  targetFiles: ImportedFile[]
+  incompatibleFiles: ImportedFile[]
+  originReady: boolean
+  targetReady: boolean
+  ready: boolean
+}
+
+export const getWorkspaceModulePairState = (
+  files: ImportedFile[],
+  moduleId: WorkspaceModuleId,
+): WorkspaceModulePairState => {
+  const scoped = files.filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === moduleId)
+  const originFiles = scoped.filter(file =>
+    getWorkspaceComparisonFileRole(moduleId, file.name) === 'origin'
+    && hasPairCoreStructure(file, moduleId),
+  )
+  const targetFiles = scoped.filter(file =>
+    getWorkspaceComparisonFileRole(moduleId, file.name) === 'target'
+    && hasPairCoreStructure(file, moduleId),
+  )
+  const compatibleIds = new Set([...originFiles, ...targetFiles].map(file => file.id))
+  const incompatibleFiles = scoped.filter(file => !compatibleIds.has(file.id))
+
+  return {
+    moduleId,
+    hasAnyFile: scoped.length > 0,
+    originFiles,
+    targetFiles,
+    incompatibleFiles,
+    originReady: originFiles.length > 0,
+    targetReady: targetFiles.length > 0,
+    ready: originFiles.length > 0 && targetFiles.length > 0 && incompatibleFiles.length === 0,
+  }
+}
+
+export const getWorkspacePairReadiness = (files: ImportedFile[]) => {
+  const states = WORKSPACE_PAIRED_MODULES.map(moduleId =>
+    getWorkspaceModulePairState(files, moduleId),
+  )
+
+  const byId = new Map(states.map(state => [state.moduleId, state]))
+  const sectionReady = byId.get('sections')?.ready === true
+  const groupReady = byId.get('groups')?.ready === true
+
+  const relevant = states.filter(state => state.hasAnyFile)
+  const blockers: string[] = []
+
+  relevant.forEach(state => {
+    const label = modules.find(module => module.id === state.moduleId)?.label ?? state.moduleId
+
+    if (state.incompatibleFiles.length > 0) {
+      blockers.push(
+        label + ': existe arquivo com nome do módulo, mas os campos obrigatórios não correspondem ao padrão esperado.',
+      )
+      return
+    }
+
+    if (!state.originReady || !state.targetReady) {
+      const missing = !state.originReady && !state.targetReady
+        ? 'origem e destino'
+        : !state.originReady
+          ? 'origem'
+          : 'destino'
+      blockers.push(label + ': importe o arquivo de ' + missing + ' compatível para continuar.')
+    }
+  })
+
+  if (byId.get('groups')?.hasAnyFile && !sectionReady) {
+    blockers.push('Grupos: importe primeiro os dois arquivos compatíveis de Seções (origem e destino).')
+  }
+
+  if (byId.get('subgroups')?.hasAnyFile && (!sectionReady || !groupReady)) {
+    blockers.push('Subgrupos: importe primeiro os pares completos de Seções e Grupos (origem e destino).')
+  }
+
+  return {
+    states,
+    blockers: [...new Set(blockers)],
+    ready: relevant.length > 0 && blockers.length === 0,
+  }
 }
 
 const fileNameSuggestsModule = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
