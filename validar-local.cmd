@@ -80,7 +80,7 @@ echo   SERVIDOR LOCAL INICIANDO
 echo ===============================================
 echo.
 
-call npm run serve:local -- --host 127.0.0.1 --port 4173 --open "/?build=%EXPECTED_SHA%"
+call npm run serve:local -- --host 127.0.0.1 --port 4177 --open "/?build=%EXPECTED_SHA%"
 set "SERVER_EXIT=%ERRORLEVEL%"
 
 echo.
