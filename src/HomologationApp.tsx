@@ -16,7 +16,7 @@ import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import DuplicateAnalysisModal, { type DuplicateAnalysisRequest } from './components/DuplicateAnalysisModal'
 import { buildRecordDisplayFields, findDuplicateGroup, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
 import { normalizeHeader, validateCpfCnpj } from './lib/normalizers'
-import { buildHierarchyVisual, isGroupHierarchyProfile, isSubgroupHierarchyProfile, type VisualHierarchyContext } from './lib/hierarchyDisplay'
+import { buildHierarchyVisual, hierarchySearchValue, isGroupHierarchyProfile, isSubgroupHierarchyProfile, type HierarchySearchLevel, type VisualHierarchyContext } from './lib/hierarchyDisplay'
 import { formatReportDateTime } from './lib/reportFormatting'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
@@ -234,6 +234,7 @@ function App({
     document: '',
     validity: 'TODOS',
   })
+  const [hierarchySearchLevel, setHierarchySearchLevel] = useState<HierarchySearchLevel>('ALL')
   const [issueColumnFilters, setIssueColumnFilters] = useState({
     code: '',
     name: '',
@@ -491,7 +492,7 @@ function App({
       if (!contains(client.key, clientColumnFilters.code)) return false
       if (!contains(
         showGroupHierarchy || showSubgroupHierarchy
-          ? hierarchyDisplayForClient(client)
+          ? hierarchySearchValue(client, resultProfile.id, hierarchySearchLevel, visualHierarchy)
           : client.name,
         clientColumnFilters.name,
       )) return false
@@ -525,7 +526,7 @@ function App({
         || rawHit
         || hierarchyHit
     })
-  }, [report, search, statusFilter, clientColumnFilters, visualHierarchy, resultProfile.id, showGroupHierarchy, showSubgroupHierarchy])
+  }, [report, search, statusFilter, clientColumnFilters, visualHierarchy, resultProfile.id, showGroupHierarchy, showSubgroupHierarchy, hierarchySearchLevel])
 
   const originDuplicateLookup = useMemo(() => {
     const lookup = new Map<string, IssueDuplicateInfo>()
@@ -1114,6 +1115,7 @@ function App({
                             document: '',
                             validity: 'TODOS',
                           })
+                          setHierarchySearchLevel('ALL')
                         }}
                       >
                         Limpar filtros
@@ -1187,7 +1189,43 @@ function App({
                         <tr className="column-filter-row">
                           <th />
                           <th><input value={clientColumnFilters.code} onChange={e => setClientColumnFilters(current => ({ ...current, code: e.target.value }))} placeholder="Filtrar…" /></th>
-                          <th><input value={clientColumnFilters.name} onChange={e => setClientColumnFilters(current => ({ ...current, name: e.target.value }))} placeholder="Filtrar…" /></th>
+                          <th>
+                            {showGroupHierarchy || showSubgroupHierarchy ? (
+                              <div className="hierarchy-filter-control">
+                                <select
+                                  value={hierarchySearchLevel}
+                                  onChange={event => setHierarchySearchLevel(event.target.value as HierarchySearchLevel)}
+                                  aria-label="Nível da pesquisa hierárquica"
+                                  title="Escolha em qual nível deseja pesquisar"
+                                >
+                                  <option value="ALL">Todos os níveis</option>
+                                  <option value="SECTION">Seção</option>
+                                  <option value="GROUP">Grupo</option>
+                                  {showSubgroupHierarchy && <option value="SUBGROUP">Subgrupo</option>}
+                                </select>
+                                <input
+                                  value={clientColumnFilters.name}
+                                  onChange={event => setClientColumnFilters(current => ({ ...current, name: event.target.value }))}
+                                  placeholder={
+                                    hierarchySearchLevel === 'SECTION'
+                                      ? 'Pesquisar seção…'
+                                      : hierarchySearchLevel === 'GROUP'
+                                        ? 'Pesquisar grupo…'
+                                        : hierarchySearchLevel === 'SUBGROUP'
+                                          ? 'Pesquisar subgrupo…'
+                                          : 'Pesquisar em todos…'
+                                  }
+                                  aria-label="Pesquisar nível selecionado"
+                                />
+                              </div>
+                            ) : (
+                              <input
+                                value={clientColumnFilters.name}
+                                onChange={event => setClientColumnFilters(current => ({ ...current, name: event.target.value }))}
+                                placeholder="Filtrar…"
+                              />
+                            )}
+                          </th>
                           <th>
                             <select value={clientColumnFilters.found} onChange={e => setClientColumnFilters(current => ({ ...current, found: e.target.value }))}>
                               <option value="TODOS">Todos</option>
@@ -1297,11 +1335,21 @@ function App({
                     search.trim() ? 'Pesquisa: ' + search.trim() : '',
                     clientColumnFilters.code ? 'Código: ' + clientColumnFilters.code : '',
                     clientColumnFilters.name
-                      ? (showGroupHierarchy
-                          ? 'Seção | Grupo'
-                          : showSubgroupHierarchy
-                            ? 'Seção | Grupo | Subgrupo'
-                            : resultProfile.recordLabel) + ': ' + clientColumnFilters.name
+                      ? (
+                          showGroupHierarchy || showSubgroupHierarchy
+                            ? (
+                                hierarchySearchLevel === 'SECTION'
+                                  ? 'Seção'
+                                  : hierarchySearchLevel === 'GROUP'
+                                    ? 'Grupo'
+                                    : hierarchySearchLevel === 'SUBGROUP'
+                                      ? 'Subgrupo'
+                                      : showGroupHierarchy
+                                        ? 'Seção | Grupo'
+                                        : 'Seção | Grupo | Subgrupo'
+                              )
+                            : resultProfile.recordLabel
+                        ) + ': ' + clientColumnFilters.name
                       : '',
                     clientColumnFilters.found !== 'TODOS' ? 'Encontrado: ' + clientColumnFilters.found : '',
                     clientColumnFilters.status !== 'TODOS' ? 'Resultado: ' + clientColumnFilters.status : '',
