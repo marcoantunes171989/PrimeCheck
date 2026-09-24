@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import PrimeCheckAuthGate from './components/PrimeCheckAuthGate'
 import './styles.css'
 import './responsive.css'
 
@@ -45,7 +46,9 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <PrimeCheckRuntimeBoundary>
-      <App />
+      <PrimeCheckAuthGate>
+        <App />
+      </PrimeCheckAuthGate>
     </PrimeCheckRuntimeBoundary>
   </React.StrictMode>,
 )
