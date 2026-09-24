@@ -5680,6 +5680,16 @@ body {
   background: rgba(243,133,37,.78) !important;
 }
 
+.workspace-organize-button:disabled,
+.workspace-import-action .button.primary:disabled {
+  background: #d6dde1 !important;
+  border-color: #d6dde1 !important;
+  color: #77858d !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+  filter: none !important;
+}
+
 .module-page,
 .workspace-import-page,
 .workspace-data-page,
