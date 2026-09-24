@@ -268,36 +268,21 @@ try {
   Write-Host "  PRIME CHECK LOCAL PRONTO" -ForegroundColor Green
   Write-Host "==================================================" -ForegroundColor Green
   Write-Host ""
-  Write-Host "Servidor definitivo em primeiro plano:" -ForegroundColor Cyan
-  Write-Host $url -ForegroundColor Cyan
-  Write-Host ""
-  Write-Host "IMPORTANTE:" -ForegroundColor Yellow
-  Write-Host "  - esta janela deve permanecer aberta;"
-  Write-Host "  - o Vite abaixo e o proprio servidor da homologacao;"
-  Write-Host "  - Ctrl+C encerra o servidor."
-  Write-Host ""
-  Write-Host "Iniciando Vite definitivo..." -ForegroundColor Cyan
+  Write-Host "O servidor definitivo sera iniciado agora na porta 4177." -ForegroundColor Cyan
   Write-Host ""
 
-  $foregroundArgs = @(
-    $viteJs,
-    "--host",
-    "127.0.0.1",
-    "--port",
-    "$Port",
-    "--strictPort",
-    "--open",
-    "/?build=$sha"
-  )
+  $serverScript = Join-Path $PSScriptRoot "serve-primecheck-local.ps1"
+  if (-not (Test-Path $serverScript)) {
+    Fail "Script do servidor definitivo nao encontrado: $serverScript"
+  }
 
-  & $NodeCmd @foregroundArgs
+  & $serverScript
   $serverExit = $LASTEXITCODE
 
-  Write-Host ""
-  Write-Host "Servidor PrimeCheck encerrado. Codigo: $serverExit"
   if ($serverExit -ne 0) {
-    Fail "O Vite definitivo encerrou com codigo $serverExit."
+    Fail "O servidor definitivo encerrou com codigo $serverExit."
   }
+
 }
 finally {
   if ($viteProcess -and -not $viteProcess.HasExited) {
