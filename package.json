@@ -21,7 +21,7 @@
     "verify:nfce-xml-format": "npx --yes tsx scripts/verify-nfce-xml-format.mts",
     "verify:build-info": "npx --yes tsx scripts/verify-build-info.mts",
     "verify:local-served-script": "node scripts/verify-local-served-script.mjs",
-    "serve:local": "vite --host localhost --strictPort"
+    "serve:local": "vite --strictPort"
   },
   "dependencies": {
     "@br-validators/core": "^1.10.0-data.41",
