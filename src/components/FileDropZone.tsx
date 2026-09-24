@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import type { ImportedFile } from '../types'
 import { formatBytes, parseFiles } from '../lib/files'
+import type { ParseFilesProgress } from '../lib/files'
+import ImportProgressBar from './ImportProgressBar'
 
 type Props = {
   title: string
@@ -15,14 +17,43 @@ export default function FileDropZone({ title, subtitle, files, onChange, tone }:
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
+  const [progress, setProgress] = useState<ParseFilesProgress | null>(null)
 
   const handle = async (list: FileList | File[]) => {
+    const selected = Array.from(list)
+    if (!selected.length || busy) return
+
     setBusy(true)
     setErrors([])
-    const { parsed, errors: parseErrors } = await parseFiles(Array.from(list))
-    onChange([...files, ...parsed])
-    setErrors(parseErrors)
-    setBusy(false)
+    setProgress({
+      fileName: selected[0]?.name ?? '',
+      fileIndex: 0,
+      totalFiles: selected.length,
+      completedFiles: 0,
+      phase: 'reading',
+      filePercent: 0,
+      overallPercent: 0,
+      loadedBytes: 0,
+      totalBytes: selected.reduce((total, file) => total + Math.max(file.size, 1), 0),
+    })
+
+    try {
+      const { parsed, errors: parseErrors } = await parseFiles(selected, next => setProgress(next))
+      onChange([...files, ...parsed])
+      setErrors(parseErrors)
+      setProgress(current => current
+        ? {
+            ...current,
+            phase: parseErrors.length ? 'error' : 'completed',
+            filePercent: 100,
+            overallPercent: 100,
+            completedFiles: selected.length,
+            loadedBytes: current.totalBytes,
+          }
+        : null)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -37,14 +68,23 @@ export default function FileDropZone({ title, subtitle, files, onChange, tone }:
       </div>
 
       <div
-        className={`drop-zone ${drag ? 'dragging' : ''}`}
-        onDragOver={e => { e.preventDefault(); setDrag(true) }}
+        className={`drop-zone ${drag ? 'dragging' : ''} ${busy ? 'busy' : ''}`}
+        onDragOver={e => { e.preventDefault(); if (!busy) setDrag(true) }}
         onDragLeave={() => setDrag(false)}
-        onDrop={e => { e.preventDefault(); setDrag(false); void handle(e.dataTransfer.files) }}
-        onClick={() => inputRef.current?.click()}
+        onDrop={e => {
+          e.preventDefault()
+          setDrag(false)
+          if (!busy) void handle(e.dataTransfer.files)
+        }}
+        onClick={() => {
+          if (!busy) inputRef.current?.click()
+        }}
         role="button"
         tabIndex={0}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click() }}
+        aria-disabled={busy}
+        onKeyDown={e => {
+          if (!busy && (e.key === 'Enter' || e.key === ' ')) inputRef.current?.click()
+        }}
       >
         <div className="upload-icon">⇧</div>
         <strong>{busy ? 'Lendo arquivos…' : 'Arraste arquivos aqui ou clique para selecionar'}</strong>
@@ -55,9 +95,47 @@ export default function FileDropZone({ title, subtitle, files, onChange, tone }:
           hidden
           multiple
           accept=".csv,.txt,.tsv,.xls,.xlsx,.xlsm,.xlsb,.ods,.fods"
-          onChange={e => e.target.files && void handle(e.target.files)}
+          onChange={e => {
+            if (e.target.files) void handle(e.target.files)
+            e.currentTarget.value = ''
+          }}
         />
       </div>
+
+      {progress && (
+        <ImportProgressBar
+          percent={progress.overallPercent}
+          running={busy}
+          compact
+          title={
+            busy
+              ? progress.phase === 'processing'
+                ? 'Processando arquivos…'
+                : 'Carregando arquivos…'
+              : progress.phase === 'error'
+                ? 'Importação concluída com avisos.'
+                : 'Importação concluída.'
+          }
+          detail={progress.fileName}
+          meta={(
+            <>
+              <span>
+                <strong>Arquivo:</strong>{' '}
+                {Math.min(progress.fileIndex + 1, progress.totalFiles).toLocaleString('pt-BR')}
+                {' / '}
+                {progress.totalFiles.toLocaleString('pt-BR')}
+              </span>
+              <span><strong>Arquivo atual:</strong> {progress.filePercent}%</span>
+              <span>
+                <strong>Dados:</strong>{' '}
+                {formatBytes(progress.loadedBytes)}
+                {' / '}
+                {formatBytes(progress.totalBytes)}
+              </span>
+            </>
+          )}
+        />
+      )}
 
       {errors.length > 0 && <div className="inline-error">{errors.join(' • ')}</div>}
 
