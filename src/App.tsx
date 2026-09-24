@@ -183,7 +183,7 @@ export default function App() {
           : module === 'nfce:consumers'
             ? 'NFC-e · Consumidores'
             : module === 'nfce:barcodes'
-              ? 'NFC-e · Consulta produto'
+              ? 'NFC-e · Consulta de produtos'
               : module.startsWith('dashboard:')
                 ? 'Dashboard · ' + (activeWorkspaceModule?.label ?? 'Dados importados')
                 : module.startsWith('data:')
