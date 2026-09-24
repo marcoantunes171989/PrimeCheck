@@ -1240,7 +1240,8 @@ function App({
                           const validation = validateCpfCnpj(doc)
                           const reviewed = reviewedClientKeys.has(client.key)
                           const hierarchy = hierarchyForClient(client)
-                          const showHierarchy = resultProfile.id === 'group' || resultProfile.id === 'subgroup'
+                          const showGroupHierarchy = resultProfile.id === 'group'
+                          const showSubgroupHierarchy = resultProfile.id === 'subgroup'
                           return <tr key={client.key} className={reviewed ? 'row-reviewed' : ''}>
                             <td className="selection-column">
                               <input
@@ -1249,24 +1250,35 @@ function App({
                                 onChange={() => setSelectedClientKeys(current => toggleStringSet(current, client.key))}
                               />
                             </td>
-                            <td className={showHierarchy ? 'record-code-with-context' : 'mono'}>
-                              {showHierarchy ? (
-                                <>
-                                  <strong className="mono">{client.key}</strong>
-                                  <small>
-                                    <span>Seção {hierarchy.sectionCode || '—'}:</span>
-                                    <b>{hierarchy.sectionName || '—'}</b>
-                                  </small>
-                                  {resultProfile.id === 'subgroup' && (
-                                    <small>
-                                      <span>Grupo {hierarchy.groupCode || '—'}:</span>
-                                      <b>{hierarchy.groupName || '—'}</b>
-                                    </small>
-                                  )}
-                                </>
-                              ) : client.key}
+                            <td className="mono">{client.key}</td>
+                            <td>
+                              {showGroupHierarchy ? (
+                                <div className="hierarchy-inline-label" title={(hierarchy.sectionName || '—') + ' | ' + (client.name || '—')}>
+                                  <span>{hierarchy.sectionName || '—'}</span>
+                                  <i aria-hidden="true">|</i>
+                                  <strong>{client.name || '—'}</strong>
+                                </div>
+                              ) : showSubgroupHierarchy ? (
+                                <div
+                                  className="hierarchy-inline-label"
+                                  title={
+                                    (hierarchy.sectionName || '—')
+                                    + ' | '
+                                    + (hierarchy.groupName || '—')
+                                    + ' | '
+                                    + (client.name || '—')
+                                  }
+                                >
+                                  <span>{hierarchy.sectionName || '—'}</span>
+                                  <i aria-hidden="true">|</i>
+                                  <span>{hierarchy.groupName || '—'}</span>
+                                  <i aria-hidden="true">|</i>
+                                  <strong>{client.name || '—'}</strong>
+                                </div>
+                              ) : (
+                                <strong>{client.name || '—'}</strong>
+                              )}
                             </td>
-                            <td><strong>{client.name || '—'}</strong></td>
                             <td>{client.found ? 'Sim' : 'Não'}</td>
                             <td><StatusBadge status={client.status} /></td>
                             <td>{client.divergentCount}</td>
