@@ -360,6 +360,27 @@ export const WORKSPACE_GROUPS: Array<{ id: WorkspaceGroupId; label: string; modu
   { id: 'fiscal', label: 'Fiscal e Conteúdo', modules: ['ncm', 'cest', 'ibpt', 'ibscbs', 'taxBenefit', 'recipes', 'nutrition'] },
 ]
 
+/**
+ * Regra de escopo por nome do arquivo.
+ *
+ * Quando o nome identifica explicitamente um módulo, o arquivo fica exclusivo
+ * desse módulo e não pode ser reaproveitado por detecção de cabeçalhos em outro.
+ *
+ * Ex.: CLIENTE_donaire.csv e cliente_intersolid.csv pertencem somente a Clientes,
+ * mesmo que contenham colunas genéricas que também existam em Fornecedores,
+ * Transportadoras ou outros cadastros.
+ *
+ * Arquivos sem prefixo conhecido continuam usando a análise estrutural existente.
+ */
+const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceModuleId | null => {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const token = normalizeHeader(stem)
+
+  if (token === 'CLIENTE' || token.startsWith('CLIENTE_')) return 'clients'
+
+  return null
+}
+
 const normalized = (values: string[]) => values.map(normalizeHeader).filter(Boolean)
 
 const headerMatches = (header: string, aliases: string[]) => {
@@ -463,6 +484,16 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
 }
 
 const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
+  const exclusiveModule = getExclusiveWorkspaceModuleFromFileName(file.name)
+  if (exclusiveModule && exclusiveModule !== module.id) {
+    return {
+      score: 0,
+      matched: false,
+      fieldHits: 0,
+      signalHits: 0,
+    }
+  }
+
   const headers = file.headers
   const signalHits = module.signals.filter(signal =>
     headers.some(header => headerMatches(header, [signal])),
