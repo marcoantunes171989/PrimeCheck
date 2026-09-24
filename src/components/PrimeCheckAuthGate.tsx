@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type FormEvent, type PropsWithChildren } from 'react'
-import './auth.css'
+import '../auth.css'
 
 const AUTH_SESSION_KEY = 'primecheck.auth.session.v1'
 const ACCESS_REQUESTS_KEY = 'primecheck.auth.requests.v1'
