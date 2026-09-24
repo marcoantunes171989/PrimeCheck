@@ -61,21 +61,25 @@ jobs:
         shell: bash
         run: |
           export VITE_PRIMECHECK_SHA="$(git rev-parse HEAD)"
-          npm run serve:local -- --port 4173 > /tmp/primecheck-vite.log 2>&1 &
-          VITE_PID=$!
+          LOG_FILE="/tmp/primecheck-vite.log"
+          PID_FILE="/tmp/primecheck-vite.pid"
+
+          node scripts/start-local-server.mjs 4173 "$VITE_PRIMECHECK_SHA" "$LOG_FILE" "$PID_FILE" "$PWD"
+          VITE_PID="$(cat "$PID_FILE")"
+
           cleanup() {
             kill "$VITE_PID" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
           for attempt in $(seq 1 30); do
-            if node scripts/verify-local-served-build.mjs "http://localhost:4173" "$VITE_PRIMECHECK_SHA"; then
+            if node scripts/verify-local-served-build.mjs "http://127.0.0.1:4173" "$VITE_PRIMECHECK_SHA"; then
               exit 0
             fi
             sleep 1
           done
 
-          cat /tmp/primecheck-vite.log
+          cat "$LOG_FILE"
           exit 1
 
 
@@ -108,26 +112,18 @@ jobs:
           $smokeDir = Join-Path $env:RUNNER_TEMP "primecheck-edge-profile"
           $domFile = Join-Path $env:RUNNER_TEMP "primecheck-edge-dom.html"
 
-          $launcher = Join-Path $PWD "scripts\iniciar-vite-local.cmd"
-          if (-not (Test-Path $launcher)) {
-            throw "Launcher do Vite não encontrado: $launcher"
+          $pidFile = Join-Path $env:RUNNER_TEMP "primecheck-vite.pid"
+          node scripts/start-local-server.mjs 4173 "$sha" "$viteLog" "$pidFile" "$PWD"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Falha ao iniciar servidor local persistente."
           }
-
-          $viteArgs = @(
-            "/c",
-            "call",
-            "`"$launcher`"",
-            "4173",
-            "`"$sha`"",
-            "`"$viteLog`""
-          )
-          $vite = Start-Process -FilePath "cmd.exe" -ArgumentList $viteArgs -PassThru -WindowStyle Hidden
+          $vitePid = [int](Get-Content $pidFile -Raw).Trim()
 
           try {
             $ready = $false
             for ($i = 0; $i -lt 30; $i++) {
               try {
-                $response = Invoke-WebRequest -UseBasicParsing "http://localhost:4173/?smoke=$sha"
+                $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4173/?smoke=$sha"
                 if ($response.StatusCode -eq 200) {
                   $ready = $true
                   break
@@ -141,7 +137,7 @@ jobs:
               throw "Servidor Vite local não iniciou."
             }
 
-            node scripts/verify-local-served-build.mjs "http://localhost:4173" "$sha"
+            node scripts/verify-local-served-build.mjs "http://127.0.0.1:4173" "$sha"
             if ($LASTEXITCODE -ne 0) {
               throw "Fonte servida não corresponde ao SHA."
             }
@@ -164,7 +160,7 @@ jobs:
               "--user-data-dir=$smokeDir",
               "--virtual-time-budget=8000",
               "--dump-dom",
-              "http://localhost:4173/?smoke=$sha"
+              "http://127.0.0.1:4173/?smoke=$sha"
             )
             $edgeProcess = Start-Process -FilePath $edge -ArgumentList $edgeArgs -RedirectStandardOutput $domFile -RedirectStandardError $edgeError -Wait -PassThru
             if ($edgeProcess.ExitCode -ne 0) {
@@ -181,5 +177,5 @@ jobs:
             Write-Host "Edge runtime smoke OK - $shortSha"
           }
           finally {
-            Stop-Process -Id $vite.Id -Force -ErrorAction SilentlyContinue
+            Stop-Process -Id $vitePid -Force -ErrorAction SilentlyContinue
           }
