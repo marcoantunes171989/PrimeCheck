@@ -24,6 +24,7 @@ import {
   type NfceUiState,
 } from '../lib/workspaceStorage'
 import ImportProgressBar from '../components/ImportProgressBar'
+import { xmlEntryMatchesSearch } from '../lib/nfceXmlSearch'
 import '../nfce.css'
 
 const PAGE_SIZE = 20
@@ -46,16 +47,17 @@ type XmlSearchEntry = {
   attributes: string
 }
 
-const elementOwnSearchText = (element: Element, path: string) => {
+const elementMatchesSearch = (element: Element, path: string, query: string) => {
   const attributes = Array.from(element.attributes)
-    .map(attr => `${attr.name}=${attr.value}`)
+    .map(attr => `${attr.name}="${attr.value}"`)
     .join(' ')
-  return normalizeNfceSearch([
+
+  return xmlEntryMatchesSearch({
     path,
-    elementName(element),
-    directText(element),
+    name: elementName(element),
+    value: directText(element),
     attributes,
-  ].join(' '))
+  }, query)
 }
 
 const buildXmlSearchEntries = (root: Element) => {
@@ -142,7 +144,7 @@ const XmlNode = ({
   const attributes = Array.from(element.attributes)
   const empty = children.length === 0 && !value
   const expanded = children.length > 0 && expandedKeys.has(nodeKey)
-  const matched = Boolean(searchQuery && elementOwnSearchText(element, path).includes(searchQuery))
+  const matched = Boolean(searchQuery && elementMatchesSearch(element, path, searchQuery))
   const selected = selectedKey === nodeKey
 
   const handleRowClick = () => {
@@ -635,15 +637,8 @@ export default function NfceValidatorPage() {
 
   const xmlMatches = useMemo(() => {
     if (!normalizedTagSearch) return []
-    return xmlEntries.filter(entry =>
-      normalizeNfceSearch([
-        entry.path,
-        entry.name,
-        entry.value,
-        entry.attributes,
-      ].join(' ')).includes(normalizedTagSearch),
-    )
-  }, [normalizedTagSearch, xmlEntries])
+    return xmlEntries.filter(entry => xmlEntryMatchesSearch(entry, tagSearch))
+  }, [normalizedTagSearch, tagSearch, xmlEntries])
 
   const toggleXmlNode = (key: string) => {
     setExpandedXmlKeys(current =>
@@ -1181,8 +1176,8 @@ export default function NfceValidatorPage() {
                       <span className="eyebrow">ESTRUTURA XML ORIGINAL</span>
                       <h3>Pesquisar e inspecionar todas as tags</h3>
                       <p>
-                        Expanda a árvore clicando nas linhas. Clique no valor laranja para copiar apenas o conteúdo
-                        da tag. Tags vazias também são exibidas para manter a estrutura original do arquivo.
+                        Pesquise pelo nome da tag com ou sem &lt;&gt;, pelo valor, atributo ou caminho XML.
+                        Exemplos: <code>cProd</code>, <code>&lt;cProd&gt;</code>, <code>451</code> ou <code>/det/prod/cProd</code>.
                       </p>
                     </div>
                     <div className="nfce-tag-search-field">
@@ -1190,7 +1185,7 @@ export default function NfceValidatorPage() {
                         type="search"
                         value={tagSearch}
                         onChange={event => setTagSearch(event.target.value)}
-                        placeholder="Pesquisar tag, valor, atributo ou caminho..."
+                        placeholder="Pesquisar tag (<cProd> ou cProd), valor, atributo ou caminho..."
                         autoFocus
                       />
                       {tagSearch && (
@@ -1230,7 +1225,7 @@ export default function NfceValidatorPage() {
                         </div>
                       ) : (
                         <div className="nfce-tag-no-results">
-                          Nenhuma tag, valor, atributo ou caminho encontrado para “{tagSearch}”.
+                          Nenhuma tag, valor, atributo ou caminho XML encontrado para “{tagSearch}”.
                         </div>
                       )}
                     </div>

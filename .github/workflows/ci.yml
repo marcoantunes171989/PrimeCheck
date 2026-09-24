@@ -41,3 +41,6 @@ jobs:
 
       - name: Verify NFC-e short cProd
         run: npm run verify:nfce-short-cprod
+
+      - name: Verify NFC-e XML tag search
+        run: npm run verify:nfce-xml-search
