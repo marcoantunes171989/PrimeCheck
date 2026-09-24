@@ -21,7 +21,8 @@ function Run-Npm([string[]]$Arguments) {
 if ([string]::IsNullOrWhiteSpace($ProjectDir)) {
   $ProjectDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 } else {
-  $ProjectDir = (Resolve-Path $ProjectDir).Path
+  $ProjectDir = $ProjectDir.Trim().Trim('"').TrimEnd('\')
+  $ProjectDir = (Resolve-Path -LiteralPath $ProjectDir).Path
 }
 
 Set-Location $ProjectDir
