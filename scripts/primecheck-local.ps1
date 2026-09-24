@@ -246,33 +246,56 @@ try {
   if ($dom -match 'data-primecheck-runtime-error') { Fail "React acionou o Error Boundary." }
 
   Write-Host "[OK] $browserName confirmou PrimeCheck, React e SHA $shortSha." -ForegroundColor Green
+
+  if ($viteProcess -and -not $viteProcess.HasExited) {
+    Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue
+  }
+
+  for ($attempt = 1; $attempt -le 20; $attempt++) {
+    $stillListening = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $stillListening) { break }
+    Start-Sleep -Milliseconds 250
+  }
+
+  if ($env:PRIMECHECK_CI -eq "1") {
+    Write-Host "CI: launcher exato validado com sucesso."
+    exit 0
+  }
+
   Write-Host ""
   Write-Host "==================================================" -ForegroundColor Green
   Write-Host "  PRIME CHECK LOCAL PRONTO" -ForegroundColor Green
   Write-Host "==================================================" -ForegroundColor Green
   Write-Host ""
+  Write-Host "Servidor definitivo em primeiro plano:" -ForegroundColor Cyan
   Write-Host $url -ForegroundColor Cyan
   Write-Host ""
-  Write-Host "Mantenha esta janela aberta. Ctrl+C encerra o servidor."
+  Write-Host "IMPORTANTE:" -ForegroundColor Yellow
+  Write-Host "  - esta janela deve permanecer aberta;"
+  Write-Host "  - o Vite abaixo e o proprio servidor da homologacao;"
+  Write-Host "  - Ctrl+C encerra o servidor."
+  Write-Host ""
+  Write-Host "Iniciando Vite definitivo..." -ForegroundColor Cyan
+  Write-Host ""
 
-  if ($env:PRIMECHECK_CI -eq "1") {
-    Write-Host "CI: smoke concluido; encerrando Vite."
-    Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue
-    exit 0
-  }
+  $foregroundArgs = @(
+    $viteJs,
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "$Port",
+    "--strictPort",
+    "--open",
+    "/?build=$sha"
+  )
 
-  Start-Process $url
-  Wait-Process -Id $viteProcess.Id
+  & $NodeCmd @foregroundArgs
+  $serverExit = $LASTEXITCODE
 
-  if ($viteProcess.ExitCode -ne 0) {
-    $out = if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Raw } else { "" }
-    $err = if (Test-Path $stderrLog) { Get-Content $stderrLog -Raw } else { "" }
-    Write-Host ""
-    Write-Host "===== VITE STDOUT ====="
-    Write-Host $out
-    Write-Host "===== VITE STDERR ====="
-    Write-Host $err
-    Fail "Vite encerrou inesperadamente."
+  Write-Host ""
+  Write-Host "Servidor PrimeCheck encerrado. Codigo: $serverExit"
+  if ($serverExit -ne 0) {
+    Fail "O Vite definitivo encerrou com codigo $serverExit."
   }
 }
 finally {
