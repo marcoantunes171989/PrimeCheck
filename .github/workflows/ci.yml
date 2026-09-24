@@ -53,3 +53,6 @@ jobs:
 
       - name: Verify build SHA and served bundle
         run: npm run verify:build-info
+
+      - name: Verify definitive local validation flow
+        run: npm run verify:local-served-script
