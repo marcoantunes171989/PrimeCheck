@@ -108,7 +108,20 @@ jobs:
           $smokeDir = Join-Path $env:RUNNER_TEMP "primecheck-edge-profile"
           $domFile = Join-Path $env:RUNNER_TEMP "primecheck-edge-dom.html"
 
-          $vite = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm run serve:local -- --port 4173 > `"$viteLog`" 2>&1" -PassThru -WindowStyle Hidden
+          $launcher = Join-Path $PWD "scripts\iniciar-vite-local.cmd"
+          if (-not (Test-Path $launcher)) {
+            throw "Launcher do Vite não encontrado: $launcher"
+          }
+
+          $viteArgs = @(
+            "/c",
+            "call",
+            "`"$launcher`"",
+            "4173",
+            "`"$sha`"",
+            "`"$viteLog`""
+          )
+          $vite = Start-Process -FilePath "cmd.exe" -ArgumentList $viteArgs -PassThru -WindowStyle Hidden
 
           try {
             $ready = $false
