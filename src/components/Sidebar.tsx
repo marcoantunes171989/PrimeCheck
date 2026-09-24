@@ -41,6 +41,7 @@ type NavEntry = {
   target: string
   enabled: boolean
   groupId?: WorkspaceGroupId | 'nfce'
+  scope?: 'dashboard' | 'data' | 'validation'
 }
 
 const GROUP_ICONS: Record<WorkspaceGroupId, IconName> = {
@@ -55,6 +56,13 @@ const DASHBOARD_ICONS: Record<string, IconName> = {
   suppliers: 'suppliers',
   carriers: 'carriers',
 }
+
+const DASHBOARD_GROUP_META: Record<WorkspaceGroupId, { label: string; helper: string }> = {
+  partners: { label: 'Parceiros', helper: 'Clientes, fornecedores e transportadoras' },
+  structure: { label: 'Classificação Mercadológica', helper: 'Seções, grupos e subgrupos' },
+  products: { label: 'Produtos', helper: 'Cadastro, loja, barras e vínculos' },
+  fiscal: { label: 'Fiscal e Conteúdo', helper: 'NCM, CEST, tributos e conteúdo' },
+
 
 const FIXED_FILES = [
   { id: 'importacao', label: 'Importação', helper: 'Quantidade livre', icon: 'import' as const },
@@ -270,6 +278,7 @@ export default function Sidebar({
   const searchRef = useRef<HTMLInputElement>(null)
   const navRef = useRef<HTMLElement>(null)
   const pendingFocusRef = useRef(false)
+  const [openDashboardGroup, setOpenDashboardGroup] = useState<WorkspaceGroupId | null>(null)
   const [openGroup, setOpenGroup] = useState<WorkspaceGroupId | null>(null)
   const [nfceOpen, setNfceOpen] = useState(false)
   const [queryRaw, setQueryRaw] = useState('')
@@ -285,25 +294,35 @@ export default function Sidebar({
   const compact = collapsed && !mobile
   const showSearchField = (!compact && !mobile) || (mobile && mobileSearchOpen)
 
-  const dashboardModules = useMemo(
-    () => [
-      {
-        id: 'general',
-        label: 'Geral',
-        singular: 'Visão Geral',
-        helper: 'Visão consolidada',
-        icon: 'chart' as IconName,
-        enabled: true,
-      },
-      ...WORKSPACE_MODULES
-        .filter(module => module.group === 'partners')
+  const generalDashboard = {
+    id: 'general',
+    label: 'Geral',
+    singular: 'Visão Geral',
+    helper: 'Visão consolidada',
+    icon: 'chart' as IconName,
+    enabled: true,
+  }
+
+  const dashboardGroups = useMemo(
+    () => WORKSPACE_GROUPS.map(group => {
+      const modules = group.modules
+        .map(id => WORKSPACE_MODULES.find(module => module.id === id))
+        .filter((module): module is WorkspaceModuleDefinition => Boolean(module))
         .map(module => ({
           ...module,
           helper: 'Dashboard gerencial',
-          icon: DASHBOARD_ICONS[module.id] ?? 'chart' as IconName,
+          icon: DASHBOARD_ICONS[module.id] ?? GROUP_ICONS[group.id],
           enabled: enabledSet.has(module.id),
-        })),
-    ],
+        }))
+
+      return {
+        group,
+        label: DASHBOARD_GROUP_META[group.id].label,
+        helper: DASHBOARD_GROUP_META[group.id].helper,
+        modules,
+        enabledCount: modules.filter(module => module.enabled).length,
+      }
+    }),
     [enabledSet],
   )
 
@@ -315,26 +334,50 @@ export default function Sidebar({
   }, [])
 
   useEffect(() => {
+    if (active.startsWith('dashboard:') && active !== 'dashboard:general') {
+      const id = active.slice('dashboard:'.length)
+      const group = WORKSPACE_GROUPS.find(item => item.modules.includes(id as never))
+      if (!group) return
+      setOpenDashboardGroup(group.id)
+      setOpenGroup(null)
+      setNfceOpen(false)
+      return
+    }
+    if (active === 'dashboard:general') {
+      setOpenGroup(null)
+      setNfceOpen(false)
+      return
+    }
     if (active.startsWith('data:')) {
       const id = active.slice(5)
       const group = WORKSPACE_GROUPS.find(item => item.modules.includes(id as never))
       if (!group) return
+      setOpenDashboardGroup(null)
       setNfceOpen(false)
       setOpenGroup(group.id)
       return
     }
     if (active.startsWith('nfce:')) {
+      setOpenDashboardGroup(null)
       setOpenGroup(null)
       setNfceOpen(true)
     }
   }, [active])
 
+  const toggleDashboardGroup = (id: WorkspaceGroupId) => {
+    setOpenGroup(null)
+    setNfceOpen(false)
+    setOpenDashboardGroup(current => current === id ? null : id)
+  }
+
   const toggleGroup = (id: WorkspaceGroupId) => {
+    setOpenDashboardGroup(null)
     setNfceOpen(false)
     setOpenGroup(current => current === id ? null : id)
   }
 
   const toggleNfce = () => {
+    setOpenDashboardGroup(null)
     setOpenGroup(null)
     setNfceOpen(current => !current)
   }
@@ -384,12 +427,28 @@ export default function Sidebar({
   const dashboardsSectionMatched = matchesQuery(query, 'DASHBOARDS', 'dashboard')
   const validationSectionMatched = matchesQuery(query, 'VALIDAÇÃO', 'validacao', 'validação')
 
-  const visibleDashboards = useMemo(() => {
-    if (!searching || dashboardsSectionMatched) return dashboardModules
-    return dashboardModules.filter(module =>
-      matchesQuery(query, module.label, module.singular, module.helper, 'DASHBOARDS', module.id),
-    )
-  }, [dashboardModules, dashboardsSectionMatched, query, searching])
+  const generalDashboardVisible = !searching || dashboardsSectionMatched ||
+    matchesQuery(query, generalDashboard.label, generalDashboard.singular, generalDashboard.helper, 'DASHBOARDS', 'geral')
+
+  const visibleDashboardGroups = useMemo(() => {
+    return dashboardGroups.map(item => {
+      const groupMatched = matchesQuery(
+        query,
+        item.label,
+        item.helper,
+        item.group.id,
+        'DASHBOARDS',
+      )
+      const matchedModules = item.modules.filter(module =>
+        matchesQuery(query, module.label, module.singular, module.helper, module.id, item.label),
+      )
+      const visibleModules = !searching || dashboardsSectionMatched || groupMatched
+        ? item.modules
+        : matchedModules
+      const visible = !searching || dashboardsSectionMatched || groupMatched || matchedModules.length > 0
+      return { ...item, visibleModules, visible, groupMatched }
+    })
+  }, [dashboardGroups, dashboardsSectionMatched, query, searching])
 
   const visibleFixedFiles = useMemo(() => {
     if (!searching || filesSectionMatched) return FIXED_FILES
@@ -427,19 +486,42 @@ export default function Sidebar({
     return NFCE_CHILDREN.some(item => matchesQuery(query, item.label, item.id, 'nfce'))
   }, [query, searching, validationSectionMatched])
 
-  const showDashboards = visibleDashboards.length > 0
+  const showDashboards = generalDashboardVisible || visibleDashboardGroups.some(item => item.visible)
   const showFiles = visibleFixedFiles.length > 0 || visibleGroups.some(item => item.visible)
   const showValidation = visibleValidation.length > 0 || nfceMatched
   const hasResults = showDashboards || showFiles || showValidation
 
   const navEntries = useMemo(() => {
     const entries: NavEntry[] = []
-    visibleDashboards.forEach(module => {
+    if (generalDashboardVisible) {
       entries.push({
-        key: `dashboard:${module.id}`,
+        key: 'dashboard:general',
         kind: 'item',
-        target: `dashboard:${module.id}`,
-        enabled: module.enabled,
+        target: 'dashboard:general',
+        enabled: true,
+        scope: 'dashboard',
+      })
+    }
+    visibleDashboardGroups.forEach(item => {
+      if (!item.visible) return
+      entries.push({
+        key: `dashboard-group:${item.group.id}`,
+        kind: 'group',
+        target: item.group.id,
+        enabled: true,
+        groupId: item.group.id,
+        scope: 'dashboard',
+      })
+      if (openDashboardGroup !== item.group.id) return
+      item.visibleModules.forEach(module => {
+        entries.push({
+          key: `dashboard:${module.id}`,
+          kind: 'item',
+          target: `dashboard:${module.id}`,
+          enabled: module.enabled,
+          groupId: item.group.id,
+          scope: 'dashboard',
+        })
       })
     })
     visibleFixedFiles.forEach(item => {
@@ -478,7 +560,7 @@ export default function Sidebar({
       }
     }
     return entries
-  }, [enabledSet, nfceMatched, nfceOpen, openGroup, searching, visibleDashboards, visibleFixedFiles, visibleGroups, visibleValidation])
+  }, [enabledSet, generalDashboardVisible, nfceMatched, nfceOpen, openDashboardGroup, openGroup, visibleDashboardGroups, visibleFixedFiles, visibleGroups, visibleValidation])
 
   useEffect(() => {
     setSelectedKey(current => current && navEntries.some(entry => entry.key === current) ? current : null)
@@ -496,6 +578,17 @@ export default function Sidebar({
 
   const activateEntry = (entry: NavEntry) => {
     if (entry.kind === 'group' && entry.groupId) {
+      if (entry.scope === 'dashboard' && entry.groupId !== 'nfce') {
+        if (collapsed) {
+          onToggle()
+          setOpenGroup(null)
+          setNfceOpen(false)
+          setOpenDashboardGroup(entry.groupId)
+          return
+        }
+        toggleDashboardGroup(entry.groupId)
+        return
+      }
       if (entry.groupId === 'nfce') {
         if (collapsed) {
           onToggle()
@@ -517,6 +610,7 @@ export default function Sidebar({
     }
     if (!entry.enabled) return
     if (!entry.groupId) {
+      if (entry.scope !== 'dashboard') setOpenDashboardGroup(null)
       setOpenGroup(null)
       setNfceOpen(false)
     }
@@ -707,27 +801,100 @@ export default function Sidebar({
                 <Glyph name="chart" />
                 <span>{compact ? '' : 'DASHBOARDS'}</span>
               </div>
-              {visibleDashboards.map(module => {
-                const enabled = module.enabled
-                return renderItem(
-                  `dashboard:${module.id}`,
-                  module.label,
-                  module.helper,
-                  module.icon,
-                  {
-                    disabled: !enabled,
-                    title: !enabled
-                      ? 'Importe arquivos compatíveis para habilitar o dashboard'
-                      : compact
-                        ? 'Dashboard · ' + module.label
-                        : undefined,
-                    onClick: () => {
-                      if (!enabled) return
-                      setOpenGroup(null)
-                      setNfceOpen(false)
-                      onChange(`dashboard:${module.id}`)
-                    },
+
+              {generalDashboardVisible && renderItem(
+                'dashboard:general',
+                generalDashboard.label,
+                generalDashboard.helper,
+                generalDashboard.icon,
+                {
+                  title: compact ? 'Dashboard Geral' : undefined,
+                  onClick: () => {
+                    setOpenGroup(null)
+                    setNfceOpen(false)
+                    onChange('dashboard:general')
                   },
+                },
+              )}
+
+              {visibleDashboardGroups.map(({ group, label, helper, visibleModules, visible, enabledCount }) => {
+                if (!visible) return null
+                const isOpen = openDashboardGroup === group.id
+                const activeInside = group.modules.some(id => active === `dashboard:${id}`)
+                const groupStatus = hasWorkspaceData
+                  ? `${enabledCount}/${group.modules.length} dashboards`
+                  : 'Aguardando importação'
+
+                return (
+                  <div
+                    className={'sidebar-group sidebar-dashboard-group ' + (isOpen ? 'open ' : '') + (activeInside ? 'active-group' : '')}
+                    key={`dashboard-${group.id}`}
+                  >
+                    <button
+                      type="button"
+                      id={`sidebar-nav-dashboard-group:${group.id}`}
+                      className={itemClass(`dashboard-group:${group.id}`, 'sidebar-group-toggle')}
+                      onClick={() => {
+                        if (collapsed) {
+                          onToggle()
+                          setOpenGroup(null)
+                          setNfceOpen(false)
+                          setOpenDashboardGroup(group.id)
+                        } else {
+                          toggleDashboardGroup(group.id)
+                        }
+                      }}
+                      aria-expanded={isOpen}
+                      title={compact ? `Dashboard · ${label}` : undefined}
+                    >
+                      <IconBox name={GROUP_ICONS[group.id]} />
+                      {!compact && (
+                        <span className="sidebar-item-copy">
+                          <strong>{label}</strong>
+                          <small>{groupStatus}</small>
+                        </span>
+                      )}
+                      {!compact && (
+                        <span className={'sidebar-item-chevron sidebar-group-chevron' + (isOpen ? ' is-open' : '')} aria-hidden="true">
+                          <Glyph name={isOpen ? 'chevronDown' : 'chevronRight'} />
+                        </span>
+                      )}
+                    </button>
+
+                    {isOpen && (
+                      <div className="sidebar-group-children">
+                        {visibleModules.map(module => {
+                          const childId = `dashboard:${module.id}`
+                          return (
+                            <button
+                              type="button"
+                              id={`sidebar-nav-${childId}`}
+                              key={module.id}
+                              className={[
+                                'sidebar-child',
+                                'sidebar-dashboard-child',
+                                active === childId ? 'active' : '',
+                                selectedKey === childId ? 'is-kbd' : '',
+                                module.enabled ? '' : 'is-disabled',
+                              ].filter(Boolean).join(' ')}
+                              disabled={!module.enabled}
+                              onClick={() => module.enabled && onChange(childId)}
+                              aria-current={active === childId ? 'page' : undefined}
+                              title={module.enabled
+                                ? `Dashboard · ${module.label}`
+                                : `Importe dados de ${module.label} para habilitar`}
+                            >
+                              <span className="sidebar-child-dot" />
+                              <span>{module.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {!compact && isOpen && searching && helper && (
+                      <span className="sidebar-dashboard-group-helper">{helper}</span>
+                    )}
+                  </div>
                 )
               })}
             </section>
@@ -743,6 +910,7 @@ export default function Sidebar({
               {visibleFixedFiles.map(item =>
                 renderItem(item.id, item.label, item.helper, item.icon, {
                   onClick: () => {
+                    setOpenDashboardGroup(null)
                     setOpenGroup(null)
                     setNfceOpen(false)
                     onChange(item.id)
@@ -808,7 +976,11 @@ export default function Sidebar({
                                 enabled ? '' : 'is-disabled',
                               ].filter(Boolean).join(' ')}
                               disabled={!enabled}
-                              onClick={() => enabled && onChange(childId)}
+                              onClick={() => {
+                                if (!enabled) return
+                                setOpenDashboardGroup(null)
+                                onChange(childId)
+                              }}
                               aria-current={active === childId ? 'page' : undefined}
                               title={!enabled ? 'Importe um arquivo com campos deste módulo para habilitar' : module.label}
                             >
@@ -834,6 +1006,7 @@ export default function Sidebar({
               {visibleValidation.map(item =>
                 renderItem(item.id, item.label, item.helper, item.icon, {
                   onClick: () => {
+                    setOpenDashboardGroup(null)
                     setOpenGroup(null)
                     setNfceOpen(false)
                     onChange(item.id)
