@@ -2,7 +2,6 @@ import type { FieldMapping, ImportedFile } from '../types'
 import type { NfceSummary } from './nfce'
 
 const DB_NAME = 'primecheck-local'
-const DB_VERSION = 2
 const STORE_NAME = 'workspace'
 const NFCE_STORE_NAME = 'nfce-xml'
 
@@ -37,29 +36,64 @@ const emptySession = (): WorkspaceSessionState => ({
   executions: {},
 })
 
-const openDb = () => new Promise<IDBDatabase>((resolve, reject) => {
-  const request = window.indexedDB.open(DB_NAME, DB_VERSION)
-
-  request.onupgradeneeded = () => {
-    const db = request.result
-    if (!db.objectStoreNames.contains(STORE_NAME)) {
-      db.createObjectStore(STORE_NAME)
-    }
-    if (!db.objectStoreNames.contains(NFCE_STORE_NAME)) {
-      db.createObjectStore(NFCE_STORE_NAME)
-    }
+const createMissingStores = (db: IDBDatabase) => {
+  if (!db.objectStoreNames.contains(STORE_NAME)) {
+    db.createObjectStore(STORE_NAME)
   }
+  if (!db.objectStoreNames.contains(NFCE_STORE_NAME)) {
+    db.createObjectStore(NFCE_STORE_NAME)
+  }
+}
 
-  request.onsuccess = () => resolve(request.result)
-  request.onerror = () => reject(request.error ?? new Error('Falha ao abrir armazenamento local.'))
-})
+const upgradeMissingStores = (currentVersion: number) =>
+  new Promise<IDBDatabase>((resolve, reject) => {
+    const request = window.indexedDB.open(DB_NAME, currentVersion + 1)
+
+    request.onupgradeneeded = () => createMissingStores(request.result)
+    request.onsuccess = () => {
+      const db = request.result
+      db.onversionchange = () => db.close()
+      resolve(db)
+    }
+    request.onerror = () => reject(request.error ?? new Error('Falha ao atualizar armazenamento local.'))
+    request.onblocked = () => reject(new Error(
+      'O armazenamento local está aberto em outra aba. Feche as outras abas do PrimeCheck e tente novamente.',
+    ))
+  })
+
+export const openPrimeCheckDb = () =>
+  new Promise<IDBDatabase>((resolve, reject) => {
+    // Não fixa uma versão numérica: abre sempre a versão já existente no navegador.
+    // Isso evita VersionError quando uma versão anterior do PrimeCheck tenta abrir
+    // um IndexedDB que já foi atualizado por uma versão mais nova.
+    const request = window.indexedDB.open(DB_NAME)
+
+    request.onupgradeneeded = () => createMissingStores(request.result)
+    request.onsuccess = () => {
+      const db = request.result
+      db.onversionchange = () => db.close()
+
+      const hasWorkspace = db.objectStoreNames.contains(STORE_NAME)
+      const hasNfce = db.objectStoreNames.contains(NFCE_STORE_NAME)
+
+      if (hasWorkspace && hasNfce) {
+        resolve(db)
+        return
+      }
+
+      const currentVersion = db.version
+      db.close()
+      void upgradeMissingStores(currentVersion).then(resolve, reject)
+    }
+    request.onerror = () => reject(request.error ?? new Error('Falha ao abrir armazenamento local.'))
+  })
 
 const withStore = async <T>(
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>,
   storeName = STORE_NAME,
 ) => {
-  const db = await openDb()
+  const db = await openPrimeCheckDb()
   try {
     return await new Promise<T>((resolve, reject) => {
       const transaction = db.transaction(storeName, mode)
@@ -395,7 +429,7 @@ export const saveNfceDocuments = async (documents: NfceSummary[]): Promise<void>
   const prefix = nfceKeyPrefix()
   if (!prefix || documents.length === 0 || typeof window === 'undefined' || !('indexedDB' in window)) return
 
-  const db = await openDb()
+  const db = await openPrimeCheckDb()
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = db.transaction(NFCE_STORE_NAME, 'readwrite')
