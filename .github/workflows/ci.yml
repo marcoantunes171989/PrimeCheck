@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           export VITE_PRIMECHECK_SHA="$(git rev-parse HEAD)"
-          npm run serve:local > /tmp/primecheck-vite.log 2>&1 &
+          npm run serve:local -- --port 4173 > /tmp/primecheck-vite.log 2>&1 &
           VITE_PID=$!
           cleanup() {
             kill "$VITE_PID" >/dev/null 2>&1 || true
@@ -108,7 +108,7 @@ jobs:
           $smokeDir = Join-Path $env:RUNNER_TEMP "primecheck-edge-profile"
           $domFile = Join-Path $env:RUNNER_TEMP "primecheck-edge-dom.html"
 
-          $vite = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm run serve:local > `"$viteLog`" 2>&1" -PassThru -WindowStyle Hidden
+          $vite = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm run serve:local -- --port 4173 > `"$viteLog`" 2>&1" -PassThru -WindowStyle Hidden
 
           try {
             $ready = $false
