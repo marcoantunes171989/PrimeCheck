@@ -142,7 +142,22 @@ jobs:
               throw "Microsoft Edge não encontrado no runner Windows."
             }
 
-            & $edge --headless=new --disable-gpu --no-first-run --disable-extensions --user-data-dir="$smokeDir" --virtual-time-budget=8000 --dump-dom "http://localhost:4173/?smoke=$sha" 2>$null | Out-File -FilePath $domFile -Encoding utf8
+            $edgeError = Join-Path $env:RUNNER_TEMP "primecheck-edge-stderr.log"
+            $edgeArgs = @(
+              "--headless=new",
+              "--disable-gpu",
+              "--no-first-run",
+              "--disable-extensions",
+              "--user-data-dir=$smokeDir",
+              "--virtual-time-budget=8000",
+              "--dump-dom",
+              "http://localhost:4173/?smoke=$sha"
+            )
+            $edgeProcess = Start-Process -FilePath $edge -ArgumentList $edgeArgs -RedirectStandardOutput $domFile -RedirectStandardError $edgeError -Wait -PassThru
+            if ($edgeProcess.ExitCode -ne 0) {
+              Get-Content $edgeError -ErrorAction SilentlyContinue
+              throw "Microsoft Edge encerrou com código $($edgeProcess.ExitCode)."
+            }
 
             $dom = Get-Content $domFile -Raw
             if ($dom -notmatch "PrimeCheck") { throw "PrimeCheck não apareceu no DOM." }
