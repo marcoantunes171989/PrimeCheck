@@ -309,7 +309,7 @@ export default function InternalProductListPage() {
       </section>
 
       <section
-        className={'workspace-dropzone ' + (dragging ? 'dragging' : '')}
+        className={'workspace-dropzone ' + (dragging ? 'dragging' : '') + (busy ? ' busy' : '')}
         onDragOver={event => {
           event.preventDefault()
           if (!busy && !restoring) setDragging(true)
