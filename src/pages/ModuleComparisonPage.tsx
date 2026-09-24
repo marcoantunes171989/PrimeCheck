@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import HomologationApp from '../HomologationApp'
 import clientDestinationSql from '../sql/cliente-destino-intersolid.sql?raw'
+import supplierDestinationSql from '../sql/fornecedor-destino-intersolid.sql?raw'
 import {
   getWorkspaceComparisonFileRole,
   getWorkspaceEntityProfile,
@@ -90,6 +91,8 @@ export default function ModuleComparisonPage({
   const [targetName, setTargetName] = useState('')
   const [clientSqlOpen, setClientSqlOpen] = useState(false)
   const [clientSqlCopied, setClientSqlCopied] = useState(false)
+  const [supplierSqlOpen, setSupplierSqlOpen] = useState(false)
+  const [supplierSqlCopied, setSupplierSqlCopied] = useState(false)
 
   const originOptions = useMemo(
     () => module.id === 'clients'
@@ -232,16 +235,48 @@ export default function ModuleComparisonPage({
     URL.revokeObjectURL(url)
   }
 
+  const copySupplierSql = async () => {
+    try {
+      await navigator.clipboard.writeText(supplierDestinationSql)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = supplierDestinationSql
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      textarea.remove()
+    }
+
+    setSupplierSqlCopied(true)
+    window.setTimeout(() => setSupplierSqlCopied(false), 1800)
+  }
+
+  const downloadSupplierSql = () => {
+    const blob = new Blob([supplierDestinationSql], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'fornecedor-destino-intersolid.sql'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }
+
   useEffect(() => {
-    if (!clientSqlOpen) return
+    if (!clientSqlOpen && !supplierSqlOpen) return
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setClientSqlOpen(false)
+      if (event.key !== 'Escape') return
+      setClientSqlOpen(false)
+      setSupplierSqlOpen(false)
     }
 
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [clientSqlOpen])
+  }, [clientSqlOpen, supplierSqlOpen])
 
   return (
     <main className="module-comparison-page">
@@ -260,6 +295,15 @@ export default function ModuleComparisonPage({
               type="button"
               className="button secondary client-sql-open"
               onClick={() => setClientSqlOpen(true)}
+            >
+              Script SQL do destino
+            </button>
+          )}
+          {module.id === 'suppliers' && (
+            <button
+              type="button"
+              className="button secondary client-sql-open"
+              onClick={() => setSupplierSqlOpen(true)}
             >
               Script SQL do destino
             </button>
@@ -450,6 +494,61 @@ export default function ModuleComparisonPage({
                 {clientSqlCopied ? 'Copiado!' : 'Copiar SQL'}
               </button>
               <button type="button" className="button primary" onClick={downloadClientSql}>
+                Baixar .sql
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {module.id === 'suppliers' && supplierSqlOpen && (
+        <div
+          className="client-sql-modal-backdrop"
+          role="presentation"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setSupplierSqlOpen(false)
+          }}
+        >
+          <section
+            className="client-sql-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="supplier-sql-modal-title"
+          >
+            <header className="client-sql-modal-head">
+              <div>
+                <span className="eyebrow">EXPORTAÇÃO DO DESTINO</span>
+                <h2 id="supplier-sql-modal-title">Script SQL · Fornecedores</h2>
+                <p>
+                  Execute esta consulta no banco de destino para gerar o arquivo utilizado na homologação.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="client-sql-modal-close"
+                onClick={() => setSupplierSqlOpen(false)}
+                aria-label="Fechar script SQL"
+                title="Fechar"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="client-sql-modal-note">
+              <strong>Arquivo:</strong>
+              <span>fornecedor-destino-intersolid.sql</span>
+            </div>
+
+            <pre className="client-sql-code"><code>{supplierDestinationSql}</code></pre>
+
+            <footer className="client-sql-modal-actions">
+              <button type="button" className="button ghost" onClick={() => setSupplierSqlOpen(false)}>
+                Fechar
+              </button>
+              <button type="button" className="button secondary" onClick={copySupplierSql}>
+                {supplierSqlCopied ? 'Copiado!' : 'Copiar SQL'}
+              </button>
+              <button type="button" className="button primary" onClick={downloadSupplierSql}>
                 Baixar .sql
               </button>
             </footer>
