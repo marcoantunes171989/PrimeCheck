@@ -483,6 +483,9 @@ function App({
     setSelectedClient(next.clients.find(client => client.key === clientKey) ?? null)
   }
 
+  const resultProfile = report ? getEntityProfile(report.profileId) : profile
+  const showDocument = resultProfile.showDocumentValidity === true
+
   const hierarchyForClient = (client: ClientComparison) => {
     const keyParts = client.key.split('/').map(part => part.trim())
     const sectionField = client.fields.find(field => field.fieldId === 'codigoSecao')
@@ -693,8 +696,6 @@ function App({
 
   const pageSlice = <T,>(items: T[]) => items.slice((page - 1) * pageSize, page * pageSize)
   const pageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / pageSize))
-  const resultProfile = report ? getEntityProfile(report.profileId) : profile
-  const showDocument = resultProfile.showDocumentValidity === true
   const conformityProgress = report?.summary.validTests
     ? (report.summary.conformTests / report.summary.validTests) * 100
     : 0
