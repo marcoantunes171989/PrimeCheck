@@ -120,7 +120,7 @@ findstr /C:"Processamento local" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
 findstr /C:"%EXPECTED_SHA:~0,12%" "%SMOKE_FILE%" >nul
 if errorlevel 1 goto :smokeerror
-findstr /C:"PrimeCheck nao conseguiu iniciar" "%SMOKE_FILE%" >nul
+findstr /C:"data-primecheck-runtime-error="true"" "%SMOKE_FILE%" >nul
 if not errorlevel 1 goto :smokeerror
 
 if exist "%SMOKE_FILE%" del /q "%SMOKE_FILE%"
@@ -142,7 +142,7 @@ echo A homologacao foi bloqueada para evitar uma tela branca.
 echo Arquivo de diagnostico:
 echo   %SMOKE_FILE%
 echo.
-type "%SMOKE_FILE%" | findstr /I /C:"PrimeCheck nao conseguiu iniciar" /C:"runtime error"
+type "%SMOKE_FILE%" | findstr /I /C:"data-primecheck-runtime-error" /C:"PrimeCheck"
 pause
 exit /b 1
 
