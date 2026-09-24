@@ -244,28 +244,111 @@ const parseWorkbook = (file: File, buffer: ArrayBuffer): ImportedFile[] => {
   return parsed
 }
 
-export const parseFile = async (file: File): Promise<ImportedFile[]> => {
+export type ParseFilesProgress = {
+  fileName: string
+  fileIndex: number
+  totalFiles: number
+  completedFiles: number
+  phase: 'reading' | 'processing' | 'completed' | 'error'
+  filePercent: number
+  overallPercent: number
+  loadedBytes: number
+  totalBytes: number
+}
+
+const readFileBuffer = (
+  file: File,
+  onProgress?: (ratio: number) => void,
+): Promise<ArrayBuffer> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onprogress = event => {
+      const total = event.lengthComputable ? event.total : file.size
+      const ratio = total > 0 ? Math.min(1, event.loaded / total) : 0
+      onProgress?.(ratio)
+    }
+
+    reader.onload = () => {
+      onProgress?.(1)
+      resolve(reader.result as ArrayBuffer)
+    }
+
+    reader.onerror = () => reject(reader.error ?? new Error('Falha ao ler o arquivo.'))
+    reader.onabort = () => reject(new Error('Leitura do arquivo cancelada.'))
+    reader.readAsArrayBuffer(file)
+  })
+
+export const parseFile = async (
+  file: File,
+  onProgress?: (phase: 'reading' | 'processing', ratio: number) => void,
+): Promise<ImportedFile[]> => {
   const ext = extensionOf(file.name)
   if (!ACCEPTED.includes(ext)) throw new Error(`Formato .${ext || '?'} não suportado.`)
 
-  const buffer = await file.arrayBuffer()
-  if (['csv','txt','tsv'].includes(ext)) return parseDelimited(file, buffer)
-  return parseWorkbook(file, buffer)
+  // A leitura representa 85% do trabalho estimado. Os 15% finais ficam
+  // reservados para interpretação, normalização e criação das linhas.
+  const buffer = await readFileBuffer(file, ratio => onProgress?.('reading', ratio * 0.85))
+
+  onProgress?.('processing', 0.9)
+  // Entrega um frame ao navegador antes da etapa síncrona de parsing para
+  // manter a barra e o texto de progresso visualmente atualizados.
+  await new Promise<void>(resolve => window.setTimeout(resolve, 0))
+
+  const parsed = ['csv','txt','tsv'].includes(ext)
+    ? parseDelimited(file, buffer)
+    : parseWorkbook(file, buffer)
+
+  onProgress?.('processing', 1)
+  return parsed
 }
 
 export const parseFiles = async (
   files: File[],
+  onProgress?: (progress: ParseFilesProgress) => void,
 ): Promise<{ parsed: ImportedFile[]; errors: string[] }> => {
   const parsed: ImportedFile[] = []
   const errors: string[] = []
+  const totalBytes = files.reduce((total, file) => total + Math.max(file.size, 1), 0)
+  let completedBytes = 0
 
-  for (const file of files) {
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index]
+    const fileWeight = Math.max(file.size, 1)
+
+    const emit = (
+      phase: ParseFilesProgress['phase'],
+      ratio: number,
+      completedFiles: number,
+    ) => {
+      const safeRatio = Math.max(0, Math.min(1, ratio))
+      const loadedBytes = Math.min(totalBytes, completedBytes + fileWeight * safeRatio)
+      onProgress?.({
+        fileName: file.name,
+        fileIndex: index,
+        totalFiles: files.length,
+        completedFiles,
+        phase,
+        filePercent: Math.round(safeRatio * 100),
+        overallPercent: totalBytes > 0
+          ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100))
+          : 100,
+        loadedBytes,
+        totalBytes,
+      })
+    }
+
     try {
-      parsed.push(...await parseFile(file))
+      emit('reading', 0, index)
+      parsed.push(...await parseFile(file, (phase, ratio) => emit(phase, ratio, index)))
+      completedBytes += fileWeight
+      emit('completed', 1, index + 1)
     } catch (error) {
+      completedBytes += fileWeight
       errors.push(
         `${file.name}: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       )
+      emit('error', 1, index + 1)
     }
   }
 
