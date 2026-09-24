@@ -50,6 +50,13 @@ type ProductLookupOccurrence = {
   nfceNumber: string
   series: string
   issueDate: string
+  itemNumber: string
+  fileName: string
+  accessKey: string
+  productSearchKey: string
+  nfceSearchKey: string
+  normalizedProductCode: string
+  issueTimestamp: number
 }
 
 type ProductLookupRow = {
@@ -58,6 +65,8 @@ type ProductLookupRow = {
   description: string
   salesPackage: string
 }
+
+type ProductLookupDisplayRow = ProductLookupRow | ProductLookupOccurrence
 
 const PAGE_SIZE = 20
 const detailCache = new Map<string, NfceDetail>()
@@ -240,7 +249,9 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
   const [search, setSearch] = useState('')
   const [productCodeLength, setProductCodeLength] = useState<ProductCodeLengthFilter>('all')
   const [nfceFilter, setNfceFilter] = useState('')
-  const [issueDateFilter, setIssueDateFilter] = useState('')
+  const [issueStartFilter, setIssueStartFilter] = useState('')
+  const [issueEndFilter, setIssueEndFilter] = useState('')
+  const [showNfceOccurrences, setShowNfceOccurrences] = useState(false)
   const [sortKey, setSortKey] = useState('')
   const [direction, setDirection] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
@@ -261,7 +272,9 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     setSearch('')
     setProductCodeLength('all')
     setNfceFilter('')
-    setIssueDateFilter('')
+    setIssueStartFilter('')
+    setIssueEndFilter('')
+    setShowNfceOccurrences(false)
     setPage(1)
     if (view === 'products') {
       setSortKey('quantity')
@@ -280,7 +293,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
 
   useEffect(() => {
     setPage(1)
-  }, [search, rangeMode, customStart, customEnd, productCodeLength, nfceFilter, issueDateFilter, sortKey, direction])
+  }, [search, rangeMode, customStart, customEnd, productCodeLength, nfceFilter, issueStartFilter, issueEndFilter, showNfceOccurrences, sortKey, direction])
 
   const authorizedDocuments = useMemo(
     () => documents.filter(authorized),
@@ -374,14 +387,36 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
         const productCode = String(item.code ?? '').trim()
         if (!productCode) return
 
-        rows.push({
-          key: `${summary.id}|${item.index || itemIndex + 1}|${productCode}`,
+        const description = item.description || 'Sem descrição'
+        const salesPackage = String(item.unit ?? '').trim()
+        const itemNumber = item.index || String(itemIndex + 1)
+        const productSearchKey = normalizeNfceSearch([
           productCode,
-          description: item.description || 'Sem descrição',
-          salesPackage: String(item.unit ?? '').trim(),
+          description,
+          salesPackage,
+        ].join(' '))
+        const nfceSearchKey = normalizeNfceSearch([
+          summary.number,
+          summary.series,
+          summary.accessKey,
+          summary.fileName,
+        ].join(' '))
+
+        rows.push({
+          key: `${summary.id}|${itemNumber}|${productCode}`,
+          productCode,
+          description,
+          salesPackage,
           nfceNumber: summary.number,
           series: summary.series,
           issueDate: summary.issueDate,
+          itemNumber,
+          fileName: summary.fileName,
+          accessKey: summary.accessKey,
+          productSearchKey,
+          nfceSearchKey,
+          normalizedProductCode: normalizeNfceSearch(productCode),
+          issueTimestamp: timestamp(summary.issueDate),
         })
       })
     })
@@ -470,24 +505,43 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     })
   }, [consumerRows, direction, search, sortKey])
 
-  const productLookupFiltered = useMemo<ProductLookupRow[]>(() => {
+  const productLookupFiltered = useMemo<ProductLookupDisplayRow[]>(() => {
     const productQuery = normalizeNfceSearch(search)
     const nfceQuery = normalizeNfceSearch(nfceFilter)
+    const issueStart = issueStartFilter
+      ? new Date(`${issueStartFilter}T00:00:00`).getTime()
+      : Number.NEGATIVE_INFINITY
+    const issueEnd = issueEndFilter
+      ? new Date(`${issueEndFilter}T23:59:59.999`).getTime()
+      : Number.POSITIVE_INFINITY
 
     const matchingOccurrences = productLookupOccurrences
       .filter(row => productCodeMatchesLength(row.productCode, productCodeLength))
-      .filter(row => searchIncludes(productQuery, [row.productCode, row.description, row.salesPackage]))
-      .filter(row => !nfceQuery || searchIncludes(nfceQuery, [
-        row.nfceNumber,
-        row.series,
-        `${row.nfceNumber} ${row.series}`,
-      ]))
-      .filter(row => !issueDateFilter || dayKey(row.issueDate) === issueDateFilter)
-      .sort((left, right) => timestamp(right.issueDate) - timestamp(left.issueDate))
+      .filter(row => !productQuery || row.productSearchKey.includes(productQuery))
+      .filter(row => !nfceQuery || row.nfceSearchKey.includes(nfceQuery))
+      .filter(row => row.issueTimestamp >= issueStart && row.issueTimestamp <= issueEnd)
+
+    if (showNfceOccurrences) {
+      return [...matchingOccurrences].sort((left, right) => {
+        const factor = direction === 'asc' ? 1 : -1
+        let result = 0
+        if (sortKey === 'description') result = collator.compare(left.description, right.description)
+        else if (sortKey === 'salesPackage') result = collator.compare(left.salesPackage, right.salesPackage)
+        else if (sortKey === 'nfceNumber') result = collator.compare(left.nfceNumber, right.nfceNumber)
+        else if (sortKey === 'issueDate') result = left.issueTimestamp - right.issueTimestamp
+        else if (sortKey === 'fileName') result = collator.compare(left.fileName, right.fileName)
+        else if (sortKey === 'accessKey') result = collator.compare(left.accessKey, right.accessKey)
+        else result = collator.compare(left.productCode, right.productCode)
+        return result * factor
+      })
+    }
 
     const distinct = new Map<string, ProductLookupRow>()
-    matchingOccurrences.forEach(row => {
-      const distinctKey = normalizeNfceSearch(row.productCode)
+    const newestFirst = [...matchingOccurrences]
+      .sort((left, right) => right.issueTimestamp - left.issueTimestamp)
+
+    newestFirst.forEach(row => {
+      const distinctKey = row.normalizedProductCode
       if (!distinctKey || distinct.has(distinctKey)) return
       distinct.set(distinctKey, {
         key: distinctKey,
@@ -508,11 +562,13 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     })
   }, [
     direction,
-    issueDateFilter,
+    issueEndFilter,
+    issueStartFilter,
     nfceFilter,
     productCodeLength,
     productLookupOccurrences,
     search,
+    showNfceOccurrences,
     sortKey,
   ])
 
@@ -548,7 +604,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
           <h1>{title}</h1>
           <p>
             {view === 'barcodes'
-              ? <>Consulta distinta pela tag <code>&lt;cProd&gt;</code>. Os filtros de produto, tamanho do código, NFC-e e emissão são independentes e podem ser combinados.</>
+              ? <>Consulta pela tag <code>&lt;cProd&gt;</code> com embalagem de venda <code>&lt;uCom&gt;</code>. Alterne entre produtos distintos e ocorrências por NFC-e; todos os filtros podem ser combinados.</>
               : 'Indicadores calculados a partir das NFC-e autorizadas armazenadas no PrimeCheck para este ambiente.'}
           </p>
         </div>
@@ -677,7 +733,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                 </span>
                 <h2>{title}</h2>
               </div>
-              <small>{currentRows.length.toLocaleString('pt-BR')} {view === 'barcodes' ? 'produtos distintos' : 'resultados'}</small>
+              <small>{currentRows.length.toLocaleString('pt-BR')} {view === 'barcodes' ? (showNfceOccurrences ? 'ocorrências em NFC-e' : 'produtos distintos') : 'resultados'}</small>
             </div>
 
             {view === 'barcodes' ? (
@@ -712,20 +768,50 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                     type="search"
                     value={nfceFilter}
                     onChange={event => setNfceFilter(event.target.value)}
-                    placeholder="Número ou série da NFC-e..."
-                    aria-label="Filtrar por NFC-e"
+                    placeholder="Número, série, chave ou arquivo XML..."
+                    aria-label="Filtrar por número, série, chave ou arquivo da NFC-e"
                   />
                 </label>
 
-                <label className="nfce-product-filter-group">
-                  <span>Data de emissão</span>
-                  <input
-                    type="date"
-                    value={issueDateFilter}
-                    onChange={event => setIssueDateFilter(event.target.value)}
-                    aria-label="Filtrar por data de emissão"
-                  />
-                </label>
+                <div className="nfce-product-filter-group nfce-product-period-filter">
+                  <span>Período de emissão</span>
+                  <div className="nfce-product-period-inputs">
+                    <label>
+                      <small>De</small>
+                      <input
+                        type="date"
+                        value={issueStartFilter}
+                        max={issueEndFilter || undefined}
+                        onChange={event => setIssueStartFilter(event.target.value)}
+                        aria-label="Data inicial de emissão"
+                      />
+                    </label>
+                    <label>
+                      <small>Até</small>
+                      <input
+                        type="date"
+                        value={issueEndFilter}
+                        min={issueStartFilter || undefined}
+                        onChange={event => setIssueEndFilter(event.target.value)}
+                        aria-label="Data final de emissão"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className={`button secondary nfce-product-nfce-toggle${showNfceOccurrences ? ' active' : ''}`}
+                  aria-pressed={showNfceOccurrences}
+                  onClick={() => {
+                    const next = !showNfceOccurrences
+                    setShowNfceOccurrences(next)
+                    setSortKey(next ? 'issueDate' : 'productCode')
+                    setDirection(next ? 'desc' : 'asc')
+                  }}
+                >
+                  {showNfceOccurrences ? 'Ocultar NFC-e' : 'Mostrar NFC-e'}
+                </button>
 
                 <button
                   type="button"
@@ -734,9 +820,10 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                     setSearch('')
                     setProductCodeLength('all')
                     setNfceFilter('')
-                    setIssueDateFilter('')
+                    setIssueStartFilter('')
+                    setIssueEndFilter('')
                   }}
-                  disabled={!search && productCodeLength === 'all' && !nfceFilter && !issueDateFilter}
+                  disabled={!search && productCodeLength === 'all' && !nfceFilter && !issueStartFilter && !issueEndFilter}
                 >
                   Limpar filtros
                 </button>
@@ -780,23 +867,56 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                   </tbody>
                 </table>
               ) : view === 'barcodes' ? (
-                <table className="nfce-analytics-table nfce-product-lookup-table">
-                  <thead><tr>
-                    <th><SortButton label="Código do produto (<cProd>)" field="productCode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                    <th><SortButton label="Descrição" field="description" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                    <th><SortButton label="Embalagem de venda" field="salesPackage" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                  </tr></thead>
-                  <tbody>
-                    {(pageRows as ProductLookupRow[]).map(row => (
-                      <tr key={row.key}>
-                        <td><code className="nfce-short-product-code">{row.productCode}</code></td>
-                        <td><strong>{row.description}</strong></td>
-                        <td><span className="nfce-sales-package">{row.salesPackage || '—'}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
+                showNfceOccurrences ? (
+                  <table className="nfce-analytics-table nfce-product-lookup-table nfce-product-lookup-detail-table">
+                    <thead><tr>
+                      <th><SortButton label="Código do produto (<cProd>)" field="productCode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th><SortButton label="Descrição" field="description" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th><SortButton label="Embalagem de venda" field="salesPackage" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th><SortButton label="NFC-e" field="nfceNumber" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th>Item</th>
+                      <th><SortButton label="Emissão" field="issueDate" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th><SortButton label="XML de origem" field="fileName" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th><SortButton label="Chave de acesso" field="accessKey" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                    </tr></thead>
+                    <tbody>
+                      {(pageRows as ProductLookupOccurrence[]).map(row => (
+                        <tr key={row.key}>
+                          <td><code className="nfce-short-product-code">{row.productCode}</code></td>
+                          <td><strong>{row.description}</strong></td>
+                          <td><span className="nfce-sales-package">{row.salesPackage || '—'}</span></td>
+                          <td>
+                            <div className="nfce-source-document">
+                              <strong>Nº {row.nfceNumber || '—'}</strong>
+                              <small>Série {row.series || '—'}</small>
+                            </div>
+                          </td>
+                          <td>{row.itemNumber || '—'}</td>
+                          <td>{formatNfceDate(row.issueDate)}</td>
+                          <td><span className="nfce-source-file">{row.fileName || '—'}</span></td>
+                          <td><code className="nfce-access-key">{row.accessKey || '—'}</code></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <table className="nfce-analytics-table nfce-product-lookup-table">
+                    <thead><tr>
+                      <th><SortButton label="Código do produto (<cProd>)" field="productCode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th><SortButton label="Descrição" field="description" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                      <th><SortButton label="Embalagem de venda" field="salesPackage" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
+                    </tr></thead>
+                    <tbody>
+                      {(pageRows as ProductLookupRow[]).map(row => (
+                        <tr key={row.key}>
+                          <td><code className="nfce-short-product-code">{row.productCode}</code></td>
+                          <td><strong>{row.description}</strong></td>
+                          <td><span className="nfce-sales-package">{row.salesPackage || '—'}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )              ) : (
                 <table className="nfce-analytics-table">
                   <thead><tr>
                     <th><SortButton label="Código" field="code" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
