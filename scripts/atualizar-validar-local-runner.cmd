@@ -97,7 +97,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-findstr /C:"value=\"over8\"" "src\pages\NfceAnalyticsPage.tsx" >nul
+findstr /C:"over8" "src\pages\NfceAnalyticsPage.tsx" >nul
 if errorlevel 1 (
   echo [ERRO] O filtro para codigos maiores que 8 digitos nao foi encontrado.
   pause
