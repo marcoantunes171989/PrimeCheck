@@ -35,3 +35,6 @@ jobs:
 
       - name: Verify typography layout
         run: npm run verify:typography
+
+      - name: Verify responsive layout
+        run: npm run verify:responsive
