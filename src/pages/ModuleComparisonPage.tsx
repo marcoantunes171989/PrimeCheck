@@ -193,7 +193,7 @@ export default function ModuleComparisonPage({
   const storageModuleId = module.id === 'clients'
     ? 'clients:checklist-v14'
     : module.id === 'suppliers'
-      ? 'suppliers:checklist-v1'
+      ? 'suppliers:checklist-v2'
       : module.id
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
