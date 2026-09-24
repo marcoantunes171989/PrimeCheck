@@ -44,6 +44,13 @@ const normalizeHierarchyCode = (value: unknown) => {
   return text.toLocaleUpperCase('pt-BR')
 }
 
+const readHierarchyRowValue = (row: Record<string, unknown> | undefined, header: string) => {
+  if (!row) return ''
+  const expected = normalizeHeader(header)
+  const key = Object.keys(row).find(candidate => normalizeHeader(candidate) === expected)
+  return key ? String(row[key] ?? '').trim() : ''
+}
+
 const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
 const plural = (profile: EntityProfile) => profile.label
@@ -477,15 +484,6 @@ function App({
   }
 
   const hierarchyForClient = (client: ClientComparison) => {
-    if (!visualHierarchy) {
-      return {
-        sectionCode: '',
-        sectionName: '',
-        groupCode: '',
-        groupName: '',
-      }
-    }
-
     const keyParts = client.key.split('/').map(part => part.trim())
     const sectionField = client.fields.find(field => field.fieldId === 'codigoSecao')
     const groupField = client.fields.find(field => field.fieldId === 'codigoGrupo')
@@ -496,14 +494,46 @@ function App({
       groupField?.originValue || groupField?.targetValue || keyParts[1],
     )
 
+    const directSectionName =
+      readHierarchyRowValue(client.targetRow, 'DES_SECAO')
+      || readHierarchyRowValue(client.originRow, 'DES_SECAO')
+    const directGroupName =
+      readHierarchyRowValue(client.targetRow, 'DES_GRUPO')
+      || readHierarchyRowValue(client.originRow, 'DES_GRUPO')
+
+    const sectionName =
+      directSectionName
+      || (sectionCode && visualHierarchy ? visualHierarchy.sectionNames[sectionCode] ?? '' : '')
+    const groupName =
+      directGroupName
+      || (
+        sectionCode && groupCode && visualHierarchy
+          ? visualHierarchy.groupNames[sectionCode + '|' + groupCode] ?? ''
+          : ''
+      )
+
     return {
       sectionCode,
-      sectionName: sectionCode ? visualHierarchy.sectionNames[sectionCode] ?? '' : '',
+      sectionName,
       groupCode,
-      groupName: sectionCode && groupCode
-        ? visualHierarchy.groupNames[sectionCode + '|' + groupCode] ?? ''
-        : '',
+      groupName,
     }
+  }
+
+  const hierarchyDisplayForClient = (client: ClientComparison) => {
+    const hierarchy = hierarchyForClient(client)
+    const sectionLabel = hierarchy.sectionName || (hierarchy.sectionCode ? 'Seção ' + hierarchy.sectionCode : 'Seção')
+    const groupLabel = hierarchy.groupName || (hierarchy.groupCode ? 'Grupo ' + hierarchy.groupCode : 'Grupo')
+
+    if (resultProfile.id === 'group') {
+      return sectionLabel + ' | ' + (client.name || '—')
+    }
+
+    if (resultProfile.id === 'subgroup') {
+      return sectionLabel + ' | ' + groupLabel + ' | ' + (client.name || '—')
+    }
+
+    return client.name || '—'
   }
 
   const filteredClients = useMemo(() => {
@@ -518,7 +548,12 @@ function App({
       if (clientColumnFilters.found === 'SIM' && !client.found) return false
       if (clientColumnFilters.found === 'NAO' && client.found) return false
       if (!contains(client.key, clientColumnFilters.code)) return false
-      if (!contains(client.name, clientColumnFilters.name)) return false
+      if (!contains(
+        resultProfile.id === 'group' || resultProfile.id === 'subgroup'
+          ? hierarchyDisplayForClient(client)
+          : client.name,
+        clientColumnFilters.name,
+      )) return false
 
       if (!contains(client.divergentCount, clientColumnFilters.divergent)) return false
       if (!contains(client.attentionCount, clientColumnFilters.attention)) return false
@@ -1187,7 +1222,18 @@ function App({
                             />
                           </th>
                           <SortableHeader label="Código" sortKey="code" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
-                          <SortableHeader label={resultProfile.recordLabel} sortKey="name" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
+                          <SortableHeader
+                            label={
+                              resultProfile.id === 'group'
+                                ? 'Seção | Grupo'
+                                : resultProfile.id === 'subgroup'
+                                  ? 'Seção | Grupo | Subgrupo'
+                                  : resultProfile.recordLabel
+                            }
+                            sortKey="name"
+                            sort={clientSort}
+                            onSort={key => setClientSort(current => nextSort(current, key))}
+                          />
                           <SortableHeader label="Encontrado" sortKey="found" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           <SortableHeader label="Resultado" sortKey="status" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
                           <SortableHeader label="Divergências" sortKey="divergent" sort={clientSort} onSort={key => setClientSort(current => nextSort(current, key))} />
@@ -1253,25 +1299,16 @@ function App({
                             <td className="mono">{client.key}</td>
                             <td>
                               {showGroupHierarchy ? (
-                                <div className="hierarchy-inline-label" title={(hierarchy.sectionName || '—') + ' | ' + (client.name || '—')}>
-                                  <span>{hierarchy.sectionName || '—'}</span>
+                                <div className="hierarchy-inline-label" title={hierarchyDisplayForClient(client)}>
+                                  <span>{hierarchy.sectionName || (hierarchy.sectionCode ? 'Seção ' + hierarchy.sectionCode : 'Seção')}</span>
                                   <i aria-hidden="true">|</i>
                                   <strong>{client.name || '—'}</strong>
                                 </div>
                               ) : showSubgroupHierarchy ? (
-                                <div
-                                  className="hierarchy-inline-label"
-                                  title={
-                                    (hierarchy.sectionName || '—')
-                                    + ' | '
-                                    + (hierarchy.groupName || '—')
-                                    + ' | '
-                                    + (client.name || '—')
-                                  }
-                                >
-                                  <span>{hierarchy.sectionName || '—'}</span>
+                                <div className="hierarchy-inline-label" title={hierarchyDisplayForClient(client)}>
+                                  <span>{hierarchy.sectionName || (hierarchy.sectionCode ? 'Seção ' + hierarchy.sectionCode : 'Seção')}</span>
                                   <i aria-hidden="true">|</i>
-                                  <span>{hierarchy.groupName || '—'}</span>
+                                  <span>{hierarchy.groupName || (hierarchy.groupCode ? 'Grupo ' + hierarchy.groupCode : 'Grupo')}</span>
                                   <i aria-hidden="true">|</i>
                                   <strong>{client.name || '—'}</strong>
                                 </div>
