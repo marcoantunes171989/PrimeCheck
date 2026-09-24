@@ -79,7 +79,7 @@ jobs:
         shell: powershell
         run: |
           $env:PRIMECHECK_CI = "1"
-          powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\primecheck-local.ps1" -ProjectDir "$PWD"
+          cmd /c ".\validar-local.cmd"
           if ($LASTEXITCODE -ne 0) {
-            throw "O launcher local exato do PrimeCheck falhou com codigo $LASTEXITCODE."
+            throw "O fluxo exato validar-local.cmd -> PowerShell falhou com codigo $LASTEXITCODE."
           }
