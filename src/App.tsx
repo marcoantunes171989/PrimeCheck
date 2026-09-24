@@ -223,7 +223,10 @@ export default function App() {
         </div>
 
         {module === 'dashboard:general' && (
-          <GeneralDashboardPage files={workspaceFiles} />
+          <GeneralDashboardPage
+            files={workspaceFiles}
+            onNavigate={target => changeModule(target as ModuleId)}
+          />
         )}
 
         {module === 'importacao' && (
