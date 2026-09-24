@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import HomologationApp from '../HomologationApp'
+import clientDestinationSql from '../sql/cliente-destino-intersolid.sql?raw'
 import {
   getWorkspaceComparisonFileRole,
   getWorkspaceEntityProfile,
@@ -87,6 +88,8 @@ export default function ModuleComparisonPage({
 
   const [originName, setOriginName] = useState('')
   const [targetName, setTargetName] = useState('')
+  const [clientSqlOpen, setClientSqlOpen] = useState(false)
+  const [clientSqlCopied, setClientSqlCopied] = useState(false)
 
   const originOptions = useMemo(
     () => module.id === 'clients'
@@ -199,6 +202,47 @@ export default function ModuleComparisonPage({
     setTargetName(originName)
   }
 
+  const copyClientSql = async () => {
+    try {
+      await navigator.clipboard.writeText(clientDestinationSql)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = clientDestinationSql
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      textarea.remove()
+    }
+
+    setClientSqlCopied(true)
+    window.setTimeout(() => setClientSqlCopied(false), 1800)
+  }
+
+  const downloadClientSql = () => {
+    const blob = new Blob([clientDestinationSql], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'cliente-destino-intersolid.sql'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  useEffect(() => {
+    if (!clientSqlOpen) return
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setClientSqlOpen(false)
+    }
+
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [clientSqlOpen])
+
   return (
     <main className="module-comparison-page">
       <header className="module-comparison-head">
@@ -210,9 +254,20 @@ export default function ModuleComparisonPage({
             conformidade, divergências, atenções, duplicidades e não importados.
           </p>
         </div>
-        <button type="button" className="button ghost" onClick={onBackToImport}>
-          Gerenciar arquivos
-        </button>
+        <div className="module-comparison-head-actions">
+          {module.id === 'clients' && (
+            <button
+              type="button"
+              className="button secondary client-sql-open"
+              onClick={() => setClientSqlOpen(true)}
+            >
+              Script SQL do destino
+            </button>
+          )}
+          <button type="button" className="button ghost" onClick={onBackToImport}>
+            Gerenciar arquivos
+          </button>
+        </div>
       </header>
 
       <section className="comparison-file-selector">
@@ -345,6 +400,61 @@ export default function ModuleComparisonPage({
             )
           }
         />
+      )}
+
+      {module.id === 'clients' && clientSqlOpen && (
+        <div
+          className="client-sql-modal-backdrop"
+          role="presentation"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setClientSqlOpen(false)
+          }}
+        >
+          <section
+            className="client-sql-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="client-sql-modal-title"
+          >
+            <header className="client-sql-modal-head">
+              <div>
+                <span className="eyebrow">EXPORTAÇÃO DO DESTINO</span>
+                <h2 id="client-sql-modal-title">Script SQL · Clientes</h2>
+                <p>
+                  Execute esta consulta no banco de destino para gerar o arquivo utilizado na homologação.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="client-sql-modal-close"
+                onClick={() => setClientSqlOpen(false)}
+                aria-label="Fechar script SQL"
+                title="Fechar"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="client-sql-modal-note">
+              <strong>Arquivo:</strong>
+              <span>cliente-destino-intersolid.sql</span>
+            </div>
+
+            <pre className="client-sql-code"><code>{clientDestinationSql}</code></pre>
+
+            <footer className="client-sql-modal-actions">
+              <button type="button" className="button ghost" onClick={() => setClientSqlOpen(false)}>
+                Fechar
+              </button>
+              <button type="button" className="button secondary" onClick={copyClientSql}>
+                {clientSqlCopied ? 'Copiado!' : 'Copiar SQL'}
+              </button>
+              <button type="button" className="button primary" onClick={downloadClientSql}>
+                Baixar .sql
+              </button>
+            </footer>
+          </section>
+        </div>
       )}
     </main>
   )
