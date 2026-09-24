@@ -13,8 +13,8 @@ import '../generalDashboard.css'
 
 const GROUP_META: Record<WorkspaceGroupId, { label: string; short: string }> = {
   partners: { label: 'Parceiros', short: 'Clientes, fornecedores e transportadoras' },
-  structure: { label: 'Estrutura de Produtos', short: 'Seções, grupos e subgrupos' },
-  products: { label: 'Produtos', short: 'Produtos, lojas, barras e vínculos' },
+  structure: { label: 'Classificação Mercadológica', short: 'Seções, grupos e subgrupos' },
+  products: { label: 'Produto por Loja', short: 'Produtos, lojas, barras e vínculos' },
   fiscal: { label: 'Fiscal e Conteúdo', short: 'NCM, CEST e informações fiscais' },
 }
 
