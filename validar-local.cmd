@@ -77,10 +77,44 @@ echo NAO USE http://localhost:4173 para esta homologacao.
 echo O modo local usa uma porta exclusiva por SHA para impedir versao antiga.
 echo.
 
-start "PrimeCheck Local %LOCAL_PORT%" /min cmd /c "cd /d ""%~dp0"" && set ""VITE_PRIMECHECK_SHA=%EXPECTED_SHA%"" && npm run serve:local -- --port %LOCAL_PORT%"
+set "VITE_LOG=%TEMP%\primecheck-vite-%LOCAL_PORT%-%RANDOM%.log"
+set "VITE_LAUNCHER=%~dp0scripts\iniciar-vite-local.cmd"
+
+if not exist "%VITE_LAUNCHER%" (
+  echo [ERRO] Launcher do Vite nao encontrado:
+  echo   %VITE_LAUNCHER%
+  pause
+  exit /b 1
+)
+
+start "PrimeCheck Local %LOCAL_PORT%" /min cmd /c call "%VITE_LAUNCHER%" "%LOCAL_PORT%" "%EXPECTED_SHA%" "%VITE_LOG%"
 
 echo.
-echo [6/6] Confirmando fonte servida e executando smoke test no Edge...
+echo [6/6] Confirmando porta, fonte servida e smoke test no Edge...
+set "PORT_READY="
+for /L %%I in (1,1,20) do (
+  netstat -ano | findstr ":%LOCAL_PORT%" | findstr "LISTENING" >nul 2>&1
+  if not errorlevel 1 (
+    set "PORT_READY=1"
+    goto :portready
+  )
+  timeout /t 1 /nobreak >nul
+)
+
+echo [ERRO] A porta %LOCAL_PORT% nao entrou em estado LISTENING.
+echo.
+echo ===== LOG DO VITE =====
+if exist "%VITE_LOG%" (
+  type "%VITE_LOG%"
+) else (
+  echo Arquivo de log nao foi criado: %VITE_LOG%
+)
+echo ===== FIM DO LOG =====
+pause
+exit /b 1
+
+:portready
+echo [OK] Porta %LOCAL_PORT% esta LISTENING.
 set "SERVE_OK="
 for /L %%I in (1,1,30) do (
   node scripts\verify-local-served-build.mjs "http://localhost:%LOCAL_PORT%" "%EXPECTED_SHA%" >nul 2>&1
@@ -93,6 +127,14 @@ for /L %%I in (1,1,30) do (
 
 echo [ERRO] O Vite local nao entregou a versao esperada.
 echo SHA esperado: %EXPECTED_SHA%
+echo.
+echo ===== LOG DO VITE =====
+if exist "%VITE_LOG%" (
+  type "%VITE_LOG%"
+) else (
+  echo Arquivo de log nao foi criado: %VITE_LOG%
+)
+echo ===== FIM DO LOG =====
 echo.
 node scripts\verify-local-served-build.mjs "http://localhost:%LOCAL_PORT%" "%EXPECTED_SHA%"
 pause
