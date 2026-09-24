@@ -29,3 +29,6 @@ jobs:
 
       - name: Verify hierarchy display
         run: npm run verify:hierarchy
+
+      - name: Verify Product Store architecture
+        run: npm run verify:product-store
