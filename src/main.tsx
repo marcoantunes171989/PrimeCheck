@@ -23,7 +23,7 @@ class PrimeCheckRuntimeBoundary extends React.Component<React.PropsWithChildren,
     if (!this.state.error) return this.props.children
 
     return (
-      <main style={{ padding: 24, fontFamily: 'Inter, system-ui, sans-serif', color: '#012E46' }}>
+      <main data-primecheck-runtime-error="true" style={{ padding: 24, fontFamily: 'Inter, system-ui, sans-serif', color: '#012E46' }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>PrimeCheck não conseguiu iniciar</h1>
         <p style={{ maxWidth: 780 }}>
           Foi identificado um erro de execução no frontend. Copie a mensagem abaixo para análise.
