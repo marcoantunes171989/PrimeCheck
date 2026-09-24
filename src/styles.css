@@ -10376,3 +10376,88 @@ footer {
   font-weight: 650;
   line-height: 1.35;
 }
+
+
+/* Diagnóstico rápido — enquadramento completo sem barra lateral */
+.technical-diagnosis {
+  min-width: 0;
+}
+
+.technical-diagnosis-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.technical-diagnosis-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.technical-diagnosis-table th,
+.technical-diagnosis-table td {
+  min-width: 0 !important;
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.technical-diagnosis-table th:nth-child(1),
+.technical-diagnosis-table td:nth-child(1) { width: 3%; }
+
+.technical-diagnosis-table th:nth-child(2),
+.technical-diagnosis-table td:nth-child(2) { width: 9%; }
+
+.technical-diagnosis-table th:nth-child(3),
+.technical-diagnosis-table td:nth-child(3) { width: 12%; }
+
+.technical-diagnosis-table th:nth-child(4),
+.technical-diagnosis-table td:nth-child(4) { width: 11%; }
+
+.technical-diagnosis-table th:nth-child(5),
+.technical-diagnosis-table td:nth-child(5) { width: 9%; }
+
+.technical-diagnosis-table th:nth-child(6),
+.technical-diagnosis-table td:nth-child(6) { width: 10%; }
+
+.technical-diagnosis-table th:nth-child(7),
+.technical-diagnosis-table td:nth-child(7) { width: 8%; }
+
+.technical-diagnosis-table th:nth-child(8),
+.technical-diagnosis-table td:nth-child(8) { width: 20%; }
+
+.technical-diagnosis-table th:nth-child(9),
+.technical-diagnosis-table td:nth-child(9) { width: 4%; }
+
+.technical-diagnosis-table th:nth-child(10),
+.technical-diagnosis-table td:nth-child(10) { width: 7%; }
+
+.technical-diagnosis-table th:nth-child(11),
+.technical-diagnosis-table td:nth-child(11) { width: 7%; }
+
+.technical-diagnosis-table .column-filter-row input,
+.technical-diagnosis-table .column-filter-row select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.technical-diagnosis-table .review-chip,
+.technical-diagnosis-table .analysis-action-button {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.2;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.technical-diagnosis-table .reason-cell,
+.technical-diagnosis-table .compare-value-cell {
+  min-width: 0 !important;
+  max-width: none !important;
+}
