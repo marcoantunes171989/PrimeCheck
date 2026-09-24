@@ -529,7 +529,6 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
         else if (sortKey === 'salesPackage') result = collator.compare(left.salesPackage, right.salesPackage)
         else if (sortKey === 'nfceNumber') result = collator.compare(left.nfceNumber, right.nfceNumber)
         else if (sortKey === 'issueDate') result = left.issueTimestamp - right.issueTimestamp
-        else if (sortKey === 'fileName') result = collator.compare(left.fileName, right.fileName)
         else if (sortKey === 'accessKey') result = collator.compare(left.accessKey, right.accessKey)
         else result = collator.compare(left.productCode, right.productCode)
         return result * factor
@@ -876,7 +875,6 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                       <th><SortButton label="NFC-e" field="nfceNumber" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                       <th>Item</th>
                       <th><SortButton label="Emissão" field="issueDate" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                      <th><SortButton label="XML de origem" field="fileName" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                       <th><SortButton label="Chave de acesso" field="accessKey" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     </tr></thead>
                     <tbody>
@@ -893,7 +891,6 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                           </td>
                           <td>{row.itemNumber || '—'}</td>
                           <td>{formatNfceDate(row.issueDate)}</td>
-                          <td><span className="nfce-source-file">{row.fileName || '—'}</span></td>
                           <td><code className="nfce-access-key">{row.accessKey || '—'}</code></td>
                         </tr>
                       ))}
