@@ -11,7 +11,8 @@
     "preview:lan": "vite preview --host 0.0.0.0 --port 4173",
     "typecheck": "tsc -b --pretty false",
     "verify:entities": "npx --yes tsx scripts/verify-entity-profiles.mts",
-    "verify:hierarchy": "npx --yes tsx scripts/verify-hierarchy-display.mts"
+    "verify:hierarchy": "npx --yes tsx scripts/verify-hierarchy-display.mts",
+    "verify:product-store": "npx --yes tsx scripts/verify-product-store-architecture.mts"
   },
   "dependencies": {
     "@br-validators/core": "^1.10.0-data.41",
