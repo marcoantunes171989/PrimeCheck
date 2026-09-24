@@ -158,14 +158,31 @@ const fields: FieldDefinition[] = [
     'code',
   ),
 
-  exactField(
-    'divisaoFornecedor',
-    'Divisão de Fornecedores',
-    'Divisão de Fornecedores',
-    'COD_CLASSIF',
-    'Divisão de Fornecedores',
-    'code',
-  ),
+  {
+    id: 'divisaoFornecedor',
+    label: 'Divisão de Fornecedores',
+    checklistLabel: 'Divisão de Fornecedores',
+    databaseField: 'COD_CLASSIF',
+    group: 'Divisão de Fornecedores',
+    kind: 'code',
+    aliases: [
+      'COD_CLASSIF',
+      'COD_CLASSIFICACAO',
+      'COD_CLASSIFICACAO_FORNECEDOR',
+      'COD_DIVISAO',
+      'COD_DIVISAO_FORNECEDOR',
+      'DIVISAO_FORNECEDOR',
+    ],
+    originExactAliases: ['COD_CLASSIF'],
+    targetExactAliases: [
+      'COD_CLASSIF',
+      'COD_CLASSIFICACAO',
+      'COD_CLASSIFICACAO_FORNECEDOR',
+      'COD_DIVISAO',
+      'COD_DIVISAO_FORNECEDOR',
+      'DIVISAO_FORNECEDOR',
+    ],
+  },
 
   exactField(
     'observacao',
