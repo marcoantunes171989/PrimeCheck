@@ -344,6 +344,7 @@ export default function Sidebar({
       return
     }
     if (active === 'dashboard:general') {
+      setOpenDashboardGroup(null)
       setOpenGroup(null)
       setNfceOpen(false)
       return
@@ -810,6 +811,7 @@ export default function Sidebar({
                 {
                   title: compact ? 'Dashboard Geral' : undefined,
                   onClick: () => {
+                    setOpenDashboardGroup(null)
                     setOpenGroup(null)
                     setNfceOpen(false)
                     onChange('dashboard:general')
