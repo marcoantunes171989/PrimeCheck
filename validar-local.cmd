@@ -16,7 +16,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\primecheck-local.ps1" -ProjectDir "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\primecheck-local.ps1"
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (
