@@ -27,11 +27,20 @@ for /f "delims=" %%i in ('git status --porcelain 2^>nul') do (
   exit /b 1
 )
 
-echo [1/7] Buscando a ultima homologacao liberada...
-git fetch origin homologacao-local-validacao
+echo [1/8] Validando repositorio e buscando homologacao...
+for /f "delims=" %%O in ('git remote get-url origin') do set "ORIGIN_URL=%%O"
+echo Repositorio: %ORIGIN_URL%
+echo %ORIGIN_URL% | findstr /I /C:"marcoantunes171989/PrimeCheck" >nul
+if errorlevel 1 (
+  echo [ERRO] Esta pasta nao aponta para o repositorio oficial PrimeCheck.
+  echo Origem encontrada: %ORIGIN_URL%
+  pause
+  exit /b 1
+)
+git fetch origin homologacao-local-validacao --prune
 if errorlevel 1 goto :giterror
 
-echo [2/7] Abrindo a branch de homologacao local...
+echo [2/8] Abrindo a branch de homologacao local...
 git show-ref --verify --quiet refs/heads/homologacao-local-validacao
 if errorlevel 1 (
   git switch -c homologacao-local-validacao --track origin/homologacao-local-validacao
@@ -40,15 +49,15 @@ if errorlevel 1 (
 )
 if errorlevel 1 goto :giterror
 
-echo [3/7] Atualizando sem misturar branches...
-git pull --ff-only origin homologacao-local-validacao
+echo [3/8] Sincronizando exatamente com a homologacao remota...
+git reset --hard origin/homologacao-local-validacao
 if errorlevel 1 goto :giterror
 
-echo [4/7] Versao carregada:
+echo [4/8] Versao carregada:
 git log -1 --oneline
 echo.
 
-echo [5/7] Confirmando SHA local = remoto...
+echo [5/8] Confirmando SHA local = remoto...
 for /f "delims=" %%L in ('git rev-parse HEAD') do set "LOCAL_SHA=%%L"
 for /f "delims=" %%R in ('git rev-parse origin/homologacao-local-validacao') do set "REMOTE_SHA=%%R"
 if /I not "%LOCAL_SHA%"=="%REMOTE_SHA%" (
@@ -61,7 +70,7 @@ if /I not "%LOCAL_SHA%"=="%REMOTE_SHA%" (
 echo [OK] SHA local e remoto confirmados: %LOCAL_SHA%
 echo.
 
-echo [6/7] Confirmando menu NFC-e "Pesquisa por produtos"...
+echo [6/8] Confirmando menu NFC-e "Pesquisa por produtos"...
 findstr /C:"label: 'Pesquisa por produtos'" "src\components\Sidebar.tsx" >nul
 if errorlevel 1 (
   echo [ERRO] A branch carregada nao contem o menu "Pesquisa por produtos".
@@ -72,7 +81,23 @@ if errorlevel 1 (
 echo [OK] Menu "Pesquisa por produtos" confirmado no codigo-fonte.
 echo.
 
-echo [7/7] Iniciando validacao local...
+echo [7/8] Confirmando tela Consulta de produtos...
+findstr /C:": 'Consulta de produtos'" "src\pages\NfceAnalyticsPage.tsx" >nul
+if errorlevel 1 (
+  echo [ERRO] A tela atual nao contem o titulo "Consulta de produtos".
+  pause
+  exit /b 1
+)
+findstr /C:"Maior que 8 dígitos" "src\pages\NfceAnalyticsPage.tsx" >nul
+if errorlevel 1 (
+  echo [ERRO] Os filtros novos da consulta de produtos nao foram encontrados.
+  pause
+  exit /b 1
+)
+echo [OK] Tela e filtros novos confirmados no codigo-fonte.
+echo.
+
+echo [8/8] Iniciando validacao local...
 echo.
 call validar-local.cmd
 exit /b %errorlevel%
