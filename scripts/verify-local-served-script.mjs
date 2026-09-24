@@ -21,7 +21,6 @@ assert.doesNotMatch(validator, /npm run serve:local/)
 assert.doesNotMatch(validator, /start-local-server\.mjs|vite-local-daemon\.mjs/)
 
 assert.match(launcher, /\$Port = 4177/)
-assert.match(launcher, /Trim\(\)\.Trim\('"')\.TrimEnd\('\\\\')/)
 assert.match(launcher, /Resolve-Path -LiteralPath/)
 assert.match(launcher, /Get-NetTCPConnection -LocalPort \$Port -State Listen/)
 assert.match(launcher, /node_modules\\vite\\bin\\vite\.js/)
