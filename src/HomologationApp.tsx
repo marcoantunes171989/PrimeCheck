@@ -15,7 +15,7 @@ import { applyManualFieldAdjustment, compareDatasets, revertManualFieldAdjustmen
 import { exportClientsCsv, exportReportExcel } from './lib/exporters'
 import DuplicateAnalysisModal, { type DuplicateAnalysisRequest } from './components/DuplicateAnalysisModal'
 import { buildRecordDisplayFields, findDuplicateGroup, isMonoDuplicateField, sideLabel } from './lib/duplicateDisplay'
-import { validateCpfCnpj } from './lib/normalizers'
+import { normalizeHeader, validateCpfCnpj } from './lib/normalizers'
 import { formatReportDateTime } from './lib/reportFormatting'
 import type { ClientComparison, ComparisonFieldResult, ComparisonReport, EntityProfile, FieldMapping, ImportedFile, Severity } from './types'
 
@@ -114,6 +114,62 @@ type HomologationAppProps = {
   onComparisonExecuted?: (mapping: FieldMapping[]) => void
 }
 
+const canonicalizeClientTargetFiles = (
+  files: ImportedFile[],
+  profile?: EntityProfile,
+): ImportedFile[] => {
+  if (!profile || (profile.id !== 'client' && profile.id !== 'workspace:clients')) return files
+
+  return files.map(file => {
+    const usedRawHeaders = new Set<string>()
+    const canonicalPairs = profile.fields.flatMap(field => {
+      const canonical = field.originExactAliases?.[0]
+      if (!canonical) return []
+
+      const canonicalToken = normalizeHeader(canonical)
+      const candidates = [
+        canonical,
+        ...(field.targetExactAliases ?? []),
+        ...field.aliases,
+        field.label,
+      ]
+      const candidateTokens = new Set(candidates.map(normalizeHeader).filter(Boolean))
+
+      const rawHeader = file.headers.find(header =>
+        !usedRawHeaders.has(header)
+        && candidateTokens.has(normalizeHeader(header)),
+      )
+
+      if (!rawHeader) return []
+      usedRawHeaders.add(rawHeader)
+
+      return [{ canonical, canonicalToken, rawHeader }]
+    })
+
+    if (!canonicalPairs.length) return file
+
+    const canonicalHeaders = canonicalPairs.map(pair => pair.canonical)
+    const headers = [...file.headers]
+    canonicalHeaders.forEach(header => {
+      if (!headers.some(existing => normalizeHeader(existing) === normalizeHeader(header))) {
+        headers.push(header)
+      }
+    })
+
+    const rows = file.rows.map(row => {
+      const next = { ...row }
+      canonicalPairs.forEach(({ canonical, rawHeader }) => {
+        if (!(canonical in next) || String(next[canonical] ?? '') === '') {
+          next[canonical] = row[rawHeader]
+        }
+      })
+      return next
+    })
+
+    return { ...file, headers, rows }
+  })
+}
+
 const mergePersistedMapping = (
   automatic: FieldMapping[],
   persisted: FieldMapping[],
@@ -156,7 +212,11 @@ function App({
   const [originFiles, setOriginFiles] = useState<ImportedFile[]>(presetOriginFiles ?? [])
   const [targetFiles, setTargetFiles] = useState<ImportedFile[]>(presetTargetFiles ?? [])
   const origin = useMemo(() => buildDataset(originFiles), [originFiles])
-  const target = useMemo(() => buildDataset(targetFiles), [targetFiles])
+  const normalizedTargetFiles = useMemo(
+    () => canonicalizeClientTargetFiles(targetFiles, profileOverride),
+    [targetFiles, profileOverride],
+  )
+  const target = useMemo(() => buildDataset(normalizedTargetFiles), [normalizedTargetFiles])
   const [entityMode, setEntityMode] = useState<EntityMode>(profileOverride?.id ?? 'auto')
   const [mapping, setMapping] = useState<FieldMapping[]>([])
   const [report, setReport] = useState<ComparisonReport | null>(null)
