@@ -60,11 +60,11 @@ assert.match(page, /produtos distintos/)
 
 assert.match(page, /SortButton label="NFC-e" field="nfceNumber"/)
 assert.match(page, /SortButton label="Emissão" field="issueDate"/)
-assert.match(page, /SortButton label="XML de origem" field="fileName"/)
+assert.doesNotMatch(page, /SortButton label="XML de origem" field="fileName"/)
 assert.match(page, /SortButton label="Chave de acesso" field="accessKey"/)
 assert.match(page, /Nº \{row\.nfceNumber/)
 assert.match(page, /Série \{row\.series/)
-assert.match(page, /row\.fileName \|\| '—'/)
+assert.doesNotMatch(page, /<td><span className="nfce-source-file">\{row\.fileName \|\| '—'\}<\/span><\/td>/)
 assert.match(page, /row\.accessKey \|\| '—'/)
 
 assert.match(page, /placeholder="Número, série, chave ou arquivo XML\.\.\."/)
