@@ -4,7 +4,8 @@ import {
   formatNfceDocument,
   formatNfceMoney,
   normalizeNfceSearch,
-  normalizeShortCProd,
+  productCodeMatchesLength,
+  type ProductCodeLengthFilter,
   parseNfceDetail,
   type NfceDetail,
   type NfceSummary,
@@ -41,15 +42,16 @@ type ConsumerRow = {
   lastIssueDate: string
 }
 
-type ProductCodeRow = {
+type ProductLookupOccurrence = {
   key: string
   productCode: string
   description: string
-  fileName: string
   nfceNumber: string
   series: string
   issueDate: string
 }
+
+type ProductLookupRow = ProductLookupOccurrence
 
 const PAGE_SIZE = 20
 const detailCache = new Map<string, NfceDetail>()
@@ -230,6 +232,9 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
   })
   const [customEnd, setCustomEnd] = useState(() => toDateInput(new Date()))
   const [search, setSearch] = useState('')
+  const [productCodeLength, setProductCodeLength] = useState<ProductCodeLengthFilter>('all')
+  const [nfceFilter, setNfceFilter] = useState('')
+  const [issueDateFilter, setIssueDateFilter] = useState('')
   const [sortKey, setSortKey] = useState('')
   const [direction, setDirection] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
@@ -248,6 +253,9 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
 
   useEffect(() => {
     setSearch('')
+    setProductCodeLength('all')
+    setNfceFilter('')
+    setIssueDateFilter('')
     setPage(1)
     if (view === 'products') {
       setSortKey('quantity')
@@ -266,7 +274,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
 
   useEffect(() => {
     setPage(1)
-  }, [search, rangeMode, customStart, customEnd, sortKey, direction])
+  }, [search, rangeMode, customStart, customEnd, productCodeLength, nfceFilter, issueDateFilter, sortKey, direction])
 
   const authorizedDocuments = useMemo(
     () => documents.filter(authorized),
@@ -351,19 +359,19 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     return [...map.values()]
   }, [periodDetails])
 
-  const shortProductCodeRows = useMemo<ProductCodeRow[]>(() => {
-    const rows: ProductCodeRow[] = []
+  const productLookupOccurrences = useMemo<ProductLookupOccurrence[]>(() => {
+    const rows: ProductLookupOccurrence[] = []
 
-    periodDetails.forEach(({ summary, detail }) => {
+    authorizedDocuments.forEach(summary => {
+      const detail = detailFor(summary)
       detail.items.forEach((item, itemIndex) => {
-        const productCode = normalizeShortCProd(item.code)
+        const productCode = String(item.code ?? '').trim()
         if (!productCode) return
 
         rows.push({
           key: `${summary.id}|${item.index || itemIndex + 1}|${productCode}`,
           productCode,
           description: item.description || 'Sem descrição',
-          fileName: summary.fileName,
           nfceNumber: summary.number,
           series: summary.series,
           issueDate: summary.issueDate,
@@ -372,7 +380,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     })
 
     return rows
-  }, [periodDetails])
+  }, [authorizedDocuments])
 
   const monthDocuments = useMemo(() => {
     const now = new Date()
@@ -455,34 +463,50 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
     })
   }, [consumerRows, direction, search, sortKey])
 
-  const productCodeFiltered = useMemo(() => {
-    const query = normalizeNfceSearch(search)
-    const rows = shortProductCodeRows.filter(row => searchIncludes(query, [
-      row.productCode,
-      row.description,
-      row.fileName,
-      row.nfceNumber,
-      row.series,
-      formatNfceDate(row.issueDate),
-    ]))
+  const productLookupFiltered = useMemo<ProductLookupRow[]>(() => {
+    const productQuery = normalizeNfceSearch(search)
+    const nfceQuery = normalizeNfceSearch(nfceFilter)
 
-    return rows.sort((left, right) => {
+    const matchingOccurrences = productLookupOccurrences
+      .filter(row => productCodeMatchesLength(row.productCode, productCodeLength))
+      .filter(row => searchIncludes(productQuery, [row.productCode, row.description]))
+      .filter(row => !nfceQuery || searchIncludes(nfceQuery, [
+        row.nfceNumber,
+        row.series,
+        `${row.nfceNumber} ${row.series}`,
+      ]))
+      .filter(row => !issueDateFilter || dayKey(row.issueDate) === issueDateFilter)
+      .sort((left, right) => timestamp(right.issueDate) - timestamp(left.issueDate))
+
+    const distinct = new Map<string, ProductLookupRow>()
+    matchingOccurrences.forEach(row => {
+      const distinctKey = normalizeNfceSearch(row.productCode)
+      if (!distinctKey || distinct.has(distinctKey)) return
+      distinct.set(distinctKey, row)
+    })
+
+    return [...distinct.values()].sort((left, right) => {
       const factor = direction === 'asc' ? 1 : -1
-      let result = 0
-      if (sortKey === 'description') result = collator.compare(left.description, right.description)
-      else if (sortKey === 'fileName') result = collator.compare(left.fileName, right.fileName)
-      else if (sortKey === 'nfceNumber') result = collator.compare(left.nfceNumber, right.nfceNumber)
-      else if (sortKey === 'issueDate') result = timestamp(left.issueDate) - timestamp(right.issueDate)
-      else result = collator.compare(left.productCode, right.productCode)
+      const result = sortKey === 'description'
+        ? collator.compare(left.description, right.description)
+        : collator.compare(left.productCode, right.productCode)
       return result * factor
     })
-  }, [direction, search, shortProductCodeRows, sortKey])
+  }, [
+    direction,
+    issueDateFilter,
+    nfceFilter,
+    productCodeLength,
+    productLookupOccurrences,
+    search,
+    sortKey,
+  ])
 
   const currentRows = view === 'products'
     ? productFiltered
     : view === 'consumers'
       ? consumerFiltered
-      : productCodeFiltered
+      : productLookupFiltered
 
   const totalPages = Math.max(1, Math.ceil(currentRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -500,7 +524,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
       ? 'Produtos mais vendidos'
       : view === 'consumers'
         ? 'Consumidores identificados'
-        : 'Códigos de produto menores que 8 dígitos'
+        : 'Consulta de produtos'
 
   return (
     <main className="nfce-analytics-page">
@@ -510,7 +534,7 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
           <h1>{title}</h1>
           <p>
             {view === 'barcodes'
-              ? <>Leitura direta da tag <code>&lt;cProd&gt;</code> dos itens das NFC-e autorizadas, exibindo somente códigos numéricos com menos de 8 dígitos e a origem de cada XML.</>
+              ? <>Consulta distinta pela tag <code>&lt;cProd&gt;</code>. Os filtros de produto, tamanho do código, NFC-e e emissão são independentes e podem ser combinados.</>
               : 'Indicadores calculados a partir das NFC-e autorizadas armazenadas no PrimeCheck para este ambiente.'}
           </p>
         </div>
@@ -520,14 +544,16 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
         </div>
       </header>
 
-      <DateFilter
-        mode={rangeMode}
-        onModeChange={setRangeMode}
-        customStart={customStart}
-        customEnd={customEnd}
-        onStartChange={setCustomStart}
-        onEndChange={setCustomEnd}
-      />
+      {view !== 'barcodes' && (
+        <DateFilter
+          mode={rangeMode}
+          onModeChange={setRangeMode}
+          customStart={customStart}
+          customEnd={customEnd}
+          onStartChange={setCustomStart}
+          onEndChange={setCustomEnd}
+        />
+      )}
 
       {loading ? (
         <section className="nfce-analytics-empty">
@@ -633,22 +659,85 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
             <div className="nfce-analytics-card-head table">
               <div>
                 <span className="eyebrow">
-                  {view === 'products' ? 'PRODUTOS DO PERÍODO' : view === 'consumers' ? 'CONSUMIDORES' : 'ANÁLISE DE CÓDIGO DO PRODUTO'}
+                  {view === 'products' ? 'PRODUTOS DO PERÍODO' : view === 'consumers' ? 'CONSUMIDORES' : 'PESQUISA DE PRODUTOS'}
                 </span>
                 <h2>{title}</h2>
               </div>
-              <small>{currentRows.length.toLocaleString('pt-BR')} resultados</small>
+              <small>{currentRows.length.toLocaleString('pt-BR')} {view === 'barcodes' ? 'produtos distintos' : 'resultados'}</small>
             </div>
 
-            <div className="nfce-analytics-search">
-              <input
-                type="search"
-                value={search}
-                onChange={event => setSearch(event.target.value)}
-                placeholder="Pesquisar em todos os campos da lista..."
-                aria-label="Pesquisar em todos os campos"
-              />
-            </div>
+            {view === 'barcodes' ? (
+              <div className="nfce-product-query-filters">
+                <label className="nfce-product-filter-group nfce-product-filter-search">
+                  <span>Produto</span>
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                    placeholder="Pesquisar código ou descrição do produto..."
+                    aria-label="Pesquisar produto por código ou descrição"
+                  />
+                </label>
+
+                <label className="nfce-product-filter-group">
+                  <span>Tamanho do código</span>
+                  <select
+                    value={productCodeLength}
+                    onChange={event => setProductCodeLength(event.target.value as ProductCodeLengthFilter)}
+                    aria-label="Filtrar pelo tamanho do código do produto"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="under8">Menor que 8 dígitos</option>
+                    <option value="over8">Maior que 8 dígitos</option>
+                  </select>
+                </label>
+
+                <label className="nfce-product-filter-group">
+                  <span>NFC-e</span>
+                  <input
+                    type="search"
+                    value={nfceFilter}
+                    onChange={event => setNfceFilter(event.target.value)}
+                    placeholder="Número ou série da NFC-e..."
+                    aria-label="Filtrar por NFC-e"
+                  />
+                </label>
+
+                <label className="nfce-product-filter-group">
+                  <span>Data de emissão</span>
+                  <input
+                    type="date"
+                    value={issueDateFilter}
+                    onChange={event => setIssueDateFilter(event.target.value)}
+                    aria-label="Filtrar por data de emissão"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="button secondary nfce-product-clear-filters"
+                  onClick={() => {
+                    setSearch('')
+                    setProductCodeLength('all')
+                    setNfceFilter('')
+                    setIssueDateFilter('')
+                  }}
+                  disabled={!search && productCodeLength === 'all' && !nfceFilter && !issueDateFilter}
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            ) : (
+              <div className="nfce-analytics-search">
+                <input
+                  type="search"
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                  placeholder="Pesquisar em todos os campos da lista..."
+                  aria-label="Pesquisar em todos os campos"
+                />
+              </div>
+            )}
 
             <div className="nfce-analytics-table-wrap">
               {view === 'consumers' ? (
@@ -677,27 +766,16 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                   </tbody>
                 </table>
               ) : view === 'barcodes' ? (
-                <table className="nfce-analytics-table nfce-short-product-codes-table">
+                <table className="nfce-analytics-table nfce-product-lookup-table">
                   <thead><tr>
                     <th><SortButton label="Código do produto (<cProd>)" field="productCode" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                     <th><SortButton label="Descrição" field="description" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                    <th><SortButton label="Arquivo XML de origem" field="fileName" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                    <th><SortButton label="NFC-e" field="nfceNumber" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
-                    <th><SortButton label="Emissão" field="issueDate" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
                   </tr></thead>
                   <tbody>
-                    {(pageRows as ProductCodeRow[]).map(row => (
+                    {(pageRows as ProductLookupRow[]).map(row => (
                       <tr key={row.key}>
                         <td><code className="nfce-short-product-code">{row.productCode}</code></td>
                         <td><strong>{row.description}</strong></td>
-                        <td><span className="nfce-source-file">{row.fileName}</span></td>
-                        <td>
-                          <span className="nfce-source-document">
-                            <strong>{row.nfceNumber ? `Nº ${row.nfceNumber}` : 'Nº —'}</strong>
-                            <small>{row.series ? `Série ${row.series}` : 'Série —'}</small>
-                          </span>
-                        </td>
-                        <td>{formatNfceDate(row.issueDate)}</td>
                       </tr>
                     ))}
                   </tbody>
