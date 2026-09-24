@@ -35,7 +35,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'nome',
     'Razão Social',
-    'Razão Social e Fantasia',
+    'Razão Social',
     'DES_FORNECEDOR',
     'Razão Social e Fantasia',
     'text',
@@ -43,7 +43,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'apelido',
     'Fantasia',
-    'Razão Social e Fantasia',
+    'Fantasia',
     'DES_FANTASIA',
     'Razão Social e Fantasia',
     'text',
@@ -52,7 +52,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'cpfCnpj',
     'CNPJ',
-    'CNPJ e IE',
+    'CNPJ',
     'NUM_CGC',
     'CNPJ e IE',
     'document',
@@ -60,7 +60,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'ie',
     'Inscrição Estadual',
-    'CNPJ e IE',
+    'Inscrição Estadual',
     'NUM_INSC_EST',
     'CNPJ e IE',
     'ie',
@@ -110,7 +110,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'telefone',
     'Telefone',
-    'Telefone / FAX e Contato',
+    'Telefone',
     'NUM_FONE',
     'Telefone / FAX e Contato',
     'phone',
@@ -118,7 +118,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'fax',
     'FAX',
-    'Telefone / FAX e Contato',
+    'FAX',
     'NUM_FAX',
     'Telefone / FAX e Contato',
     'phone',
@@ -126,7 +126,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'contato',
     'Contato',
-    'Telefone / FAX e Contato',
+    'Contato',
     'DES_CONTATO',
     'Telefone / FAX e Contato',
     'text',
@@ -135,7 +135,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'email',
     'E-mail NF-e',
-    'E-mail Nfe e E-mail Vendedor',
+    'E-mail NFE',
     'DES_EMAIL',
     'E-mail Nfe e E-mail Vendedor',
     'text',
@@ -143,7 +143,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'emailVendedor',
     'E-mail Vendedor',
-    'E-mail Nfe e E-mail Vendedor',
+    'E-mail vendedor',
     'DES_EMAIL_VEND',
     'E-mail Nfe e E-mail Vendedor',
     'text',
