@@ -916,7 +916,8 @@ export default function NfceAnalyticsPage({ view }: { view: NfceAnalyticsView })
                       ))}
                     </tbody>
                   </table>
-                )              ) : (
+                )
+              ) : (
                 <table className="nfce-analytics-table">
                   <thead><tr>
                     <th><SortButton label="Código" field="code" sortKey={sortKey} direction={direction} onSort={changeSort} /></th>
