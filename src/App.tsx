@@ -55,20 +55,9 @@ export default function App() {
   const [workspaceStorageReady, setWorkspaceStorageReady] = useState(false)
   const [workspaceStorageMessage, setWorkspaceStorageMessage] = useState('Restaurando dados locais…')
   const [visitedWorkspaceModules, setVisitedWorkspaceModules] = useState<Set<string>>(new Set())
-  const [localBuildSha, setLocalBuildSha] = useState('')
   const [sidebarPinned, setSidebarPinned] = useState(() =>
     typeof window !== 'undefined' && window.localStorage.getItem('primecheck.sidebar.pinned') === 'true',
   )
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)) return
-
-    void fetch(`/build-info.json?ts=${Date.now()}`, { cache: 'no-store' })
-      .then(response => response.ok ? response.json() : Promise.reject(new Error('build-info indisponível')))
-      .then((info: { shortSha?: string }) => setLocalBuildSha(String(info.shortSha ?? '')))
-      .catch(() => setLocalBuildSha('desconhecido'))
-  }, [])
 
   useEffect(() => {
     let active = true
@@ -207,6 +196,7 @@ export default function App() {
   }
 
   const isHomologationModule = module === 'homologacao'
+  const localBuildSha = String(import.meta.env.VITE_PRIMECHECK_SHA ?? '').slice(0, 12)
 
   return (
     <div className={`workspace-shell ${collapsed ? 'sidebar-is-collapsed' : ''}`}>
