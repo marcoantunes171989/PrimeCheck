@@ -69,7 +69,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'endereco',
     'Endereço',
-    'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
+    'Endereço',
     'DES_ENDERECO',
     'Endereço Completo',
     'text',
@@ -77,7 +77,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'bairro',
     'Bairro',
-    'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
+    'Bairro',
     'DES_BAIRRO',
     'Endereço Completo',
     'text',
@@ -85,7 +85,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'cidade',
     'Cidade',
-    'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
+    'Cidade',
     'DES_CIDADE',
     'Endereço Completo',
     'text',
@@ -93,7 +93,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'uf',
     'Estado / UF',
-    'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
+    'Sigla',
     'DES_SIGLA',
     'Endereço Completo',
     'state',
@@ -101,7 +101,7 @@ const fields: FieldDefinition[] = [
   exactField(
     'cep',
     'CEP',
-    'Endereço Completo (CEP, Bairro, Cidade, Estado, Etc...)',
+    'CEP',
     'NUM_CEP',
     'Endereço Completo',
     'code',
