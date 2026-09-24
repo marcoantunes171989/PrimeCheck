@@ -56,3 +56,24 @@ jobs:
 
       - name: Verify definitive local validation flow
         run: npm run verify:local-served-script
+
+      - name: Verify local Vite server content
+        shell: bash
+        run: |
+          export VITE_PRIMECHECK_SHA="$(git rev-parse HEAD)"
+          npm run serve:local > /tmp/primecheck-vite.log 2>&1 &
+          VITE_PID=$!
+          cleanup() {
+            kill "$VITE_PID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          for attempt in $(seq 1 30); do
+            if node scripts/verify-local-served-build.mjs "http://localhost:4173" "$VITE_PRIMECHECK_SHA"; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/primecheck-vite.log
+          exit 1
