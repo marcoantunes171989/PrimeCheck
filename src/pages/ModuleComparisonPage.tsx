@@ -22,6 +22,7 @@ const normalizeName = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
 
 type ClientFileRole = 'origin' | 'target' | null
+type SupplierFileRole = 'origin' | 'target' | null
 
 const clientFileRole = (fileName: string): ClientFileRole => {
   const stem = fileName.replace(/\.[^.]+$/, '')
@@ -43,11 +44,31 @@ const clientFantasyName = (fileName: string) => {
   return match[1]
 }
 
+const supplierFileRole = (fileName: string): SupplierFileRole => {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const normalized = normalizeName(stem)
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  if (!normalized.startsWith('fornecedor_')) return null
+
+  const suffix = normalized.slice('fornecedor_'.length).replace(/_/g, '')
+  if (!suffix) return null
+  return suffix === 'intersolid' ? 'target' : 'origin'
+}
+
 const pickInitialPair = (names: string[], moduleId: WorkspaceModuleDefinition['id']) => {
   if (moduleId === 'clients') {
     return {
       origin: names.find(name => clientFileRole(name) === 'origin') ?? '',
       target: names.find(name => clientFileRole(name) === 'target') ?? '',
+    }
+  }
+
+  if (moduleId === 'suppliers') {
+    return {
+      origin: names.find(name => supplierFileRole(name) === 'origin') ?? '',
+      target: names.find(name => supplierFileRole(name) === 'target') ?? '',
     }
   }
 
@@ -97,22 +118,27 @@ export default function ModuleComparisonPage({
   const originOptions = useMemo(
     () => module.id === 'clients'
       ? physicalNames.filter(name => clientFileRole(name) === 'origin')
-      : module.id === 'sections'
-        ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'origin')
-        : physicalNames,
+      : module.id === 'suppliers'
+        ? physicalNames.filter(name => supplierFileRole(name) === 'origin')
+        : module.id === 'sections'
+          ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'origin')
+          : physicalNames,
     [module.id, physicalNames],
   )
   const targetOptions = useMemo(
     () => module.id === 'clients'
       ? physicalNames.filter(name => clientFileRole(name) === 'target')
-      : module.id === 'sections'
-        ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'target')
-        : physicalNames,
+      : module.id === 'suppliers'
+        ? physicalNames.filter(name => supplierFileRole(name) === 'target')
+        : module.id === 'sections'
+          ? physicalNames.filter(name => getWorkspaceComparisonFileRole('sections', name) === 'target')
+          : physicalNames,
     [module.id, physicalNames],
   )
   const clientPairReady = module.id !== 'clients' || (originOptions.length > 0 && targetOptions.length > 0)
+  const supplierPairReady = module.id !== 'suppliers' || (originOptions.length > 0 && targetOptions.length > 0)
   const sectionPairReady = module.id !== 'sections' || (originOptions.length > 0 && targetOptions.length > 0)
-  const pairReady = clientPairReady && sectionPairReady
+  const pairReady = clientPairReady && supplierPairReady && sectionPairReady
 
   useEffect(() => {
     const stored = loadWorkspaceComparisonSelection(module.id)
@@ -126,6 +152,13 @@ export default function ModuleComparisonPage({
         || (
           clientFileRole(stored.originName) === 'origin'
           && clientFileRole(stored.targetName) === 'target'
+        )
+      )
+      && (
+        module.id !== 'suppliers'
+        || (
+          supplierFileRole(stored.originName) === 'origin'
+          && supplierFileRole(stored.targetName) === 'target'
         )
       )
       && (
@@ -157,7 +190,11 @@ export default function ModuleComparisonPage({
     [resolved.files, targetName],
   )
   const profile = useMemo(() => getWorkspaceEntityProfile(module.id), [module.id])
-  const storageModuleId = module.id === 'clients' ? 'clients:checklist-v14' : module.id
+  const storageModuleId = module.id === 'clients'
+    ? 'clients:checklist-v14'
+    : module.id === 'suppliers'
+      ? 'suppliers:checklist-v1'
+      : module.id
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
@@ -170,6 +207,13 @@ export default function ModuleComparisonPage({
       || (
         clientFileRole(originName) === 'origin'
         && clientFileRole(targetName) === 'target'
+      )
+    )
+    && (
+      module.id !== 'suppliers'
+      || (
+        supplierFileRole(originName) === 'origin'
+        && supplierFileRole(targetName) === 'target'
       )
     )
     && (
@@ -200,7 +244,7 @@ export default function ModuleComparisonPage({
   )
 
   const swap = () => {
-    if (module.id === 'clients' || module.id === 'sections') return
+    if (module.id === 'clients' || module.id === 'suppliers' || module.id === 'sections') return
     setOriginName(targetName)
     setTargetName(originName)
   }
@@ -335,10 +379,16 @@ export default function ModuleComparisonPage({
           <small>
             {originName
               ? originRows.toLocaleString('pt-BR') + ' registros relacionados'
-                + (module.id === 'clients' ? ' · Cliente: ' + clientFantasyName(originName) : '')
+                + (module.id === 'clients'
+                  ? ' · Cliente: ' + clientFantasyName(originName)
+                  : module.id === 'suppliers'
+                    ? ' · Fornecedor de origem'
+                    : '')
               : module.id === 'clients'
                 ? 'Padrão: CLIENTE_[nome fantasia].csv'
-                : 'Aguardando seleção'}
+                : module.id === 'suppliers'
+                  ? 'Padrão: FORNECEDOR_[origem].csv'
+                  : 'Aguardando seleção'}
           </small>
         </div>
 
@@ -346,10 +396,12 @@ export default function ModuleComparisonPage({
           type="button"
           className="comparison-swap"
           onClick={swap}
-          disabled={!originName || !targetName || module.id === 'clients' || module.id === 'sections'}
+          disabled={!originName || !targetName || module.id === 'clients' || module.id === 'suppliers' || module.id === 'sections'}
           title={
             module.id === 'clients'
               ? 'Em Clientes, CLIENTE_intersolid é sempre o destino'
+              : module.id === 'suppliers'
+                ? 'Em Fornecedores, FORNECEDOR_intersolid é sempre o destino'
               : module.id === 'sections'
                 ? 'Em Seções, o arquivo Intersolid é sempre o destino'
                 : 'Trocar origem e destino'
@@ -357,6 +409,8 @@ export default function ModuleComparisonPage({
           aria-label={
             module.id === 'clients'
               ? 'Origem e destino fixos para Clientes'
+              : module.id === 'suppliers'
+                ? 'Origem e destino fixos para Fornecedores'
               : module.id === 'sections'
                 ? 'Origem e destino fixos para Seções'
                 : 'Trocar arquivo de origem e destino'
@@ -385,10 +439,16 @@ export default function ModuleComparisonPage({
           <small>
             {targetName
               ? targetRows.toLocaleString('pt-BR') + ' registros relacionados'
-                + (module.id === 'clients' ? ' · Destino Intersolid' : '')
+                + (module.id === 'clients'
+                  ? ' · Destino Intersolid'
+                  : module.id === 'suppliers'
+                    ? ' · Destino Intersolid'
+                    : '')
               : module.id === 'clients'
                 ? 'Padrão obrigatório: CLIENTE_intersolid.csv'
-                : 'Aguardando seleção'}
+                : module.id === 'suppliers'
+                  ? 'Padrão obrigatório: FORNECEDOR_intersolid.csv'
+                  : 'Aguardando seleção'}
           </small>
         </div>
       </section>
@@ -399,6 +459,8 @@ export default function ModuleComparisonPage({
           <span>
             {module.id === 'clients'
               ? 'Use CLIENTE_[nome fantasia].csv como origem e CLIENTE_intersolid.csv como destino. O texto após CLIENTE_ pode variar conforme o cliente.'
+              : module.id === 'suppliers'
+                ? 'Use FORNECEDOR_[origem].csv como origem e FORNECEDOR_intersolid.csv como destino.'
               : module.id === 'sections'
                 ? 'Use SECAO_[cliente].csv como origem e SECAO_intersolid.csv como destino. Somente os campos Código/Descrição da estrutura de Seções serão considerados.'
                 : `O PrimeCheck identificou ${physicalNames.length === 1 ? 'apenas um arquivo' : 'nenhum arquivo'} para este módulo. Volte à Importação e carregue a base de origem e a base convertida/destino.`
@@ -414,6 +476,8 @@ export default function ModuleComparisonPage({
           <span>
             {module.id === 'clients'
               ? 'Para Clientes, a origem deve seguir CLIENTE_[nome fantasia] e o destino deve ser CLIENTE_intersolid.'
+              : module.id === 'suppliers'
+                ? 'Para Fornecedores, a origem deve seguir FORNECEDOR_[origem] e o destino deve ser FORNECEDOR_intersolid.'
               : module.id === 'sections'
                 ? 'Para Seções, a origem deve seguir SECAO_[cliente] e o destino deve ser SECAO_intersolid.'
                 : 'Os nomes dos arquivos podem variar livremente; a identificação do módulo é feita pelos campos encontrados.'}
