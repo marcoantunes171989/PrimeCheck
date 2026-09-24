@@ -5,11 +5,13 @@ import supplierDestinationSql from '../sql/fornecedor-destino-intersolid.sql?raw
 import groupDestinationSql from '../sql/grupo-destino-intersolid.sql?raw'
 import subgroupDestinationSql from '../sql/subgrupo-destino-intersolid.sql?raw'
 import {
+  getExclusiveWorkspaceModuleFromFileName,
   getWorkspaceComparisonFileRole,
   getWorkspaceEntityProfile,
   resolveModuleHeaders,
   type WorkspaceModuleDefinition,
 } from '../config/workspaceModules'
+import { normalizeHeader } from '../lib/normalizers'
 import type { ImportedFile } from '../types'
 import {
   hasWorkspaceExecution,
@@ -22,6 +24,19 @@ import {
 
 const normalizeName = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
+
+const normalizeHierarchyCode = (value: unknown) => {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+  if (/^\d+$/.test(text)) return text.replace(/^0+(?=\d)/, '')
+  return text.toLocaleUpperCase('pt-BR')
+}
+
+const readExactRowValue = (row: Record<string, unknown>, header: string) => {
+  const expected = normalizeHeader(header)
+  const key = Object.keys(row).find(candidate => normalizeHeader(candidate) === expected)
+  return key ? String(row[key] ?? '').trim() : ''
+}
 
 type ClientFileRole = 'origin' | 'target' | null
 type SupplierFileRole = 'origin' | 'target' | null
@@ -104,6 +119,53 @@ export default function ModuleComparisonPage({
   onBackToImport: () => void
   dashboardMode?: boolean
 }) {
+  const visualHierarchy = useMemo(() => {
+    if (module.id !== 'groups' && module.id !== 'subgroups') return undefined
+
+    const sectionNames: Record<string, string> = {}
+    const groupNames: Record<string, string> = {}
+
+    const orderedSectionFiles = files
+      .filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'sections')
+      .sort((left, right) => {
+        const leftOrigin = getWorkspaceComparisonFileRole('sections', left.name) === 'origin' ? 0 : 1
+        const rightOrigin = getWorkspaceComparisonFileRole('sections', right.name) === 'origin' ? 0 : 1
+        return leftOrigin - rightOrigin
+      })
+
+    orderedSectionFiles.forEach(file => {
+      file.rows.forEach(row => {
+        const sectionCode = normalizeHierarchyCode(readExactRowValue(row, 'COD_SECAO'))
+        const sectionName = readExactRowValue(row, 'DES_SECAO')
+        if (sectionCode && sectionName && !sectionNames[sectionCode]) {
+          sectionNames[sectionCode] = sectionName
+        }
+      })
+    })
+
+    const orderedGroupFiles = files
+      .filter(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'groups')
+      .sort((left, right) => {
+        const leftOrigin = getWorkspaceComparisonFileRole('groups', left.name) === 'origin' ? 0 : 1
+        const rightOrigin = getWorkspaceComparisonFileRole('groups', right.name) === 'origin' ? 0 : 1
+        return leftOrigin - rightOrigin
+      })
+
+    orderedGroupFiles.forEach(file => {
+      file.rows.forEach(row => {
+        const sectionCode = normalizeHierarchyCode(readExactRowValue(row, 'COD_SECAO'))
+        const groupCode = normalizeHierarchyCode(readExactRowValue(row, 'COD_GRUPO'))
+        const groupName = readExactRowValue(row, 'DES_GRUPO')
+        if (!sectionCode || !groupCode || !groupName) return
+
+        const key = sectionCode + '|' + groupCode
+        if (!groupNames[key]) groupNames[key] = groupName
+      })
+    })
+
+    return { sectionNames, groupNames }
+  }, [files, module.id])
+
   const resolved = useMemo(() => resolveModuleHeaders(files, module), [files, module])
   const physicalNames = useMemo(
     () => [...new Set(resolved.files.map(file => file.name))],
@@ -655,6 +717,7 @@ export default function ModuleComparisonPage({
           originLabel={originName}
           targetLabel={targetName}
           dashboardMode={dashboardMode}
+          visualHierarchy={visualHierarchy}
           initialMapping={persistedMapping}
           onMappingChange={nextMapping =>
             saveWorkspaceMapping(storageModuleId, originName, targetName, nextMapping)
