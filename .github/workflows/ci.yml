@@ -54,13 +54,11 @@ jobs:
       - name: Verify build SHA and served bundle
         run: npm run verify:build-info
 
-      - name: Verify definitive local validation flow
+      - name: Verify simple local validation flow
         run: npm run verify:local-served-script
 
-
-
-  runtime-smoke:
-    name: Exact Windows local launcher
+  local-preview:
+    name: Windows validar-local.cmd smoke
     needs: build
     runs-on: windows-latest
     timeout-minutes: 15
@@ -75,60 +73,59 @@ jobs:
           cache: npm
           cache-dependency-path: package.json
 
-      - name: Execute exact PrimeCheck local launcher
+      - name: Execute validar-local.cmd and verify HTTP
         shell: powershell
         run: |
-          $env:PRIMECHECK_CI = "1"
-          cmd /c ".\validar-local.cmd"
-          if ($LASTEXITCODE -ne 0) {
-            throw "O fluxo exato validar-local.cmd -> PowerShell falhou com codigo $LASTEXITCODE."
-          }
+          $stdout = Join-Path $env:RUNNER_TEMP "primecheck-local-out.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "primecheck-local-err.log"
 
-      - name: Execute final PrimeCheck server path
-        shell: powershell
-        run: |
-          $env:PRIMECHECK_NO_OPEN = "1"
-          $serverScript = Join-Path $PWD "scripts\serve-primecheck-local.ps1"
-
-          $server = Start-Process powershell -ArgumentList @(
-            "-NoProfile",
-            "-ExecutionPolicy", "Bypass",
-            "-File", "`"$serverScript`""
-          ) -PassThru -WindowStyle Hidden
+          $process = Start-Process -FilePath "cmd.exe" -ArgumentList @(
+            "/c",
+            ".\validar-local.cmd"
+          ) -WorkingDirectory "$PWD" -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
 
           try {
             $ready = $false
-            for ($i = 0; $i -lt 40; $i++) {
+            for ($i = 0; $i -lt 120; $i++) {
+              if ($process.HasExited) {
+                Get-Content $stdout -ErrorAction SilentlyContinue
+                Get-Content $stderr -ErrorAction SilentlyContinue
+                throw "validar-local.cmd encerrou antes de disponibilizar o PrimeCheck."
+              }
+
               try {
-                $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/" -TimeoutSec 2
+                $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/" -TimeoutSec 2 -Headers @{ "Cache-Control" = "no-cache" }
                 if ($response.StatusCode -eq 200 -and $response.Content -match "PrimeCheck") {
                   $ready = $true
                   break
                 }
               } catch {}
+
               Start-Sleep -Milliseconds 500
             }
 
             if (-not $ready) {
-              throw "O servidor definitivo nao respondeu HTTP 200 na porta 4177."
+              Get-Content $stdout -ErrorAction SilentlyContinue
+              Get-Content $stderr -ErrorAction SilentlyContinue
+              throw "PrimeCheck nao respondeu HTTP 200 na porta 4177."
             }
 
-            $sidebar = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/components/Sidebar.tsx").Content
-            $analytics = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/pages/NfceAnalyticsPage.tsx").Content
+            $sidebar = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/components/Sidebar.tsx" -TimeoutSec 3).Content
+            $analytics = (Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/src/pages/NfceAnalyticsPage.tsx" -TimeoutSec 3).Content
 
             if ($sidebar -notmatch "Pesquisa por produtos") {
-              throw "Servidor definitivo nao entregou o menu Pesquisa por produtos."
+              throw "Preview local nao entregou o menu Pesquisa por produtos."
             }
             if ($analytics -notmatch "Consulta de produtos") {
-              throw "Servidor definitivo nao entregou a tela Consulta de produtos."
+              throw "Preview local nao entregou a tela Consulta de produtos."
             }
 
-            Write-Host "Servidor definitivo PrimeCheck OK na porta 4177."
+            Write-Host "PrimeCheck validar-local.cmd OK em http://127.0.0.1:4177/"
           }
           finally {
             $listeners = Get-NetTCPConnection -LocalPort 4177 -State Listen -ErrorAction SilentlyContinue
             foreach ($listener in $listeners) {
               Stop-Process -Id $listener.OwningProcess -Force -ErrorAction SilentlyContinue
             }
-            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
           }
