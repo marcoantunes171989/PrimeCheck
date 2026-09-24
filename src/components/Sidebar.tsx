@@ -62,7 +62,7 @@ const DASHBOARD_GROUP_META: Record<WorkspaceGroupId, { label: string; helper: st
   structure: { label: 'Classificação Mercadológica', helper: 'Seções, grupos e subgrupos' },
   products: { label: 'Produtos', helper: 'Cadastro, loja, barras e vínculos' },
   fiscal: { label: 'Fiscal e Conteúdo', helper: 'NCM, CEST, tributos e conteúdo' },
-
+}
 
 const FIXED_FILES = [
   { id: 'importacao', label: 'Importação', helper: 'Quantidade livre', icon: 'import' as const },
