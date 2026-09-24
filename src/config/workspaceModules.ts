@@ -374,7 +374,7 @@ export const WORKSPACE_GROUPS: Array<{ id: WorkspaceGroupId; label: string; modu
  *
  * Arquivos sem prefixo conhecido continuam usando a análise estrutural existente.
  */
-const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceModuleId | null => {
+export const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceModuleId | null => {
   const stem = fileName.replace(/\.[^.]+$/, '')
   const token = normalizeHeader(stem)
 
@@ -382,6 +382,7 @@ const getExclusiveWorkspaceModuleFromFileName = (fileName: string): WorkspaceMod
   if (token === 'FORNECEDOR' || token.startsWith('FORNECEDOR_')) return 'suppliers'
   if (token === 'SECAO' || token.startsWith('SECAO_')) return 'sections'
   if (token === 'GRUPO' || token.startsWith('GRUPO_')) return 'groups'
+  if (token === 'SUBGRUPO' || token.startsWith('SUBGRUPO_')) return 'subgroups'
 
   return null
 }
