@@ -154,7 +154,7 @@ export default function ModuleComparisonPage({
     [resolved.files, targetName],
   )
   const profile = useMemo(() => getWorkspaceEntityProfile(module.id), [module.id])
-  const storageModuleId = module.id === 'clients' ? 'clients:checklist-v11' : module.id
+  const storageModuleId = module.id === 'clients' ? 'clients:checklist-v12' : module.id
 
   const originRows = originFiles.reduce((total, file) => total + file.rows.length, 0)
   const targetRows = targetFiles.reduce((total, file) => total + file.rows.length, 0)
