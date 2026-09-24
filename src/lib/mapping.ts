@@ -264,6 +264,29 @@ export const autoMap = (
   const originAssigned = assignHeaders(origin.headers, profile, options, 'origin')
   const targetAssigned = assignHeaders(target.headers, profile, options, 'target')
 
+  // Regra padrão: quando a mesma coluna existe nos dois arquivos, espelhar o vínculo
+  // entre origem e destino. O vínculo específico já encontrado continua tendo prioridade.
+  profile.fields.forEach(field => {
+    const originHeader = originAssigned.get(field.id) ?? ''
+    const targetHeader = targetAssigned.get(field.id) ?? ''
+
+    if (originHeader && !targetHeader && field.targetExactAliases?.length !== 0) {
+      const normalizedOrigin = normalizeHeader(originHeader)
+      const sameTargetHeader = target.headers.find(
+        header => normalizeHeader(header) === normalizedOrigin,
+      )
+      if (sameTargetHeader) targetAssigned.set(field.id, sameTargetHeader)
+    }
+
+    if (targetHeader && !originHeader && field.originExactAliases?.length !== 0) {
+      const normalizedTarget = normalizeHeader(targetHeader)
+      const sameOriginHeader = origin.headers.find(
+        header => normalizeHeader(header) === normalizedTarget,
+      )
+      if (sameOriginHeader) originAssigned.set(field.id, sameOriginHeader)
+    }
+  })
+
   return profile.fields.map(field => ({
     fieldId: field.id,
     originHeader: originAssigned.get(field.id) ?? '',
