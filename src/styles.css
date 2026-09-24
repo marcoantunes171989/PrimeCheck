@@ -10200,3 +10200,166 @@ footer {
     min-width: 190px;
   }
 }
+
+
+/* Script SQL do destino — módulo Clientes */
+.module-comparison-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-sql-open {
+  white-space: nowrap;
+}
+
+.client-sql-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(1, 46, 70, .36);
+  backdrop-filter: blur(3px);
+}
+
+.client-sql-modal {
+  width: min(960px, 96vw);
+  max-height: min(88dvh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #cfdbe1;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(1, 46, 70, .18);
+}
+
+.client-sql-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #e5ecef;
+}
+
+.client-sql-modal-head h2 {
+  margin: 4px 0 4px;
+  color: var(--primary);
+  font-size: var(--fs-xl);
+}
+
+.client-sql-modal-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.client-sql-modal-close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d7e0e5;
+  border-radius: 9px;
+  background: #fff;
+  color: #55646e;
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.client-sql-modal-close:hover {
+  background: #f7f9fa;
+  color: var(--primary);
+}
+
+.client-sql-modal-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-bottom: 1px solid #edf1f3;
+  background: #fbfcfd;
+  color: #52616a;
+  font-size: var(--fs-xs);
+}
+
+.client-sql-modal-note strong {
+  color: var(--primary);
+}
+
+.client-sql-code {
+  flex: 1 1 auto;
+  min-height: 300px;
+  margin: 0;
+  padding: 18px 22px;
+  overflow: auto;
+  background: #f7f9fa;
+  color: #172630;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.client-sql-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid #e5ecef;
+  background: #fff;
+}
+
+@media (max-width: 720px) {
+  .module-comparison-head-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .module-comparison-head-actions .button {
+    width: 100%;
+  }
+
+  .client-sql-modal-backdrop {
+    padding: 10px;
+  }
+
+  .client-sql-modal {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 12px;
+  }
+
+  .client-sql-modal-head,
+  .client-sql-modal-actions {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .client-sql-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .client-sql-modal-actions .button {
+    width: 100%;
+  }
+
+  .client-sql-code {
+    min-height: 240px;
+    padding: 14px;
+    font-size: 11.5px;
+  }
+}
