@@ -28,7 +28,8 @@ export default function MappingPanel({
   const supplierChecklistMode = profile.id === 'supplier' || profile.id === 'workspace:suppliers'
   const sectionChecklistMode = profile.id === 'section' || profile.id === 'workspace:sections'
   const groupChecklistMode = profile.id === 'group' || profile.id === 'workspace:groups'
-  const checklistMode = clientChecklistMode || supplierChecklistMode || sectionChecklistMode || groupChecklistMode
+  const subgroupChecklistMode = profile.id === 'subgroup' || profile.id === 'workspace:subgroups'
+  const checklistMode = clientChecklistMode || supplierChecklistMode || sectionChecklistMode || groupChecklistMode || subgroupChecklistMode
   const coverage = mappingCoverage(mapping)
   const total = profile.fields.length || coverage.total
   const both = coverage.both
