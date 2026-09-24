@@ -27,11 +27,11 @@ for /f "delims=" %%i in ('git status --porcelain 2^>nul') do (
   exit /b 1
 )
 
-echo [1/5] Buscando a ultima homologacao liberada...
+echo [1/6] Buscando a ultima homologacao liberada...
 git fetch origin homologacao-local-validacao
 if errorlevel 1 goto :giterror
 
-echo [2/5] Abrindo a branch de homologacao local...
+echo [2/6] Abrindo a branch de homologacao local...
 git show-ref --verify --quiet refs/heads/homologacao-local-validacao
 if errorlevel 1 (
   git switch -c homologacao-local-validacao --track origin/homologacao-local-validacao
@@ -40,7 +40,7 @@ if errorlevel 1 (
 )
 if errorlevel 1 goto :giterror
 
-echo [3/5] Atualizando sem misturar branches...
+echo [3/6] Atualizando sem misturar branches...
 git pull --ff-only origin homologacao-local-validacao
 if errorlevel 1 goto :giterror
 
