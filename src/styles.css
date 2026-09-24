@@ -11023,3 +11023,32 @@ footer {
     font-size: var(--fs-xs);
   }
 }
+
+
+/* Filtro por nível hierárquico — Grupos e Subgrupos */
+.hierarchy-filter-control {
+  display: grid;
+  grid-template-columns: minmax(116px, 0.42fr) minmax(140px, 1fr);
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.hierarchy-filter-control select,
+.hierarchy-filter-control input {
+  width: 100%;
+  min-width: 0;
+}
+
+.hierarchy-filter-control select {
+  font-weight: 700;
+  color: var(--primary);
+  background: #f8fbfc;
+}
+
+@media (max-width: 920px) {
+  .hierarchy-filter-control {
+    grid-template-columns: 1fr;
+  }
+}
