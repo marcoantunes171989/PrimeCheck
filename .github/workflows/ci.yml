@@ -79,6 +79,14 @@ jobs:
           cache: npm
           cache-dependency-path: package.json
 
+      - name: Fetch production and homologation refs
+        shell: powershell
+        run: |
+          git fetch origin +refs/heads/main:refs/remotes/origin/main +refs/heads/homologacao-local-validacao:refs/remotes/origin/homologacao-local-validacao +refs/heads/production-release:refs/remotes/origin/production-release
+          if ($LASTEXITCODE -ne 0) {
+            throw "Nao foi possivel buscar as referencias de versao."
+          }
+
       - name: Execute validar-local.cmd and verify HTTP
         shell: powershell
         run: |
@@ -124,11 +132,25 @@ jobs:
               throw "Preview local serviu SHA $($buildInfo.sha), esperado $expectedSha."
             }
 
+            $versionStateResponse = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4177/version-state.json" -TimeoutSec 3 -Headers @{ "Cache-Control" = "no-cache" }
+            $versionState = $versionStateResponse.Content | ConvertFrom-Json
+            $expectedProduction = (git rev-parse origin/production-release).Trim()
+
+            if ($versionState.localSha -ne $expectedSha -or $versionState.buildSha -ne $expectedSha) {
+              throw "version-state.json nao corresponde ao SHA local."
+            }
+            if ($versionState.productionSha -ne $expectedProduction) {
+              throw "version-state.json nao corresponde ao marcador de producao."
+            }
+            if ($versionState.status -ne "synchronized") {
+              throw "version-state.json nao esta sincronizado."
+            }
+
             if ($response.Content -notmatch "<title>PrimeCheck \| Homologa") {
               throw "Preview local respondeu, mas o HTML nao e do PrimeCheck."
             }
 
-            Write-Host "PrimeCheck validar-local.cmd OK em http://127.0.0.1:4177/ - SHA $expectedSha"
+            Write-Host "PrimeCheck local auditado: $expectedSha | producao: $expectedProduction | pendentes: $($versionState.pendingProduction)"
           }
           finally {
             $listeners = Get-NetTCPConnection -LocalPort 4177 -State Listen -ErrorAction SilentlyContinue
