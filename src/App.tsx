@@ -199,6 +199,8 @@ export default function App() {
 
   const isHomologationModule = module === 'homologacao'
   const localBuildSha = String(import.meta.env.VITE_PRIMECHECK_SHA ?? '').slice(0, 12)
+  const productionBuildSha = String(import.meta.env.VITE_PRIMECHECK_PRODUCTION_SHA ?? '').slice(0, 12)
+  const pendingProductionCommits = String(import.meta.env.VITE_PRIMECHECK_PENDING_COMMITS ?? '').trim()
 
   return (
     <div className={`workspace-shell ${collapsed ? 'sidebar-is-collapsed' : ''}`}>
@@ -220,8 +222,14 @@ export default function App() {
             <strong>{moduleTitle}</strong>
           </div>
           <div className="workspace-auth-actions">
-            <div className="workspace-local-badge" title={localBuildSha ? `Build local ${localBuildSha}` : 'Processamento local'}>
-              <i /> Processamento local{localBuildSha ? ` · ${localBuildSha}` : ''}
+            <div
+              className="workspace-local-badge"
+              data-primecheck-version-state="true"
+              title={localBuildSha
+                ? `Local ${localBuildSha}${productionBuildSha ? ` · Produção ${productionBuildSha}` : ''}${pendingProductionCommits ? ` · ${pendingProductionCommits} commit(s) pendente(s)` : ''}`
+                : 'Processamento local'}
+            >
+              <i /> Local{localBuildSha ? ` · ${localBuildSha}` : ''}{pendingProductionCommits ? ` · +${pendingProductionCommits}` : ''}
             </div>
             <span className="workspace-auth-user">{authenticatedUsername}</span>
             <button type="button" className="workspace-logout-button" onClick={logout}>
