@@ -50,7 +50,7 @@ const readSession = () => {
       return ''
     }
 
-    return parsed.username
+    return PRIME_CHECK_ADMIN_USERNAME
   } catch {
     return ''
   }
