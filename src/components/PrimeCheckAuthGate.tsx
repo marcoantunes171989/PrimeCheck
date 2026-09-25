@@ -8,6 +8,8 @@ const CURRENT_BUILD_SHA = String(
   import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA ??
   'runtime',
 ).trim()
+const PRODUCTION_BUILD_SHA = String(import.meta.env.VITE_PRIMECHECK_PRODUCTION_SHA ?? '').trim()
+const PENDING_PRODUCTION_COMMITS = String(import.meta.env.VITE_PRIMECHECK_PENDING_COMMITS ?? '').trim()
 
 export const PRIME_CHECK_ADMIN_USERNAME = 'administrador'
 export const PRIME_CHECK_ADMIN_PASSWORD = 'admin@admin'
@@ -327,7 +329,11 @@ export default function PrimeCheckAuthGate({ children }: PropsWithChildren) {
 
         <footer className="primecheck-auth-footer">
           <span><i /> Processamento local</span>
-          <small>O workspace permanece bloqueado até uma autenticação válida.</small>
+          <small data-primecheck-version-state="true">
+            {CURRENT_BUILD_SHA !== 'runtime'
+              ? `Local ${CURRENT_BUILD_SHA.slice(0, 12)}${PRODUCTION_BUILD_SHA ? ` · Produção ${PRODUCTION_BUILD_SHA.slice(0, 12)}` : ''}${PENDING_PRODUCTION_COMMITS ? ` · +${PENDING_PRODUCTION_COMMITS} pendente(s)` : ''}`
+              : 'O workspace permanece bloqueado até uma autenticação válida.'}
+          </small>
         </footer>
       </section>
     </main>
