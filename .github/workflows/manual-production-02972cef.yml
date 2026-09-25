@@ -1,60 +1,45 @@
-name: PrimeCheck Manual Vercel Production Release
+name: PrimeCheck Build Approved Production Artifact
 
 on:
   push:
     branches:
       - release-vercel-02972cef
+    paths:
+      - .github/workflows/manual-production-02972cef.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: primecheck-production-manual
+  group: primecheck-build-approved-02972cef
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Validate main and deploy production manually
+  build:
+    name: Build immutable production artifact
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: production
+    timeout-minutes: 20
 
     steps:
-      - name: Checkout approved main
+      - name: Checkout release branch
         uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 1
+          fetch-depth: 0
 
-      - name: Validate approved release SHA
+      - name: Validate approved main SHA
         shell: bash
         env:
           RELEASE_SHA: 02972cef1cc7b8e712c7e24c84ce9e38050a8b1a
         run: |
           set -euo pipefail
-          ACTUAL_SHA="$(git rev-parse HEAD)"
+          git fetch origin main --depth=1
+          ACTUAL_MAIN="$(git rev-parse origin/main)"
           echo "Approved SHA: $RELEASE_SHA"
-          echo "Current main: $ACTUAL_SHA"
-          if [[ "$ACTUAL_SHA" != "$RELEASE_SHA" ]]; then
-            echo "::error::main moved after approval; deployment blocked."
+          echo "Current main: $ACTUAL_MAIN"
+          if [[ "$ACTUAL_MAIN" != "$RELEASE_SHA" ]]; then
+            echo "::error::main moved after approval; artifact build blocked."
             exit 1
           fi
-
-      - name: Validate Vercel production secrets
-        shell: bash
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          for variable in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
-            if [[ -z "${!variable:-}" ]]; then
-              echo "::error::$variable is not configured in the production environment."
-              exit 1
-            fi
-          done
-          echo "Vercel production secrets are configured."
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -62,27 +47,31 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Pull Vercel production configuration
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx --yes vercel@59.5.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Build approved production release
+      - name: Build immutable artifact
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_GIT_COMMIT_SHA: 02972cef1cc7b8e712c7e24c84ce9e38050a8b1a
           VITE_PRIMECHECK_SHA: 02972cef1cc7b8e712c7e24c84ce9e38050a8b1a
-        run: npx --yes vercel@59.5.0 build --prod --token="$VERCEL_TOKEN"
+        run: npm run build
 
-      - name: Deploy approved build to Vercel Production
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_GIT_COMMIT_SHA: 02972cef1cc7b8e712c7e24c84ce9e38050a8b1a
-          VITE_PRIMECHECK_SHA: 02972cef1cc7b8e712c7e24c84ce9e38050a8b1a
-        run: npx --yes vercel@59.5.0 deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+      - name: Verify build SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('dist/build-info.json','utf8')); if(x.sha!=='02972cef1cc7b8e712c7e24c84ce9e38050a8b1a') process.exit(1); console.log('Build SHA OK:',x.sha)"
+
+      - name: Commit immutable dist to release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "PrimeCheck Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -f dist
+          if git diff --cached --quiet; then
+            echo "dist already committed."
+            exit 0
+          fi
+          git commit -m "release: artifact 02972cef"
+          git push origin HEAD:release-vercel-02972cef
