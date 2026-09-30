@@ -12057,3 +12057,145 @@ table {
     grid-column: 1 / -1;
   }
 }
+
+
+/* =========================================================
+   Código de barras — layout app responsivo sem overflow lateral
+   Desktop, tablet e celular
+   ========================================================= */
+.barcode-validator-page {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
+.barcode-validator-page .module-hero,
+.barcode-validator-page .barcode-validator-card {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.barcode-validator-card > *,
+.barcode-form > *,
+.barcode-preview > *,
+.barcode-details > * {
+  min-width: 0;
+}
+
+.barcode-form {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px !important;
+  width: 100%;
+}
+
+.barcode-form .grow {
+  width: 100%;
+  min-width: 0;
+}
+
+.barcode-form input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.barcode-live-dv {
+  width: min(100%, 420px);
+  box-sizing: border-box;
+}
+
+.barcode-digits {
+  width: 100%;
+  grid-template-columns: repeat(var(--barcode-columns, 13), minmax(0, 1fr));
+}
+
+.barcode-validator-page:has(.barcode-digits > :nth-child(8):last-child) .barcode-digits {
+  --barcode-columns: 8;
+}
+.barcode-validator-page:has(.barcode-digits > :nth-child(12):last-child) .barcode-digits {
+  --barcode-columns: 12;
+}
+.barcode-validator-page:has(.barcode-digits > :nth-child(13):last-child) .barcode-digits {
+  --barcode-columns: 13;
+}
+
+.barcode-details {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.barcode-details > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 1100px) {
+  .barcode-validator-page {
+    padding-inline: clamp(16px, 2vw, 28px) !important;
+  }
+  .barcode-validator-card {
+    gap: 14px;
+  }
+  .barcode-preview {
+    padding: 14px;
+  }
+  .barcode-digit {
+    min-height: 54px;
+  }
+}
+
+@media (max-width: 1099px) {
+  .barcode-validator-page {
+    padding-inline: 14px !important;
+  }
+  .barcode-digits {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  }
+  .barcode-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .barcode-validator-page {
+    padding-inline: 10px !important;
+  }
+  .barcode-validator-card {
+    gap: 12px;
+  }
+  .barcode-form {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .barcode-form > .button {
+    width: 100%;
+  }
+  .barcode-preview {
+    padding: 12px;
+  }
+  .barcode-digits {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 5px;
+  }
+  .barcode-digit {
+    min-height: 52px;
+  }
+  .barcode-details {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .barcode-digits {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .barcode-length-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
