@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { exportPrimeCheckPdf } from './lib/pdfReport'
 import FileDropZone from './components/FileDropZone'
 import MappingPanel from './components/MappingPanel'
 import ClientDrawer from './components/ClientDrawer'
@@ -771,7 +772,7 @@ function App({
 
   const requestClientPrint = (onlySelected: boolean) => {
     setClientPrintSelected(onlySelected)
-    window.setTimeout(() => window.print(), 80)
+    window.setTimeout(() => { void exportPrimeCheckPdf() }, 100)
   }
 
   const currentIssuePage = pageSlice(sortedIssues)
@@ -803,7 +804,7 @@ function App({
   const requestIssuePrint = (items: IssueOccurrence[]) => {
     if (!items.length) return
     setIssuePrintItems(items)
-    window.setTimeout(() => window.print(), 80)
+    window.setTimeout(() => { void exportPrimeCheckPdf() }, 100)
   }
 
   const issuePrintFilterDescription = [
@@ -992,7 +993,7 @@ function App({
                   setFocusedFieldId(undefined)
                   setSelectedOccurrenceKey(null)
                 }}>Ajustar mapeamento</button>
-                <button className="button secondary" onClick={() => window.print()}>Imprimir / PDF</button>
+                <button className="button secondary" onClick={() => { void exportPrimeCheckPdf() }}>Gerar PDF</button>
                 <button className="button primary" onClick={() => exportReportExcel(report)}>Exportar Excel</button>
               </div>
             </div>
@@ -1140,7 +1141,7 @@ function App({
                         disabled={!selectedClients.length}
                         onClick={() => requestClientPrint(true)}
                       >
-                        Imprimir selecionados
+                        PDF selecionados
                       </button>
                       <button
                         type="button"
@@ -1148,7 +1149,7 @@ function App({
                         disabled={!sortedClients.length}
                         onClick={() => requestClientPrint(false)}
                       >
-                        Imprimir filtro
+                        PDF do filtro
                       </button>
                       <button
                         className="button ghost compact-button"
@@ -1477,7 +1478,7 @@ function App({
                         onClick={() => requestIssuePrint(selectedIssues)}
                         disabled={!selectedIssues.length}
                       >
-                        Imprimir selecionados
+                        PDF selecionados
                       </button>
                       <button
                         type="button"
@@ -1485,7 +1486,7 @@ function App({
                         onClick={() => requestIssuePrint(sortedIssues)}
                         disabled={!sortedIssues.length}
                       >
-                        Imprimir filtro
+                        PDF do filtro
                       </button>
                     </div>
                   </div>
@@ -1790,9 +1791,9 @@ function Overview({
           type="button"
           className="button secondary compact-button"
           disabled={!printRows.length}
-          onClick={() => window.print()}
+          onClick={() => { void exportPrimeCheckPdf() }}
         >
-          Imprimir resumo
+          Gerar PDF do resumo
         </button>
       </div>
       <div className="overview-grid">
@@ -1985,7 +1986,7 @@ function FieldSummaryView({
 
   const requestPrint = (onlySelected: boolean) => {
     setPrintSelected(onlySelected)
-    window.setTimeout(() => window.print(), 80)
+    window.setTimeout(() => { void exportPrimeCheckPdf() }, 100)
   }
 
   const rowsForPrint = printSelected ? selectedFields : fields
@@ -2005,10 +2006,10 @@ function FieldSummaryView({
               {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
             </button>
             <button type="button" className="button secondary compact-button" disabled={!selectedFields.length} onClick={() => requestPrint(true)}>
-              Imprimir selecionados
+              PDF selecionados
             </button>
             <button type="button" className="button primary compact-button" disabled={!fields.length} onClick={() => requestPrint(false)}>
-              Imprimir filtro
+              PDF do filtro
             </button>
           </div>
         </div>
@@ -2597,7 +2598,7 @@ function DuplicatesView({
   const requestPrint = (groupId?: string, selectedOnly = false) => {
     setPrintGroupId(reportMode === 'ANALITICO' ? groupId || null : null)
     setPrintSelected(reportMode === 'ANALITICO' && selectedOnly)
-    window.setTimeout(() => window.print(), 80)
+    window.setTimeout(() => { void exportPrimeCheckPdf() }, 100)
   }
 
   return (
@@ -2669,7 +2670,7 @@ function DuplicatesView({
                   onClick={() => requestPrint(undefined, true)}
                   disabled={!selectedItems.length}
                 >
-                  Imprimir selecionados
+                  PDF selecionados
                 </button>
               </>
             )}
@@ -2679,7 +2680,7 @@ function DuplicatesView({
               onClick={() => requestPrint()}
               disabled={sorted.length === 0}
             >
-              {reportMode === 'ANALITICO' ? 'Imprimir filtro' : 'Imprimir sintético'}
+              {reportMode === 'ANALITICO' ? 'PDF do filtro' : 'Imprimir sintético'}
             </button>
           </div>
         </div>
@@ -3042,7 +3043,7 @@ function MissingView({
 
   const requestPrint = (onlySelected: boolean) => {
     setPrintSelected(onlySelected)
-    window.setTimeout(() => window.print(), 80)
+    window.setTimeout(() => { void exportPrimeCheckPdf() }, 100)
   }
 
   const sourceMissing = printSelected
@@ -3090,10 +3091,10 @@ function MissingView({
             {allVisibleSelected ? 'Desmarcar páginas' : 'Selecionar páginas'}
           </button>
           <button type="button" className="button secondary compact-button" disabled={!selectedCount} onClick={() => requestPrint(true)}>
-            Imprimir selecionados
+            PDF selecionados
           </button>
           <button type="button" className="button primary compact-button" disabled={!sortedMissing.length && !sortedTargetOnly.length} onClick={() => requestPrint(false)}>
-            Imprimir filtro
+            PDF do filtro
           </button>
           <span className="page-size-fixed">20 por página</span>
         </div>
