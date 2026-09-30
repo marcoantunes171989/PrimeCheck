@@ -11726,3 +11726,15 @@ table {
   .homologation-shell .hero h1 { font-size: 23px !important; }
   .workspace-main h2, .module-page h2 { font-size: 17px !important; }
 }
+
+
+/* Sidebar — peso tipográfico dos títulos aprovado para leitura mais leve */
+.sidebar .sidebar-item-copy strong,
+.sidebar:not(.collapsed) .sidebar-item-copy strong {
+  font-weight: 500 !important;
+}
+
+.sidebar .sidebar-group-toggle .sidebar-item-copy strong,
+.sidebar:not(.collapsed) .sidebar-group-toggle .sidebar-item-copy strong {
+  font-weight: 500 !important;
+}
