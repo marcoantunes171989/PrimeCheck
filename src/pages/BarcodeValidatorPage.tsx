@@ -20,6 +20,7 @@ function isValidAtLength(digits: string, length: BarcodeLength) {
 }
 
 function automaticLength(digits: string): BarcodeLength {
+  // A quantidade sempre inclui o DV informado (último caractere).
   if (digits.length <= 8) return 8
   if (digits.length <= 12) return 12
   return 13
@@ -43,6 +44,9 @@ export default function BarcodeValidatorPage() {
   const calculatedCheckDigit = String(calculateCheckDigit(payloadForCurrentLength))
   const valid = ready && informedCheckDigit === calculatedCheckDigit
   const normalized = digits ? `${payloadForCurrentLength}${informedCheckDigit}` : ''.padStart(length, '0')
+  const typedCountIncludingDv = digits.length
+  const payloadCount = Math.max(0, typedCountIncludingDv - (digits ? 1 : 0))
+  const missingIncludingDv = Math.max(0, length - typedCountIncludingDv)
 
   const positions = useMemo(() => {
     const display = normalized
@@ -69,7 +73,6 @@ export default function BarcodeValidatorPage() {
   }
 
   const nextTarget = length === 8 ? 12 : length === 12 ? 13 : null
-  const missing = Math.max(0, length - digits.length)
   const exactSupportedLength = SUPPORTED_LENGTHS.includes(digits.length as BarcodeLength)
   const exactValid = exactSupportedLength && isValidAtLength(digits, digits.length as BarcodeLength)
 
@@ -104,7 +107,7 @@ export default function BarcodeValidatorPage() {
               onChange={event => handleBarcodeChange(event.target.value)}
               placeholder="Digite até 13 dígitos" aria-describedby="barcode-help" />
             <small id="barcode-help">
-              {digits.length}/{length} dígitos · DV acompanhado a cada caractere · padrões 8, 12 e 13.
+              {typedCountIncludingDv}/{length} posições contando o DV · {payloadCount} dado(s) + {digits ? '1 DV informado' : 'DV aguardando'} · padrões 8, 12 e 13.
             </small>
           </label>
           <button className="button ghost" type="button" onClick={() => setValue('')}>Limpar</button>
@@ -137,7 +140,7 @@ export default function BarcodeValidatorPage() {
               <span>CÓDIGO INCOMPLETO</span>
               <strong className="mono">{digits}</strong>
               <p>
-                DV informado: {informedCheckDigit}. DV calculado para os dados atuais: {calculatedCheckDigit}. Faltam {missing} dígito(s) para completar {length} posições ({patternName(length)}), contando o DV.
+                DV informado e mantido: {informedCheckDigit}. DV calculado para os {payloadCount} caractere(s) anteriores: {calculatedCheckDigit}. Faltam {missingIncludingDv} posição(ões) para completar {length} dígitos ({patternName(length)}), já contando o DV informado.
                 {nextTarget ? ` Ao ultrapassar ${length} caracteres, o padrão alternará automaticamente para ${nextTarget} posições.` : ''}
               </p>
             </div>
@@ -165,9 +168,9 @@ export default function BarcodeValidatorPage() {
           <div><span>Código calculado</span><strong className="mono">{digits ? `${payloadForCurrentLength}${calculatedCheckDigit}` : '—'}</strong></div>
           <div className="barcode-dv-detail"><span>Dígito verificador calculado</span><strong>{digits ? calculatedCheckDigit : '—'}</strong></div>
           <div><span>DV informado</span><strong>{digits ? informedCheckDigit : '—'}</strong></div>
-          <div><span>Posições</span><strong>{digits.length}/{length}</strong></div>
-          <div><span>Situação</span><strong>{!digits ? '—' : !ready ? `Incompleto · faltam ${missing}` : valid ? 'Válido' : 'Inválido'}</strong></div>
-          <div><span>Validação no marco atual</span><strong>{exactValid ? 'DV confere' : exactSupportedLength ? 'DV não confere' : 'Aguardando 8, 12 ou 13 dígitos'}</strong></div>
+          <div><span>Posições (com DV)</span><strong>{typedCountIncludingDv}/{length}</strong></div>
+          <div><span>Situação</span><strong>{!digits ? '—' : !ready ? `Incompleto · faltam ${missingIncludingDv} contando o DV` : valid ? 'Válido' : 'Inválido'}</strong></div>
+          <div><span>Validação no marco atual</span><strong>{exactValid ? `DV ${informedCheckDigit} confere · ${typedCountIncludingDv} dígitos` : exactSupportedLength ? `DV ${informedCheckDigit} não confere · ${typedCountIncludingDv} dígitos` : `DV ${informedCheckDigit || '—'} mantido · aguardando ${length} dígitos`}</strong></div>
           <div><span>Próximo padrão</span><strong>{nextTarget ? `${nextTarget} dígitos` : 'Limite de 13 dígitos'}</strong></div>
         </div>
       </section>
