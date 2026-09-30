@@ -31,3 +31,20 @@ for (const length of [8, 12, 13]) {
 }
 
 console.log('PASS: EAN-8, UPC-A/EAN-12, EAN-13 e zero à esquerda validados.')
+
+
+const autoLength = digits => digits.length <= 8 ? 8 : digits.length <= 12 ? 12 : 13
+const autoCases = [
+  ['1', 8],
+  ['12345678', 8],
+  ['123456789', 12],
+  ['123456789012', 12],
+  ['1234567890123', 13],
+]
+for (const [digits, expectedLength] of autoCases) {
+  const actualLength = autoLength(digits)
+  if (actualLength !== expectedLength) {
+    throw new Error(`Alternância automática falhou para ${digits.length} dígitos: esperado ${expectedLength}, obtido ${actualLength}`)
+  }
+}
+console.log('PASS: alternância automática 8 → 12 → 13 validada.')
