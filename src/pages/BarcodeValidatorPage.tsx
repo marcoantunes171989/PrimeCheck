@@ -35,21 +35,24 @@ export default function BarcodeValidatorPage() {
 
   const digits = value.replace(/\D/g, '').slice(0, 13)
   const ready = digits.length === length
+  // O último caractere digitado é sempre exibido como DV informado.
+  // Nos marcos 8, 12 e 13 ele é validado contra o payload anterior.
   const informedCheckDigit = digits ? digits.slice(-1) : ''
-  const payloadForCurrentLength = ready ? digits.slice(0, -1) : digits.padStart(length - 1, '0').slice(-(length - 1))
+  const informedPayload = digits ? digits.slice(0, -1) : ''
+  const payloadForCurrentLength = informedPayload.padStart(length - 1, '0').slice(-(length - 1))
   const calculatedCheckDigit = String(calculateCheckDigit(payloadForCurrentLength))
   const valid = ready && informedCheckDigit === calculatedCheckDigit
-  const normalized = ready ? digits : `${payloadForCurrentLength}${calculatedCheckDigit}`
+  const normalized = digits ? `${payloadForCurrentLength}${informedCheckDigit}` : ''.padStart(length, '0')
 
   const positions = useMemo(() => {
-    const display = ready ? digits : normalized
-    const paddedCount = ready ? 0 : Math.max(0, length - 1 - digits.length)
+    const display = normalized
+    const paddedCount = digits ? Math.max(0, length - digits.length) : length - 1
     return display.split('').map((digit, index) => ({
       digit,
       check: index === length - 1,
       padded: index < paddedCount,
     }))
-  }, [digits, length, normalized, ready])
+  }, [digits, length, normalized])
 
   const handleLength = (next: BarcodeLength) => {
     setLength(next)
@@ -134,7 +137,7 @@ export default function BarcodeValidatorPage() {
               <span>CÓDIGO INCOMPLETO</span>
               <strong className="mono">{digits}</strong>
               <p>
-                Dígito verificador calculado: {calculatedCheckDigit}. Faltam {missing} dígito(s) para completar {length} posições ({patternName(length)}).
+                DV informado: {informedCheckDigit}. DV calculado para os dados atuais: {calculatedCheckDigit}. Faltam {missing} dígito(s) para completar {length} posições ({patternName(length)}), contando o DV.
                 {nextTarget ? ` Ao ultrapassar ${length} caracteres, o padrão alternará automaticamente para ${nextTarget} posições.` : ''}
               </p>
             </div>
@@ -159,7 +162,7 @@ export default function BarcodeValidatorPage() {
         <div className="validator-details barcode-details">
           <div><span>Padrão atual</span><strong>{patternName(length)}</strong></div>
           <div><span>Valor informado</span><strong className="mono">{digits || '—'}</strong></div>
-          <div><span>Código calculado</span><strong className="mono">{digits ? normalized : '—'}</strong></div>
+          <div><span>Código calculado</span><strong className="mono">{digits ? `${payloadForCurrentLength}${calculatedCheckDigit}` : '—'}</strong></div>
           <div className="barcode-dv-detail"><span>Dígito verificador calculado</span><strong>{digits ? calculatedCheckDigit : '—'}</strong></div>
           <div><span>DV informado</span><strong>{digits ? informedCheckDigit : '—'}</strong></div>
           <div><span>Posições</span><strong>{digits.length}/{length}</strong></div>
