@@ -98,7 +98,12 @@ function buildImagePdf(images: Array<{ data: Uint8Array; width: number; height: 
   }
   xref += `trailer\n<< /Size ${nextId} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`
   parts.push(bytes(xref))
-  return new Blob(parts, { type: 'application/pdf' })
+  // BlobPart exige ArrayBuffer-backed views no TypeScript atual; copie os bytes
+  // finais para um ArrayBuffer próprio em vez de expor ArrayBufferLike.
+  const pdfBytes = concat(parts)
+  const pdfBuffer = new ArrayBuffer(pdfBytes.byteLength)
+  new Uint8Array(pdfBuffer).set(pdfBytes)
+  return new Blob([pdfBuffer], { type: 'application/pdf' })
 }
 
 function safeFilename(value: string) {
