@@ -12288,3 +12288,19 @@ table {
     font-size: 11px !important;
   }
 }
+
+
+/* Impressão limpa — remove cabeçalho/rodapé automáticos do navegador quando suportado */
+@page {
+  margin: 10mm;
+}
+@media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .issue-print-footer,
+  .dup-print-footer {
+    display: none !important;
+  }
+}
