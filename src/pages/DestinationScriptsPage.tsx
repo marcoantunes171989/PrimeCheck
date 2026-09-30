@@ -55,7 +55,7 @@ export default function DestinationScriptsPage() {
   const [copied, setCopied] = useState(false)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const selected = useMemo(() => SCRIPTS.find(item => item.id === selectedId), [selectedId])
-  const editedSql = selected ? (drafts[selected.id] ?? editedSql ?? '') : ''
+  const editedSql: string = selected ? (drafts[selected.id] ?? selected.sql ?? '') : ''
 
   useEffect(() => {
     try {
@@ -102,7 +102,7 @@ export default function DestinationScriptsPage() {
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .trim()
     const upper = withoutComments.toUpperCase()
-    const statements = withoutComments.split(';').map(item => item.trim()).filter(Boolean)
+    const statements = withoutComments.split(';').map((item: string) => item.trim()).filter(Boolean)
 
     if (statements.length !== 1) return { valid: false, message: 'Mantenha um único comando SELECT por script.' }
     if (!/^(WITH\b[\s\S]+\bSELECT\b|SELECT\b)/i.test(withoutComments)) {
