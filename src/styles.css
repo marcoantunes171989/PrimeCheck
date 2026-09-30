@@ -11203,3 +11203,244 @@ footer {
   .destination-scripts-catalog { max-height: 300px; overflow: auto; }
   .destination-script-actions { width: 100%; flex-wrap: wrap; }
 }
+
+
+/* PrimeCheck UI baseline — tipografia e paleta harmonizadas com o padrão visual aprovado */
+:root {
+  --font-sans: Inter, "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --pc-navy-950: #002f47;
+  --pc-navy-900: #063d57;
+  --pc-navy-850: #0b4862;
+  --pc-navy-800: #124f68;
+  --pc-sidebar-text: #f4f8fa;
+  --pc-sidebar-muted: #8fc1d7;
+  --pc-orange: #ff861c;
+  --pc-page-text: #183747;
+  --pc-page-muted: #667b87;
+  --primary: var(--pc-navy-950);
+  --primary-2: var(--pc-navy-850);
+  --accent: var(--pc-orange);
+  --text: var(--pc-page-text);
+  --muted: var(--pc-page-muted);
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 21px;
+  --fs-3xl: 27px;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+table {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.workspace-main {
+  color: var(--pc-page-text);
+}
+
+.workspace-main :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-weight: 800;
+  text-wrap: balance;
+}
+
+.workspace-main h1 {
+  font-size: clamp(25px, 1.9vw, 31px) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.032em !important;
+  font-weight: 850 !important;
+}
+
+.workspace-main h2 {
+  font-size: clamp(17px, 1.25vw, 20px);
+  line-height: 1.18;
+  letter-spacing: -.018em;
+  font-weight: 800;
+}
+
+.workspace-main h3 {
+  font-size: clamp(14px, 1vw, 17px);
+  line-height: 1.25;
+  letter-spacing: -.01em;
+  font-weight: 800;
+}
+
+.workspace-main :where(p, small, label) {
+  line-height: 1.45;
+}
+
+.workspace-main :where(input, select, textarea) {
+  color: var(--pc-page-text);
+}
+
+.workspace-main :where(.button, button) {
+  font-weight: 750;
+}
+
+.workspace-main table th {
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .045em;
+}
+
+.workspace-main table td {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Sidebar: preserva a arquitetura atual e altera somente linguagem visual. */
+.sidebar {
+  background: var(--pc-navy-950) !important;
+  color: var(--pc-sidebar-text);
+}
+
+.sidebar-brand strong,
+.sidebar-brand span,
+.sidebar .sidebar-item-copy strong {
+  font-family: var(--font-sans);
+}
+
+.sidebar-brand strong {
+  color: #fff !important;
+  font-size: 15px !important;
+  font-weight: 850 !important;
+  letter-spacing: -.025em;
+}
+
+.sidebar-brand span {
+  color: #d8e9f0 !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+  letter-spacing: .035em;
+}
+
+.sidebar-brand-mark,
+.sidebar-logo,
+.sidebar .brand-mark {
+  background: var(--pc-orange) !important;
+  color: var(--pc-navy-950) !important;
+}
+
+.sidebar-section-title {
+  color: var(--pc-sidebar-muted) !important;
+  font-size: 10px !important;
+  font-weight: 850 !important;
+  letter-spacing: .13em !important;
+}
+
+.sidebar .sidebar-item-copy strong {
+  color: var(--pc-sidebar-text);
+  font-size: 12px !important;
+  line-height: 1.18 !important;
+  font-weight: 800 !important;
+  letter-spacing: -.015em;
+}
+
+.sidebar .sidebar-item-copy small {
+  color: var(--pc-sidebar-muted) !important;
+  font-size: 10px !important;
+  line-height: 1.22 !important;
+  font-weight: 500;
+}
+
+.sidebar :where(.sidebar-item, .sidebar-group-toggle) {
+  border-radius: 10px;
+}
+
+.sidebar :where(.sidebar-item, .sidebar-group-toggle):hover {
+  background: rgba(255, 255, 255, .055);
+}
+
+.sidebar :where(.sidebar-item.active, .sidebar-group-toggle.active, [aria-current="page"]) {
+  background: rgba(255, 255, 255, .105) !important;
+  color: #fff !important;
+}
+
+.sidebar :where(.sidebar-item.active, [aria-current="page"]) {
+  box-shadow: inset 3px 0 0 var(--pc-orange);
+}
+
+.sidebar :where(.sidebar-item-icon, .sidebar-group-icon) {
+  color: #e7f3f7;
+}
+
+.sidebar input[type="search"],
+.sidebar-search input {
+  color: #eaf4f8 !important;
+  border-color: #2a6078 !important;
+  background: #063850 !important;
+}
+
+.sidebar input[type="search"]::placeholder,
+.sidebar-search input::placeholder {
+  color: #9ac4d6 !important;
+}
+
+.workspace-module-bar {
+  font-family: var(--font-sans);
+}
+
+.workspace-module-bar > div:first-child > span {
+  color: var(--pc-page-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.workspace-module-bar > div:first-child > strong {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+
+/* Estados e destaques seguem a identidade azul-petróleo + laranja. */
+.eyebrow {
+  color: var(--pc-orange);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.button.primary {
+  background: var(--pc-navy-950);
+  color: #fff;
+}
+
+.button.secondary {
+  border-color: #d2dfe5;
+  background: #f2f6f8;
+  color: var(--pc-navy-950);
+}
+
+.button.ghost {
+  color: var(--pc-navy-950);
+}
+
+:where(input, select, textarea):focus {
+  border-color: #6e9caf;
+}
+
+@media (max-width: 900px) {
+  .workspace-main h1 {
+    font-size: clamp(23px, 4vw, 28px) !important;
+  }
+  .workspace-main table td { font-size: 11.5px; }
+}
+
+@media (max-width: 640px) {
+  .workspace-main h1 { font-size: 23px !important; }
+  .workspace-main h2 { font-size: 17px; }
+  .sidebar .sidebar-item-copy strong { font-size: 11.5px !important; }
+}
