@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import clientSql from '../sql/cliente-destino-intersolid.sql?raw'
 import supplierSql from '../sql/fornecedor-destino-intersolid.sql?raw'
 import groupSql from '../sql/grupo-destino-intersolid.sql?raw'
@@ -53,15 +53,90 @@ export default function DestinationScriptsPage() {
   const available = SCRIPTS.filter(item => item.sql)
   const [selectedId, setSelectedId] = useState(available[0]?.id ?? '')
   const [copied, setCopied] = useState(false)
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
   const selected = useMemo(() => SCRIPTS.find(item => item.id === selectedId), [selectedId])
+  const editedSql = selected ? (drafts[selected.id] ?? editedSql ?? '') : ''
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('primecheck:destination-sql-drafts')
+      if (saved) setDrafts(JSON.parse(saved))
+    } catch {
+      // Mantém os scripts originais se o armazenamento local estiver indisponível.
+    }
+  }, [])
+
+  const updateDraft = (sql: string) => {
+    if (!selected) return
+    setDrafts(current => {
+      const next = { ...current, [selected.id]: sql }
+      try {
+        window.localStorage.setItem('primecheck:destination-sql-drafts', JSON.stringify(next))
+      } catch {
+        // A edição continua válida na sessão atual.
+      }
+      return next
+    })
+  }
+
+  const resetDraft = () => {
+    if (!selected) return
+    setDrafts(current => {
+      const next = { ...current }
+      delete next[selected.id]
+      try {
+        window.localStorage.setItem('primecheck:destination-sql-drafts', JSON.stringify(next))
+      } catch {
+        // Sem persistência local, apenas restaura a sessão.
+      }
+      return next
+    })
+  }
+
+  const sqlValidation = useMemo(() => {
+    const source = editedSql.trim()
+    if (!source) return { valid: false, message: 'Informe uma consulta SQL.' }
+
+    const withoutComments = source
+      .replace(/--.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .trim()
+    const upper = withoutComments.toUpperCase()
+    const statements = withoutComments.split(';').map(item => item.trim()).filter(Boolean)
+
+    if (statements.length !== 1) return { valid: false, message: 'Mantenha um único comando SELECT por script.' }
+    if (!/^(WITH\b[\s\S]+\bSELECT\b|SELECT\b)/i.test(withoutComments)) {
+      return { valid: false, message: 'O script deve iniciar com SELECT ou WITH ... SELECT.' }
+    }
+    if (!/\bFROM\b/i.test(withoutComments)) return { valid: false, message: 'A consulta precisa conter a cláusula FROM.' }
+    if (/\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|EXECUTE|EXEC)\b/i.test(upper)) {
+      return { valid: false, message: 'Somente consultas de leitura (SELECT) são permitidas nesta tela.' }
+    }
+
+    const pairs: Array<[string, string, string]> = [['(', ')', 'parênteses'], ['[', ']', 'colchetes']]
+    for (const [open, close, label] of pairs) {
+      let balance = 0
+      for (const char of withoutComments) {
+        if (char === open) balance += 1
+        if (char === close) balance -= 1
+        if (balance < 0) return { valid: false, message: `Revise os ${label}: fechamento sem abertura correspondente.` }
+      }
+      if (balance !== 0) return { valid: false, message: `Revise os ${label}: abertura e fechamento não correspondem.` }
+    }
+
+    const singleQuotes = (withoutComments.match(/'/g) ?? []).length
+    if (singleQuotes % 2 !== 0) return { valid: false, message: 'Existe uma aspas simples sem fechamento.' }
+
+    return { valid: true, message: 'Estrutura SQL válida para consulta SELECT. A validação do schema ocorre no banco de destino.' }
+  }, [editedSql])
 
   const copySql = async () => {
     if (!selected?.sql) return
     try {
-      await navigator.clipboard.writeText(selected.sql)
+      await navigator.clipboard.writeText(editedSql)
     } catch {
       const textarea = document.createElement('textarea')
-      textarea.value = selected.sql
+      textarea.value = editedSql
       textarea.style.position = 'fixed'
       textarea.style.opacity = '0'
       document.body.appendChild(textarea)
@@ -75,7 +150,7 @@ export default function DestinationScriptsPage() {
 
   const downloadSql = () => {
     if (!selected?.sql || !selected.file) return
-    const blob = new Blob([selected.sql], { type: 'text/plain;charset=utf-8' })
+    const blob = new Blob([editedSql], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
@@ -137,7 +212,36 @@ export default function DestinationScriptsPage() {
                 </div>
               </header>
               <div className="destination-script-file"><strong>Arquivo:</strong> {selected.file}</div>
-              <pre className="client-sql-code destination-script-code"><code>{selected.sql}</code></pre>
+              <div className="destination-script-editor-shell">
+                <div className="destination-script-editor-toolbar">
+                  <span>Editor SQL</span>
+                  <button type="button" className="button ghost" onClick={resetDraft} disabled={editedSql === selected.sql}>Restaurar original</button>
+                </div>
+                <textarea
+                  className="destination-script-editor"
+                  value={editedSql}
+                  onChange={event => updateDraft(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Tab') {
+                      event.preventDefault()
+                      const target = event.currentTarget
+                      const start = target.selectionStart
+                      const end = target.selectionEnd
+                      const next = editedSql.slice(0, start) + '  ' + editedSql.slice(end)
+                      updateDraft(next)
+                      requestAnimationFrame(() => {
+                        target.selectionStart = target.selectionEnd = start + 2
+                      })
+                    }
+                  }}
+                  spellCheck={false}
+                  aria-label={`Editor SQL de ${selected.label}`}
+                />
+                <div className={`destination-script-validation ${sqlValidation.valid ? 'valid' : 'invalid'}`} role="status">
+                  <strong>{sqlValidation.valid ? 'Sintaxe estrutural válida' : 'Revisar SQL'}</strong>
+                  <span>{sqlValidation.message}</span>
+                </div>
+              </div>
             </>
           ) : (
             <div className="destination-script-empty">Nenhum script SQL cadastrado para este módulo.</div>
