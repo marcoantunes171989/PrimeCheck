@@ -11738,3 +11738,22 @@ table {
 .sidebar:not(.collapsed) .sidebar-group-toggle .sidebar-item-copy strong {
   font-weight: 500 !important;
 }
+
+
+/* Sidebar title weight fix v3 — seletores reais do componente Sidebar.tsx */
+.sidebar .sidebar-entry .sidebar-item-copy > strong,
+.sidebar .sidebar-group-toggle .sidebar-item-copy > strong,
+.sidebar .sidebar-dashboard-group .sidebar-item-copy > strong,
+.sidebar:not(.collapsed) .sidebar-entry .sidebar-item-copy > strong,
+.sidebar:not(.collapsed) .sidebar-group-toggle .sidebar-item-copy > strong {
+  font-family: var(--font-sans) !important;
+  font-weight: 400 !important;
+  -webkit-text-stroke: 0 !important;
+  text-shadow: none !important;
+}
+
+.sidebar .sidebar-entry[aria-current="page"] .sidebar-item-copy > strong,
+.sidebar .sidebar-entry.active .sidebar-item-copy > strong,
+.sidebar .sidebar-group.active-group > .sidebar-group-toggle .sidebar-item-copy > strong {
+  font-weight: 500 !important;
+}
