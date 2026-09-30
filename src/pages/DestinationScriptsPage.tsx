@@ -3,6 +3,20 @@ import clientSql from '../sql/cliente-destino-intersolid.sql?raw'
 import supplierSql from '../sql/fornecedor-destino-intersolid.sql?raw'
 import groupSql from '../sql/grupo-destino-intersolid.sql?raw'
 import subgroupSql from '../sql/subgrupo-destino-intersolid.sql?raw'
+import sectionSql from '../sql/secao-destino-intersolid.sql?raw'
+import carrierSql from '../sql/transportadora-destino-intersolid.sql?raw'
+import productStoreSql from '../sql/produto-loja-destino-intersolid.sql?raw'
+import productSql from '../sql/produto-destino-intersolid.sql?raw'
+import barcodeSql from '../sql/codigo-barras-destino-intersolid.sql?raw'
+import similarSql from '../sql/produto-similar-destino-intersolid.sql?raw'
+import productSupplierSql from '../sql/produto-fornecedor-destino-intersolid.sql?raw'
+import ncmSql from '../sql/ncm-destino-intersolid.sql?raw'
+import cestSql from '../sql/cest-destino-intersolid.sql?raw'
+import ibptSql from '../sql/ibpt-destino-intersolid.sql?raw'
+import ibsCbsSql from '../sql/ibs-cbs-destino-intersolid.sql?raw'
+import fiscalBenefitSql from '../sql/beneficio-fiscal-destino-intersolid.sql?raw'
+import recipeSql from '../sql/receita-destino-intersolid.sql?raw'
+import nutritionSql from '../sql/informacao-nutricional-destino-intersolid.sql?raw'
 
 type ScriptItem = {
   id: string
@@ -15,22 +29,22 @@ type ScriptItem = {
 const SCRIPTS: ScriptItem[] = [
   { id: 'clients', group: 'Parceiros', label: 'Clientes', file: 'cliente-destino-intersolid.sql', sql: clientSql },
   { id: 'suppliers', group: 'Parceiros', label: 'Fornecedores', file: 'fornecedor-destino-intersolid.sql', sql: supplierSql },
-  { id: 'carriers', group: 'Parceiros', label: 'Transportadoras' },
-  { id: 'sections', group: 'Classificação Mercadológica', label: 'Seções' },
+  { id: 'carriers', group: 'Parceiros', label: 'Transportadoras', file: 'transportadora-destino-intersolid.sql', sql: carrierSql },
+  { id: 'sections', group: 'Classificação Mercadológica', label: 'Seções', file: 'secao-destino-intersolid.sql', sql: sectionSql },
   { id: 'groups', group: 'Classificação Mercadológica', label: 'Grupos', file: 'grupo-destino-intersolid.sql', sql: groupSql },
   { id: 'subgroups', group: 'Classificação Mercadológica', label: 'Subgrupos', file: 'subgrupo-destino-intersolid.sql', sql: subgroupSql },
-  { id: 'product_store', group: 'Produtos', label: 'Produto por Loja' },
-  { id: 'products', group: 'Produtos', label: 'Cadastro Base do Produto' },
-  { id: 'barcodes', group: 'Produtos', label: 'Códigos de Barras' },
-  { id: 'similar_products', group: 'Produtos', label: 'Produtos Similares' },
-  { id: 'product_suppliers', group: 'Produtos', label: 'Produto por Fornecedor' },
-  { id: 'ncm', group: 'Fiscal e Conteúdo', label: 'NCM' },
-  { id: 'cest', group: 'Fiscal e Conteúdo', label: 'CEST' },
-  { id: 'ibpt', group: 'Fiscal e Conteúdo', label: 'IBPT' },
-  { id: 'ibs_cbs', group: 'Fiscal e Conteúdo', label: 'IBS/CBS' },
-  { id: 'fiscal_benefit', group: 'Fiscal e Conteúdo', label: 'Benefício Fiscal' },
-  { id: 'recipes', group: 'Fiscal e Conteúdo', label: 'Receitas' },
-  { id: 'nutrition', group: 'Fiscal e Conteúdo', label: 'Informações Nutricionais' },
+  { id: 'product_store', group: 'Produtos', label: 'Produto por Loja', file: 'produto-loja-destino-intersolid.sql', sql: productStoreSql },
+  { id: 'products', group: 'Produtos', label: 'Cadastro Base do Produto', file: 'produto-destino-intersolid.sql', sql: productSql },
+  { id: 'barcodes', group: 'Produtos', label: 'Códigos de Barras', file: 'codigo-barras-destino-intersolid.sql', sql: barcodeSql },
+  { id: 'similar_products', group: 'Produtos', label: 'Produtos Similares', file: 'produto-similar-destino-intersolid.sql', sql: similarSql },
+  { id: 'product_suppliers', group: 'Produtos', label: 'Produto por Fornecedor', file: 'produto-fornecedor-destino-intersolid.sql', sql: productSupplierSql },
+  { id: 'ncm', group: 'Fiscal e Conteúdo', label: 'NCM', file: 'ncm-destino-intersolid.sql', sql: ncmSql },
+  { id: 'cest', group: 'Fiscal e Conteúdo', label: 'CEST', file: 'cest-destino-intersolid.sql', sql: cestSql },
+  { id: 'ibpt', group: 'Fiscal e Conteúdo', label: 'IBPT', file: 'ibpt-destino-intersolid.sql', sql: ibptSql },
+  { id: 'ibs_cbs', group: 'Fiscal e Conteúdo', label: 'IBS/CBS', file: 'ibs-cbs-destino-intersolid.sql', sql: ibsCbsSql },
+  { id: 'fiscal_benefit', group: 'Fiscal e Conteúdo', label: 'Benefício Fiscal', file: 'beneficio-fiscal-destino-intersolid.sql', sql: fiscalBenefitSql },
+  { id: 'recipes', group: 'Fiscal e Conteúdo', label: 'Receitas', file: 'receita-destino-intersolid.sql', sql: recipeSql },
+  { id: 'nutrition', group: 'Fiscal e Conteúdo', label: 'Informações Nutricionais', file: 'informacao-nutricional-destino-intersolid.sql', sql: nutritionSql },
 ]
 
 const GROUPS = ['Parceiros', 'Classificação Mercadológica', 'Produtos', 'Fiscal e Conteúdo']
