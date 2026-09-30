@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import HomologationApp from './HomologationApp'
 import CnpjValidatorPage from './pages/CnpjValidatorPage'
 import IeValidatorPage from './pages/IeValidatorPage'
+import BarcodeValidatorPage from './pages/BarcodeValidatorPage'
 import NfceValidatorPage from './pages/NfceValidatorPage'
 import NfceAnalyticsPage from './pages/NfceAnalyticsPage'
 import WorkspaceImportPage from './pages/WorkspaceImportPage'
@@ -30,6 +31,7 @@ type ModuleId =
   | 'homologacao'
   | 'cnpj'
   | 'ie'
+  | 'barcode'
   | 'nfce'
   | 'nfce:documents'
   | 'nfce:overview'
@@ -39,13 +41,14 @@ type ModuleId =
   | `data:${string}`
   | `dashboard:${string}`
 
-const staticModuleTitle: Record<'importacao' | 'internal-products' | 'scripts' | 'homologacao' | 'cnpj' | 'ie' | 'nfce', string> = {
+const staticModuleTitle: Record<'importacao' | 'internal-products' | 'scripts' | 'homologacao' | 'cnpj' | 'ie' | 'barcode' | 'nfce', string> = {
   importacao: 'Importação e organização',
   'internal-products': 'Lista de Produtos Internos',
   scripts: 'Scripts SQL do destino',
   homologacao: 'Homologação de conversão',
   cnpj: 'Validação de CNPJ',
   ie: 'Validação de Inscrição Estadual',
+  barcode: 'Validação de Código de Barras',
   nfce: 'Validação de NFC-e',
 }
 
@@ -285,6 +288,7 @@ export default function App() {
         {module === 'homologacao' && <HomologationApp />}
         {module === 'cnpj' && <CnpjValidatorPage />}
         {module === 'ie' && <IeValidatorPage />}
+        {module === 'barcode' && <BarcodeValidatorPage />}
         {(module === 'nfce' || module === 'nfce:documents') && <NfceValidatorPage />}
         {module === 'nfce:overview' && <NfceAnalyticsPage view="overview" />}
         {module === 'nfce:products' && <NfceAnalyticsPage view="products" />}
