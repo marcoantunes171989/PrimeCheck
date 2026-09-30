@@ -11775,3 +11775,236 @@ table {
   -webkit-text-stroke: 0 !important;
   text-shadow: none !important;
 }
+
+
+/* =========================================================
+   Validação de Código de Barras — UI/UX
+   ========================================================= */
+.barcode-validator-card {
+  display: grid;
+  gap: 18px;
+}
+
+.barcode-length-field {
+  display: grid;
+  gap: 8px;
+}
+
+.barcode-field-label {
+  color: #526b78;
+  font-size: 11px !important;
+  font-weight: 700;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.barcode-length-options {
+  display: inline-flex;
+  width: fit-content;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #f4f7f9;
+}
+
+.barcode-length-options button {
+  min-height: 34px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #5f7480;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.barcode-length-options button:hover {
+  background: #e8eff3;
+  color: var(--primary);
+}
+
+.barcode-length-options button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.barcode-form {
+  align-items: end;
+}
+
+.barcode-form label small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.barcode-preview {
+  padding: 16px;
+  border: 1px solid #d4e0e6;
+  border-radius: 14px;
+  background: #f8fbfc;
+}
+
+.barcode-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.barcode-preview-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.barcode-preview-head span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.barcode-preview-head strong {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.barcode-direction {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eaf2f6;
+  color: #547586 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap;
+}
+
+.barcode-digits {
+  display: grid;
+  grid-template-columns: repeat(13, minmax(34px, 1fr));
+  gap: 6px;
+}
+
+.barcode-digit {
+  min-width: 0;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid #cddbe2;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.barcode-digit > span {
+  color: #173746;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.barcode-digit > small {
+  color: #8a9ba4 !important;
+  font-size: 9px !important;
+  line-height: 1;
+}
+
+.barcode-digit.padded-digit {
+  border-style: dashed;
+  background: #f0f4f6;
+}
+
+.barcode-digit.padded-digit > span {
+  color: #78909c;
+}
+
+.barcode-digit.check-digit {
+  border: 2px solid var(--accent);
+  background: #fff4e9;
+  box-shadow: 0 0 0 3px rgba(243, 133, 37, .10);
+}
+
+.barcode-digit.check-digit > span {
+  color: #b85808;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.barcode-digit.check-digit > small {
+  color: #b85808 !important;
+  font-weight: 800;
+}
+
+.barcode-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.barcode-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.barcode-legend i {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+.barcode-legend-zero {
+  border: 1px dashed #9eafb8;
+  background: #f0f4f6;
+}
+
+.barcode-legend-dv {
+  border: 2px solid var(--accent);
+  background: #fff4e9;
+}
+
+.barcode-details .barcode-dv-detail {
+  border-color: #f3c79f;
+  background: #fff8f1;
+}
+
+.barcode-details .barcode-dv-detail strong {
+  color: #b85808;
+  font-size: 18px;
+}
+
+@media (max-width: 980px) {
+  .barcode-digits {
+    grid-template-columns: repeat(7, minmax(36px, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .barcode-length-options {
+    width: 100%;
+  }
+  .barcode-length-options button {
+    flex: 1;
+    padding-inline: 8px;
+  }
+  .barcode-preview-head {
+    flex-direction: column;
+  }
+  .barcode-direction {
+    white-space: normal;
+  }
+  .barcode-digits {
+    grid-template-columns: repeat(4, minmax(42px, 1fr));
+  }
+}
