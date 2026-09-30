@@ -20,8 +20,8 @@ export default function BarcodeValidatorPage() {
   const [length, setLength] = useState<BarcodeLength>(13)
   const [value, setValue] = useState('')
 
-  const digits = value.replace(/\D/g, '').slice(0, length)
-  const completed = digits.padStart(length, '0')
+  const digits = value.replace(/\D/g, '').slice(0, 13)
+  const completed = digits.slice(0, length).padStart(length, '0')
   const payload = completed.slice(0, -1)
   const informedCheckDigit = completed.slice(-1)
   const calculatedCheckDigit = String(calculateCheckDigit(payload))
@@ -42,7 +42,20 @@ export default function BarcodeValidatorPage() {
 
   const handleLength = (next: BarcodeLength) => {
     setLength(next)
-    setValue(current => current.replace(/\D/g, '').slice(-next))
+    setValue(current => current.replace(/\D/g, '').slice(0, next))
+  }
+
+  const handleBarcodeChange = (rawValue: string) => {
+    const nextDigits = rawValue.replace(/\D/g, '').slice(0, 13)
+    setValue(nextDigits)
+
+    if (nextDigits.length <= 8) {
+      setLength(8)
+    } else if (nextDigits.length <= 12) {
+      setLength(12)
+    } else {
+      setLength(13)
+    }
   }
 
   return (
@@ -81,14 +94,14 @@ export default function BarcodeValidatorPage() {
               value={digits}
               inputMode="numeric"
               autoComplete="off"
-              maxLength={length}
+              maxLength={13}
               autoFocus
-              onChange={event => setValue(event.target.value.replace(/\D/g, '').slice(0, length))}
-              placeholder={`Digite até ${length} dígitos`}
+              onChange={event => handleBarcodeChange(event.target.value)}
+              placeholder="Digite até 13 dígitos"
               aria-describedby="barcode-help"
             />
             <small id="barcode-help">
-              {digits.length}/{length} dígitos informados · zeros à esquerda são considerados.
+              {digits.length}/{length} dígitos informados · padrão alternado automaticamente entre 8, 12 e 13 dígitos.
             </small>
             {digits && !ready && (
               <div className="barcode-live-dv" aria-live="polite">
