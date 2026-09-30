@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { exportPrimeCheckPdf } from '../lib/pdfReport'
 import DataPrintReport from './DataPrintReport'
 import StatusBadge from './StatusBadge'
 import type {
@@ -247,7 +246,7 @@ export default function TechnicalDiagnosisView({
 
   const requestPrint = (onlySelected: boolean) => {
     setPrintSelected(onlySelected)
-    window.setTimeout(() => { void exportPrimeCheckPdf() }, 100)
+    window.setTimeout(() => window.print(), 80)
   }
 
   const sourceRows = printSelected ? selectedItems : filtered
@@ -300,7 +299,7 @@ export default function TechnicalDiagnosisView({
               disabled={!selectedItems.length}
               onClick={() => requestPrint(true)}
             >
-              PDF selecionados
+              Imprimir selecionados
             </button>
             <button
               type="button"
@@ -308,7 +307,7 @@ export default function TechnicalDiagnosisView({
               disabled={!filtered.length}
               onClick={() => requestPrint(false)}
             >
-              PDF do filtro
+              Imprimir filtro
             </button>
           </div>
         </div>
