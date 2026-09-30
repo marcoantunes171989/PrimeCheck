@@ -27,6 +27,7 @@ type IconName =
   | 'carriers'
   | 'cnpj'
   | 'ie'
+  | 'barcode'
   | 'search'
   | 'pin'
   | 'menu'
@@ -72,6 +73,7 @@ const FIXED_FILES = [
 const VALIDATION_ITEMS = [
   { id: 'cnpj', label: 'Validação CNPJ', helper: 'Consulta e dígitos', icon: 'cnpj' as const },
   { id: 'ie', label: 'Validação I.E.', helper: '27 UFs', icon: 'ie' as const },
+  { id: 'barcode', label: 'Código de Barras', helper: 'EAN-8 · UPC-A · EAN-13', icon: 'barcode' as const },
 ]
 
 const NFCE_MENU = { id: 'nfce', label: 'Validação NFC-e', helper: 'Documentos e análises', icon: 'fiscal' as const }
@@ -217,6 +219,19 @@ const Glyph = ({ name }: { name: IconName }) => {
         <path d="M9 4h6v3H9z" />
         <rect x="6" y="6" width="12" height="14" rx="2" />
         <path d="M9 13l2 2 4-4" />
+      </>
+    ),
+    barcode: (
+      <>
+        <path d="M5 5v14" />
+        <path d="M8 5v14" />
+        <path d="M11 5v14" />
+        <path d="M15 5v14" />
+        <path d="M19 5v14" />
+        <path d="M3 8V5h3" />
+        <path d="M21 8V5h-3" />
+        <path d="M3 16v3h3" />
+        <path d="M21 16v3h-3" />
       </>
     ),
     search: (
