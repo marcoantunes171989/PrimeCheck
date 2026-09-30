@@ -3,6 +3,13 @@ import '../auth.css'
 
 const AUTH_SESSION_KEY = 'primecheck.auth.session.v1'
 const ACCESS_REQUESTS_KEY = 'primecheck.auth.requests.v1'
+const CURRENT_BUILD_SHA = String(
+  import.meta.env.VITE_PRIMECHECK_SHA ??
+  import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA ??
+  'runtime',
+).trim()
+const PRODUCTION_BUILD_SHA = String(import.meta.env.VITE_PRIMECHECK_PRODUCTION_SHA ?? '').trim()
+const PENDING_PRODUCTION_COMMITS = String(import.meta.env.VITE_PRIMECHECK_PENDING_COMMITS ?? '').trim()
 
 export const PRIME_CHECK_ADMIN_USERNAME = 'administrador'
 export const PRIME_CHECK_ADMIN_PASSWORD = 'admin@admin'
@@ -29,10 +36,23 @@ const readSession = () => {
   try {
     const raw = window.sessionStorage.getItem(AUTH_SESSION_KEY)
     if (!raw) return ''
-    const parsed = JSON.parse(raw) as { username?: string; authenticated?: boolean }
-    return parsed.authenticated && parsed.username === PRIME_CHECK_ADMIN_USERNAME
-      ? parsed.username
-      : ''
+    const parsed = JSON.parse(raw) as {
+      username?: string
+      authenticated?: boolean
+      buildSha?: string
+    }
+
+    const valid =
+      parsed.authenticated === true &&
+      parsed.username === PRIME_CHECK_ADMIN_USERNAME &&
+      parsed.buildSha === CURRENT_BUILD_SHA
+
+    if (!valid) {
+      window.sessionStorage.removeItem(AUTH_SESSION_KEY)
+      return ''
+    }
+
+    return PRIME_CHECK_ADMIN_USERNAME
   } catch {
     return ''
   }
@@ -115,6 +135,7 @@ export default function PrimeCheckAuthGate({ children }: PropsWithChildren) {
     window.sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
       username: PRIME_CHECK_ADMIN_USERNAME,
       authenticated: true,
+      buildSha: CURRENT_BUILD_SHA,
       authenticatedAt: new Date().toISOString(),
     }))
     setAuthenticatedUser(PRIME_CHECK_ADMIN_USERNAME)
@@ -308,7 +329,11 @@ export default function PrimeCheckAuthGate({ children }: PropsWithChildren) {
 
         <footer className="primecheck-auth-footer">
           <span><i /> Processamento local</span>
-          <small>O workspace permanece bloqueado até uma autenticação válida.</small>
+          <small data-primecheck-version-state="true">
+            {CURRENT_BUILD_SHA !== 'runtime'
+              ? `Local ${CURRENT_BUILD_SHA.slice(0, 12)}${PRODUCTION_BUILD_SHA ? ` · Produção ${PRODUCTION_BUILD_SHA.slice(0, 12)}` : ''}${PENDING_PRODUCTION_COMMITS ? ` · +${PENDING_PRODUCTION_COMMITS} pendente(s)` : ''}`
+              : 'O workspace permanece bloqueado até uma autenticação válida.'}
+          </small>
         </footer>
       </section>
     </main>

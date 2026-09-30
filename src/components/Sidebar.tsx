@@ -27,6 +27,7 @@ type IconName =
   | 'carriers'
   | 'cnpj'
   | 'ie'
+  | 'barcode'
   | 'search'
   | 'pin'
   | 'menu'
@@ -72,6 +73,7 @@ const FIXED_FILES = [
 const VALIDATION_ITEMS = [
   { id: 'cnpj', label: 'Validação CNPJ', helper: 'Consulta e dígitos', icon: 'cnpj' as const },
   { id: 'ie', label: 'Validação I.E.', helper: '27 UFs', icon: 'ie' as const },
+  { id: 'barcode', label: 'Código de Barras', helper: 'EAN-8 · UPC-A · EAN-13', icon: 'barcode' as const },
 ]
 
 const NFCE_MENU = { id: 'nfce', label: 'Validação NFC-e', helper: 'Documentos e análises', icon: 'fiscal' as const }
@@ -217,6 +219,19 @@ const Glyph = ({ name }: { name: IconName }) => {
         <path d="M9 4h6v3H9z" />
         <rect x="6" y="6" width="12" height="14" rx="2" />
         <path d="M9 13l2 2 4-4" />
+      </>
+    ),
+    barcode: (
+      <>
+        <path d="M5 5v14" />
+        <path d="M8 5v14" />
+        <path d="M11 5v14" />
+        <path d="M15 5v14" />
+        <path d="M19 5v14" />
+        <path d="M3 8V5h3" />
+        <path d="M21 8V5h-3" />
+        <path d="M3 16v3h3" />
+        <path d="M21 16v3h-3" />
       </>
     ),
     search: (
@@ -427,6 +442,7 @@ export default function Sidebar({
   const filesSectionMatched = matchesQuery(query, 'ARQUIVOS E DADOS', 'arquivos', 'dados')
   const dashboardsSectionMatched = matchesQuery(query, 'DASHBOARDS', 'dashboard')
   const validationSectionMatched = matchesQuery(query, 'VALIDAÇÃO', 'validacao', 'validação')
+  const scriptsSectionMatched = matchesQuery(query, 'SCRIPTS', 'script', 'sql', 'destino', 'exportacao', 'exportação')
 
   const generalDashboardVisible = !searching || dashboardsSectionMatched ||
     matchesQuery(query, generalDashboard.label, generalDashboard.singular, generalDashboard.helper, 'DASHBOARDS', 'geral')
@@ -490,7 +506,8 @@ export default function Sidebar({
   const showDashboards = generalDashboardVisible || visibleDashboardGroups.some(item => item.visible)
   const showFiles = visibleFixedFiles.length > 0 || visibleGroups.some(item => item.visible)
   const showValidation = visibleValidation.length > 0 || nfceMatched
-  const hasResults = showDashboards || showFiles || showValidation
+  const showScripts = !searching || scriptsSectionMatched
+  const hasResults = showDashboards || showFiles || showScripts || showValidation
 
   const navEntries = useMemo(() => {
     const entries: NavEntry[] = []
@@ -549,6 +566,7 @@ export default function Sidebar({
         })
       })
     })
+    if (showScripts) entries.push({ key: 'scripts', kind: 'item', target: 'scripts', enabled: true })
     visibleValidation.forEach(item => {
       entries.push({ key: item.id, kind: 'item', target: item.id, enabled: true })
     })
@@ -561,7 +579,7 @@ export default function Sidebar({
       }
     }
     return entries
-  }, [enabledSet, generalDashboardVisible, nfceMatched, nfceOpen, openDashboardGroup, openGroup, visibleDashboardGroups, visibleFixedFiles, visibleGroups, visibleValidation])
+  }, [enabledSet, generalDashboardVisible, nfceMatched, nfceOpen, openDashboardGroup, openGroup, showScripts, visibleDashboardGroups, visibleFixedFiles, visibleGroups, visibleValidation])
 
   useEffect(() => {
     setSelectedKey(current => current && navEntries.some(entry => entry.key === current) ? current : null)
@@ -996,6 +1014,29 @@ export default function Sidebar({
                   </div>
                 )
               })}
+            </section>
+          )}
+
+          {showScripts && (
+            <section className="sidebar-section">
+              <div className="sidebar-section-title">
+                <Glyph name="folder" />
+                <span>{compact ? '' : 'SCRIPTS'}</span>
+              </div>
+              {renderItem(
+                'scripts',
+                'Scripts SQL do destino',
+                'Consultas para exportação CSV',
+                'folder',
+                {
+                  onClick: () => {
+                    setOpenDashboardGroup(null)
+                    setOpenGroup(null)
+                    setNfceOpen(false)
+                    onChange('scripts')
+                  },
+                },
+              )}
             </section>
           )}
 

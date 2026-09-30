@@ -3,12 +3,14 @@ import Sidebar from './components/Sidebar'
 import HomologationApp from './HomologationApp'
 import CnpjValidatorPage from './pages/CnpjValidatorPage'
 import IeValidatorPage from './pages/IeValidatorPage'
+import BarcodeValidatorPage from './pages/BarcodeValidatorPage'
 import NfceValidatorPage from './pages/NfceValidatorPage'
 import NfceAnalyticsPage from './pages/NfceAnalyticsPage'
 import WorkspaceImportPage from './pages/WorkspaceImportPage'
 import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import InternalProductListPage from './pages/InternalProductListPage'
 import GeneralDashboardPage from './pages/GeneralDashboardPage'
+import DestinationScriptsPage from './pages/DestinationScriptsPage'
 import { usePrimeCheckAuth } from './components/PrimeCheckAuthGate'
 import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceModules'
 import type { ImportedFile } from './types'
@@ -25,9 +27,11 @@ import {
 type ModuleId =
   | 'importacao'
   | 'internal-products'
+  | 'scripts'
   | 'homologacao'
   | 'cnpj'
   | 'ie'
+  | 'barcode'
   | 'nfce'
   | 'nfce:documents'
   | 'nfce:overview'
@@ -37,12 +41,14 @@ type ModuleId =
   | `data:${string}`
   | `dashboard:${string}`
 
-const staticModuleTitle: Record<'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | 'nfce', string> = {
+const staticModuleTitle: Record<'importacao' | 'internal-products' | 'scripts' | 'homologacao' | 'cnpj' | 'ie' | 'barcode' | 'nfce', string> = {
   importacao: 'Importação e organização',
   'internal-products': 'Lista de Produtos Internos',
+  scripts: 'Scripts SQL do destino',
   homologacao: 'Homologação de conversão',
   cnpj: 'Validação de CNPJ',
   ie: 'Validação de Inscrição Estadual',
+  barcode: 'Validação de Código de Barras',
   nfce: 'Validação de NFC-e',
 }
 
@@ -199,6 +205,8 @@ export default function App() {
 
   const isHomologationModule = module === 'homologacao'
   const localBuildSha = String(import.meta.env.VITE_PRIMECHECK_SHA ?? '').slice(0, 12)
+  const productionBuildSha = String(import.meta.env.VITE_PRIMECHECK_PRODUCTION_SHA ?? '').slice(0, 12)
+  const pendingProductionCommits = String(import.meta.env.VITE_PRIMECHECK_PENDING_COMMITS ?? '').trim()
 
   return (
     <div className={`workspace-shell ${collapsed ? 'sidebar-is-collapsed' : ''}`}>
@@ -220,8 +228,14 @@ export default function App() {
             <strong>{moduleTitle}</strong>
           </div>
           <div className="workspace-auth-actions">
-            <div className="workspace-local-badge" title={localBuildSha ? `Build local ${localBuildSha}` : 'Processamento local'}>
-              <i /> Processamento local{localBuildSha ? ` · ${localBuildSha}` : ''}
+            <div
+              className="workspace-local-badge"
+              data-primecheck-version-state="true"
+              title={localBuildSha
+                ? `Local ${localBuildSha}${productionBuildSha ? ` · Produção ${productionBuildSha}` : ''}${pendingProductionCommits ? ` · ${pendingProductionCommits} commit(s) pendente(s)` : ''}`
+                : 'Processamento local'}
+            >
+              <i /> Local{localBuildSha ? ` · ${localBuildSha}` : ''}{pendingProductionCommits ? ` · +${pendingProductionCommits}` : ''}
             </div>
             <span className="workspace-auth-user">{authenticatedUsername}</span>
             <button type="button" className="workspace-logout-button" onClick={logout}>
@@ -270,9 +284,11 @@ export default function App() {
         })}
 
         {module === 'internal-products' && <InternalProductListPage />}
+        {module === 'scripts' && <DestinationScriptsPage />}
         {module === 'homologacao' && <HomologationApp />}
         {module === 'cnpj' && <CnpjValidatorPage />}
         {module === 'ie' && <IeValidatorPage />}
+        {module === 'barcode' && <BarcodeValidatorPage />}
         {(module === 'nfce' || module === 'nfce:documents') && <NfceValidatorPage />}
         {module === 'nfce:overview' && <NfceAnalyticsPage view="overview" />}
         {module === 'nfce:products' && <NfceAnalyticsPage view="products" />}

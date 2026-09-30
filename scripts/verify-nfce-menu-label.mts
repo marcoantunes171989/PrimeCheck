@@ -14,13 +14,14 @@ assert.match(app, /\? 'NFC-e · Consulta de produtos'/)
 assert.doesNotMatch(app, /NFC-e · Códigos curtos/)
 
 assert.match(updaterRunner, /Confirmando menu NFC-e "Pesquisa por produtos"/)
-assert.match(updaterRunner, /\[7\/8\] Confirmando tela Consulta de produtos/)
+assert.match(updaterRunner, /\[8\/10\] Confirmando tela Consulta de produtos/)
 assert.match(updaterRunner, /git reset --hard origin\/homologacao-local-validacao/)
 
 assert.equal(
   packageJson.scripts['preview:local'],
   'vite preview --host 127.0.0.1 --port 4177 --strictPort',
 )
+assert.match(validator, /node scripts\\verify-local-sync\.mjs/)
 assert.match(validator, /call npm run preview:local/)
 assert.match(validator, /http:\/\/127\.0\.0\.1:4177/)
 assert.doesNotMatch(validator, /powershell|primecheck-local\.ps1/)

@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 title PrimeCheck - Validacao Local
 
 cd /d "%~dp0"
@@ -9,54 +9,76 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo.
-echo ===============================================
-echo   PrimeCheck - Homologacao Local
-echo ===============================================
-echo.
-
 where node >nul 2>&1
 if errorlevel 1 (
   echo [ERRO] Node.js nao encontrado no PATH.
   pause
   exit /b 1
 )
-
 where npm >nul 2>&1
 if errorlevel 1 (
   echo [ERRO] npm nao encontrado no PATH.
   pause
   exit /b 1
 )
-
-if not exist node_modules (
-  echo [1/3] Instalando dependencias...
-  call npm install --no-audit --no-fund
-  if errorlevel 1 goto :error
-) else (
-  echo [1/3] Dependencias ja instaladas.
+where git >nul 2>&1
+if errorlevel 1 (
+  echo [ERRO] Git nao encontrado no PATH.
+  pause
+  exit /b 1
 )
 
-for /f "delims=" %%S in ('git rev-parse HEAD') do set "VITE_PRIMECHECK_SHA=%%S"
+for /f "delims=" %%S in ('git rev-parse HEAD') do set "LOCAL_SHA=%%S"
+for /f "delims=" %%S in ('git rev-parse origin/homologacao-local-validacao') do set "REMOTE_SHA=%%S"
+for /f "delims=" %%S in ('git rev-parse origin/main') do set "MAIN_SHA=%%S"
+for /f "delims=" %%S in ('git rev-parse origin/production-release') do set "PRODUCTION_SHA=%%S"
 
-echo [2/3] Gerando build local...
+if /I not "%LOCAL_SHA%"=="%REMOTE_SHA%" (
+  echo [ERRO] Esta pasta nao esta na ultima homologacao remota.
+  echo Execute atualizar-validar-local.cmd.
+  pause
+  exit /b 1
+)
+
+for /f "delims=" %%C in ('git rev-list --count origin/production-release..HEAD') do set "PENDING_PRODUCTION=%%C"
+
+set "VITE_PRIMECHECK_SHA=%LOCAL_SHA%"
+set "VITE_PRIMECHECK_PRODUCTION_SHA=%PRODUCTION_SHA%"
+set "VITE_PRIMECHECK_MAIN_SHA=%MAIN_SHA%"
+set "VITE_PRIMECHECK_PENDING_COMMITS=%PENDING_PRODUCTION%"
+
+echo.
+echo ===============================================
+echo   PrimeCheck - Homologacao Local Verificada
+echo ===============================================
+echo   Producao : %PRODUCTION_SHA%
+echo   Main     : %MAIN_SHA%
+echo   Local    : %LOCAL_SHA%
+echo   Pendentes: %PENDING_PRODUCTION%
+echo ===============================================
+echo.
+
+echo [1/4] Sincronizando dependencias...
+call npm install --no-audit --no-fund
+if errorlevel 1 goto :error
+
+echo [2/4] Limpando artefatos e caches gerados...
 if exist dist rmdir /s /q dist
+if exist node_modules\.vite rmdir /s /q node_modules\.vite
+
+echo [3/4] Gerando e auditando o build local...
 call npm run build
+if errorlevel 1 goto :error
+node scripts\verify-local-sync.mjs
 if errorlevel 1 goto :error
 
 echo.
-echo [3/3] Iniciando Preview Vite local...
+echo [4/4] Iniciando Vite Preview na versao auditada...
 echo.
-echo Acesso PrimeCheck nesta maquina:
-echo   http://127.0.0.1:4177
+echo Acesso PrimeCheck:
+echo   http://127.0.0.1:4177/
 echo.
-echo SHA carregado:
-echo   %VITE_PRIMECHECK_SHA%
-echo.
-echo IMPORTANTE:
-echo   - mantenha esta janela aberta durante a validacao;
-echo   - o Vite abaixo e o servidor local do PrimeCheck;
-echo   - Ctrl+C encerra o servidor.
+echo Mantenha esta janela aberta. Ctrl+C encerra o servidor.
 echo.
 
 call npm run preview:local
@@ -64,6 +86,6 @@ exit /b %errorlevel%
 
 :error
 echo.
-echo [ERRO] A validacao local nao pode ser iniciada.
+echo [ERRO] A homologacao local foi bloqueada por falha de integridade.
 pause
 exit /b 1
