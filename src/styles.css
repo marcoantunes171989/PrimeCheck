@@ -12008,3 +12008,52 @@ table {
     grid-template-columns: repeat(4, minmax(42px, 1fr));
   }
 }
+
+
+/* Código de barras — DV recalculado a cada caractere informado */
+.barcode-live-dv {
+  display: grid;
+  grid-template-columns: auto 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 9px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid #f3c79f;
+  border-radius: 9px;
+  background: #fff8f1;
+}
+.barcode-live-dv > span {
+  color: #765338;
+  font-size: 10px;
+  font-weight: 600;
+}
+.barcode-live-dv > strong {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: #f38525;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 800;
+}
+.barcode-live-dv > small {
+  overflow: hidden;
+  color: #8b6549 !important;
+  font-size: 10px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .barcode-live-dv {
+    grid-template-columns: auto 38px;
+    width: 100%;
+  }
+  .barcode-live-dv > small {
+    grid-column: 1 / -1;
+  }
+}
