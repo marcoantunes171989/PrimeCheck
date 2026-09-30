@@ -9,6 +9,7 @@ import WorkspaceImportPage from './pages/WorkspaceImportPage'
 import ModuleComparisonPage from './pages/ModuleComparisonPage'
 import InternalProductListPage from './pages/InternalProductListPage'
 import GeneralDashboardPage from './pages/GeneralDashboardPage'
+import DestinationScriptsPage from './pages/DestinationScriptsPage'
 import { usePrimeCheckAuth } from './components/PrimeCheckAuthGate'
 import { analyzeWorkspaceFiles, getWorkspaceModule } from './config/workspaceModules'
 import type { ImportedFile } from './types'
@@ -25,6 +26,7 @@ import {
 type ModuleId =
   | 'importacao'
   | 'internal-products'
+  | 'scripts'
   | 'homologacao'
   | 'cnpj'
   | 'ie'
@@ -37,9 +39,10 @@ type ModuleId =
   | `data:${string}`
   | `dashboard:${string}`
 
-const staticModuleTitle: Record<'importacao' | 'internal-products' | 'homologacao' | 'cnpj' | 'ie' | 'nfce', string> = {
+const staticModuleTitle: Record<'importacao' | 'internal-products' | 'scripts' | 'homologacao' | 'cnpj' | 'ie' | 'nfce', string> = {
   importacao: 'Importação e organização',
   'internal-products': 'Lista de Produtos Internos',
+  scripts: 'Scripts SQL do destino',
   homologacao: 'Homologação de conversão',
   cnpj: 'Validação de CNPJ',
   ie: 'Validação de Inscrição Estadual',
@@ -278,6 +281,7 @@ export default function App() {
         })}
 
         {module === 'internal-products' && <InternalProductListPage />}
+        {module === 'scripts' && <DestinationScriptsPage />}
         {module === 'homologacao' && <HomologationApp />}
         {module === 'cnpj' && <CnpjValidatorPage />}
         {module === 'ie' && <IeValidatorPage />}
