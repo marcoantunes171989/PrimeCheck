@@ -12304,3 +12304,38 @@ table {
     display: none !important;
   }
 }
+
+
+/* =========================================================
+   Gerador PDF próprio — área isolada, sem cabeçalho/rodapé do navegador
+   ========================================================= */
+.primecheck-pdf-stage {
+  position: fixed;
+  z-index: -2147483647;
+  top: 0;
+  left: -20000px;
+  width: 1120px;
+  min-height: 1px;
+  overflow: visible;
+  background: #fff;
+  pointer-events: none;
+}
+.primecheck-pdf-stage .data-print-report,
+.primecheck-pdf-stage .issue-print-report,
+.primecheck-pdf-stage .dup-print-report {
+  display: block !important;
+  position: static !important;
+  width: 1120px !important;
+  max-width: 1120px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  background: #fff !important;
+}
+.primecheck-pdf-stage .issue-print-footer,
+.primecheck-pdf-stage .dup-print-footer {
+  display: none !important;
+}
