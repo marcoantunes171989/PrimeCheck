@@ -25,6 +25,9 @@ export default function BarcodeValidatorPage() {
   const payload = completed.slice(0, -1)
   const informedCheckDigit = completed.slice(-1)
   const calculatedCheckDigit = String(calculateCheckDigit(payload))
+  const livePayload = digits.padStart(Math.max(0, length - 1), '0').slice(-(length - 1))
+  const liveCheckDigit = String(calculateCheckDigit(livePayload))
+  const liveCompleted = `${livePayload}${liveCheckDigit}`
   const ready = digits.length === length
   const valid = ready && informedCheckDigit === calculatedCheckDigit
 
@@ -87,6 +90,13 @@ export default function BarcodeValidatorPage() {
             <small id="barcode-help">
               {digits.length}/{length} dígitos informados · zeros à esquerda são considerados.
             </small>
+            {digits && !ready && (
+              <div className="barcode-live-dv" aria-live="polite">
+                <span>DV calculado em tempo real</span>
+                <strong>{liveCheckDigit}</strong>
+                <small className="mono">{liveCompleted}</small>
+              </div>
+            )}
           </label>
           <button className="button ghost" type="button" onClick={() => setValue('')}>Limpar</button>
         </div>
@@ -134,8 +144,8 @@ export default function BarcodeValidatorPage() {
               <span>PRÉ-VISUALIZAÇÃO</span>
               <strong className="mono">{completed}</strong>
               <p>
-                Faltam {length - digits.length} dígito(s). Para visualização, o PrimeCheck completa
-                as posições faltantes com zero à esquerda; a validação final ocorre com {length} dígitos informados.
+                Faltam {length - digits.length} dígito(s). Com os caracteres informados até agora,
+                completados com zero à esquerda, o dígito verificador calculado é {liveCheckDigit}.
               </p>
             </div>
           </div>
