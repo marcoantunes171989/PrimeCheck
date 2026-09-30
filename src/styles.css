@@ -12199,3 +12199,92 @@ table {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+
+/* Scripts SQL — editor manipulável e validação estrutural */
+.destination-script-editor-shell {
+  display: grid;
+  min-width: 0;
+  border: 1px solid #d7e1e6;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f7f9fa;
+}
+.destination-script-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 7px 10px 7px 14px;
+  border-bottom: 1px solid #d7e1e6;
+  background: #eef3f5;
+}
+.destination-script-editor-toolbar > span {
+  color: #345463;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.destination-script-editor {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 360px;
+  max-height: 65vh;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 18px 20px;
+  border: 0;
+  outline: 0;
+  background: #f7f9fa;
+  color: #082c3e;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.65;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+}
+.destination-script-editor:focus {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px rgba(0, 58, 85, .18);
+}
+.destination-script-validation {
+  display: flex;
+  align-items: center;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-top: 1px solid #d7e1e6;
+  font-size: 11px;
+}
+.destination-script-validation strong {
+  font-size: 11px;
+  font-weight: 750;
+}
+.destination-script-validation.valid {
+  background: #f0f8f3;
+  color: #24613b;
+}
+.destination-script-validation.invalid {
+  background: #fff5f3;
+  color: #a63b2f;
+}
+@media (max-width: 720px) {
+  .destination-script-editor-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .destination-script-editor-toolbar .button {
+    width: 100%;
+  }
+  .destination-script-editor {
+    min-height: 300px;
+    padding: 14px;
+    font-size: 11px !important;
+  }
+}
