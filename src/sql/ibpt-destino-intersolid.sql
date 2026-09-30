@@ -1,0 +1,2 @@
+SELECT *
+FROM TAB_IBPT;
