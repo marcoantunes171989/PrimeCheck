@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { exportPrimeCheckPdf } from '../lib/pdfReport'
 import DataPrintReport from './DataPrintReport'
 import type { ComparisonReport, EntityProfile } from '../types'
 
@@ -79,7 +80,7 @@ export default function ManagementDashboardView({
 
   const requestPrint = (onlySelected: boolean) => {
     setPrintSelected(onlySelected)
-    window.setTimeout(() => window.print(), 80)
+    window.setTimeout(() => { void exportPrimeCheckPdf() }, 100)
   }
 
   const printRows = (printSelected ? selectedRows : rows).map(field => ({
@@ -202,10 +203,10 @@ export default function ManagementDashboardView({
                 {allPageSelected ? 'Desmarcar página' : 'Selecionar página'}
               </button>
               <button type="button" className="button secondary compact-button" disabled={!selectedRows.length} onClick={() => requestPrint(true)}>
-                Imprimir selecionados
+                PDF selecionados
               </button>
               <button type="button" className="button primary compact-button" disabled={!rows.length} onClick={() => requestPrint(false)}>
-                Imprimir filtro
+                PDF do filtro
               </button>
             </div>
           </div>
