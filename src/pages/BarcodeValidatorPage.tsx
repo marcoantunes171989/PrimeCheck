@@ -168,7 +168,7 @@ export default function BarcodeValidatorPage() {
           <div><span>Padrão</span><strong>{length === 8 ? 'EAN-8' : length === 12 ? 'UPC-A' : 'EAN-13'}</strong></div>
           <div><span>Valor informado</span><strong className="mono">{digits || '—'}</strong></div>
           <div><span>Valor normalizado</span><strong className="mono">{digits ? completed : '—'}</strong></div>
-          <div className="barcode-dv-detail"><span>Dígito verificador</span><strong>{digits ? calculatedCheckDigit : '—'}</strong></div>
+          <div className="barcode-dv-detail"><span>Dígito verificador</span><strong>{digits ? (ready ? calculatedCheckDigit : liveCheckDigit) : '—'}</strong></div>
           <div><span>Posições informadas</span><strong>{digits.length}/{length}</strong></div>
           <div><span>Situação</span><strong>{!digits ? '—' : !ready ? 'Aguardando código completo' : valid ? 'Válido' : 'Inválido'}</strong></div>
         </div>
