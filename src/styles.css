@@ -11444,3 +11444,285 @@ table {
   .workspace-main h2 { font-size: 17px; }
   .sidebar .sidebar-item-copy strong { font-size: 11.5px !important; }
 }
+
+
+/* =========================================================
+   PrimeCheck Visual Baseline v2
+   Referência aprovada: densidade/tipografia do Pedido Prime.
+   Bloco final intencional: neutraliza overrides históricos.
+   ========================================================= */
+:root {
+  --font-sans: Inter, "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 21px;
+  --fs-3xl: 27px;
+  --primary: #003a55;
+  --primary-2: #0b4b66;
+  --accent: #ff861c;
+  --text: #173746;
+  --muted: #657b87;
+}
+
+html { font-size: 16px; }
+body,
+button,
+input,
+select,
+textarea,
+table {
+  font-family: var(--font-sans) !important;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Menu lateral: mesmas dimensões/estrutura funcional, nova leitura visual. */
+.sidebar {
+  --sidebar-ink: #f5f9fb;
+  --sidebar-muted: #91b9ca;
+  --sidebar-line: rgba(157, 198, 215, .16);
+  --sidebar-icon-bg: rgba(255, 255, 255, .075);
+  --sidebar-hover: rgba(255, 255, 255, .065);
+  background: #003a55 !important;
+}
+
+.sidebar:not(.collapsed) { width: 280px !important; }
+.workspace-shell:not(.sidebar-is-collapsed) .workspace-main { margin-left: 280px !important; }
+
+.sidebar:not(.collapsed) .sidebar-brand {
+  min-height: 66px !important;
+  padding: 10px 10px !important;
+  gap: 10px !important;
+}
+
+.sidebar-brand-mark {
+  flex-basis: 38px !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 9px !important;
+  background: #ff861c !important;
+  color: #003a55 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+}
+
+.sidebar-brand-copy strong,
+.sidebar-brand > div strong {
+  color: #fff !important;
+  font-size: 15px !important;
+  line-height: 1.08 !important;
+  font-weight: 800 !important;
+  letter-spacing: -.02em !important;
+}
+
+.sidebar-brand-copy span,
+.sidebar-brand > div span {
+  margin-top: 3px !important;
+  color: #d5e8f0 !important;
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+  font-weight: 500 !important;
+  letter-spacing: .045em !important;
+}
+
+.sidebar-search { padding: 10px 8px 7px !important; }
+.sidebar-search-field {
+  min-height: 39px !important;
+  border: 1px solid #2a6780 !important;
+  border-radius: 9px !important;
+  background: #06354d !important;
+}
+.sidebar-search-field input {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+.sidebar-search-field input::placeholder { color: #9dc2d2 !important; }
+
+.sidebar-nav {
+  gap: 2px !important;
+  padding: 4px 8px 10px !important;
+}
+
+.sidebar-section { gap: 2px !important; }
+.sidebar-section + .sidebar-section {
+  margin-top: 9px !important;
+  padding-top: 10px !important;
+}
+
+.sidebar-section-title,
+.sidebar:not(.collapsed) .sidebar-section-title,
+.sidebar-section-inline {
+  min-height: 26px !important;
+  padding: 5px 8px 4px !important;
+  color: #8fb9ca !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  font-weight: 800 !important;
+  letter-spacing: .115em !important;
+}
+
+.sidebar:not(.collapsed) .sidebar-nav > button,
+.sidebar:not(.collapsed) .sidebar-group-toggle {
+  min-height: 50px !important;
+  padding: 6px 7px !important;
+  gap: 9px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+}
+
+.sidebar-icon,
+.sidebar:not(.collapsed) .sidebar-icon {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  background: rgba(255,255,255,.075) !important;
+  color: #e3f0f5 !important;
+}
+
+.sidebar-icon .sidebar-glyph {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.sidebar .sidebar-item-copy strong,
+.sidebar:not(.collapsed) .sidebar-item-copy strong {
+  color: #fff !important;
+  font-size: 12px !important;
+  line-height: 1.12 !important;
+  font-weight: 700 !important;
+  letter-spacing: -.01em !important;
+  white-space: normal !important;
+}
+
+.sidebar .sidebar-item-copy small,
+.sidebar:not(.collapsed) .sidebar-item-copy small {
+  display: block !important;
+  margin-top: 2px !important;
+  color: #8fc0d3 !important;
+  font-size: 10px !important;
+  line-height: 1.12 !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+
+.sidebar :where(.sidebar-item, .sidebar-group-toggle):hover {
+  background: rgba(255,255,255,.06) !important;
+}
+
+.sidebar :where(.sidebar-item.active, .sidebar-nav > button.active, [aria-current="page"]) {
+  background: #234f65 !important;
+  color: #fff !important;
+  box-shadow: inset 3px 0 0 #f7fbfd !important;
+}
+
+.sidebar .sidebar-group.active-group > .sidebar-group-toggle {
+  background: rgba(255,255,255,.055) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.sidebar:not(.collapsed) .sidebar-group-children {
+  gap: 2px !important;
+  padding: 2px 5px 5px 40px !important;
+}
+.sidebar:not(.collapsed) .sidebar-group-children button {
+  min-height: 30px !important;
+  padding: 5px 7px !important;
+  border-radius: 7px !important;
+  font-size: 11px !important;
+  line-height: 1.12 !important;
+  font-weight: 600 !important;
+}
+
+/* Conteúdo global: escala tipográfica única em todas as telas. */
+.workspace-main {
+  color: #173746 !important;
+  font-size: 14px !important;
+}
+
+.workspace-main :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-sans) !important;
+  color: #003a55;
+}
+
+.workspace-main h1,
+.module-page h1,
+.homologation-shell .hero h1 {
+  font-size: clamp(25px, 2vw, 30px) !important;
+  line-height: 1.08 !important;
+  font-weight: 800 !important;
+  letter-spacing: -.03em !important;
+}
+
+.workspace-main h2,
+.module-page h2,
+.section-head h2 {
+  font-size: 18px !important;
+  line-height: 1.18 !important;
+  font-weight: 750 !important;
+  letter-spacing: -.018em !important;
+}
+
+.workspace-main h3,
+.module-page h3,
+.section-head h3 {
+  font-size: 15px !important;
+  line-height: 1.22 !important;
+  font-weight: 750 !important;
+  letter-spacing: -.01em !important;
+}
+
+.workspace-main :where(p, label, input, select, textarea, button) {
+  font-size: 13px;
+}
+
+.workspace-main :where(p, small) { color: #657b87; }
+.workspace-main small { font-size: 11px; }
+
+.workspace-module-bar > div:first-child > strong,
+.module-topbar-title strong {
+  font-size: 13px !important;
+  font-weight: 750 !important;
+}
+.workspace-module-bar > div:first-child > span,
+.module-topbar-title span {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+}
+
+.workspace-main table th {
+  font-size: 10px !important;
+  line-height: 1.15 !important;
+  font-weight: 800 !important;
+  letter-spacing: .035em !important;
+}
+.workspace-main table td {
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+.workspace-main :where(.button, button) { font-weight: 700; }
+.eyebrow {
+  color: #f38525 !important;
+  font-size: 10px !important;
+  font-weight: 850 !important;
+  letter-spacing: .115em !important;
+}
+
+@media (max-width: 1099px) {
+  .sidebar:not(.collapsed) { width: 280px !important; }
+  .workspace-shell:not(.sidebar-is-collapsed) .workspace-main { margin-left: 72px !important; }
+}
+@media (max-width: 620px) {
+  .workspace-main h1,
+  .module-page h1,
+  .homologation-shell .hero h1 { font-size: 23px !important; }
+  .workspace-main h2, .module-page h2 { font-size: 17px !important; }
+}
