@@ -12419,3 +12419,26 @@ table {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Validade do código de barras nas divergências */
+.barcode-validity-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.barcode-validity-badge.valid {
+  color: #13733b;
+  background: #e7f8ed;
+  border: 1px solid #b9e8c9;
+}
+.barcode-validity-badge.invalid {
+  color: #a12622;
+  background: #fff0ef;
+  border: 1px solid #f2c5c2;
+}
