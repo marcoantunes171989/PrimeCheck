@@ -2,6 +2,32 @@ import type { ClientComparison, ComparisonFieldResult } from '../types'
 import { formatReportDateTime } from '../lib/reportFormatting'
 import StatusBadge from './StatusBadge'
 
+const barcodeProductCode = (client: ClientComparison) =>
+  String(client.key ?? '').split(' / ')[0]?.trim() ?? ''
+
+const barcodeValues = (client: ClientComparison, field: ComparisonFieldResult) => {
+  const candidates = [
+    String(client.name ?? '').trim(),
+    field.fieldId === 'barcode' ? String(field.originValue ?? '').trim() : '',
+    field.fieldId === 'barcode' ? String(field.targetValue ?? '').trim() : '',
+  ].filter(value => value && value !== '—')
+
+  return [...new Set(candidates)].join(' / ') || '—'
+}
+
+function ProductCodeWithVerifier({ value }: { value: string }) {
+  const code = String(value ?? '').trim()
+  if (!code) return <>—</>
+  if (!/^\d+$/.test(code) || code.length === 1) return <>{code}</>
+  return (
+    <span className="code-with-dv print-product-code">
+      <span>{code.slice(0, -1)}</span>
+      <span className="code-dv-separator">—</span>
+      <strong className="code-dv">{code.slice(-1)}</strong>
+    </span>
+  )
+}
+
 export type IssuePrintItem = {
   client: ClientComparison
   field: ComparisonFieldResult
@@ -71,10 +97,10 @@ export default function IssuePrintReport({
                 <small>{item.field.group}</small>
               </td>
               <td>
-                <strong className="mono">{item.client.key}</strong>
+                <strong className="mono"><ProductCodeWithVerifier value={barcodeProductCode(item.client)} /></strong>
               </td>
               <td>
-                <strong className="mono">{item.field.fieldId === 'barcode' ? (item.field.originValue || item.field.targetValue || '—') : '—'}</strong>
+                <strong className="mono">{item.field.fieldId === 'barcode' ? barcodeValues(item.client, item.field) : '—'}</strong>
               </td>
               <td>{item.field.originValue || '—'}</td>
               <td>{item.field.targetValue || '—'}</td>
