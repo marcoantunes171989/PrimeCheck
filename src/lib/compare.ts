@@ -530,12 +530,12 @@ const duplicateScan = (
     const groups = new Map<string, Array<Record<string, CellValue>>>()
     dataset.rows.forEach(row => {
       const rawValue = asText(row[header]).trim()
-      // Códigos de produto do módulo de códigos de barras precisam preservar
-      // literalmente o último dígito (DV). Não aplicar a normalização genérica
-      // de "code", que pode remover zeros à esquerda e ocultar duplicidades.
-      const normalized = profile.id === 'workspace:barcodes' && fieldId === 'codigoProduto'
-        ? rawValue
-        : normalizeForField(row[header], field)
+      // A duplicidade precisa seguir a mesma equivalência usada pela comparação.
+      // Para Código produto, normalizeForField mantém códigos numericamente
+      // equivalentes no mesmo grupo (inclusive valores vindos de CSV/XLS como
+      // 326292 e 326292.0). O valor bruto continua preservado em rawValue para
+      // exibição, e o último caractere é apresentado como DV na interface.
+      const normalized = normalizeForField(row[header], field)
       if (!normalized || normalized === 'ISENTO' || normalized === 'ISENTA') return
       const arr = groups.get(normalized) ?? []
       arr.push(row)
