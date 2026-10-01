@@ -409,7 +409,11 @@ export const getExclusiveWorkspaceModuleFromFileName = (fileName: string): Works
   if (token === 'SECAO' || token.startsWith('SECAO_')) return 'sections'
   if (token === 'GRUPO' || token.startsWith('GRUPO_')) return 'groups'
   if (token === 'SUBGRUPO' || token.startsWith('SUBGRUPO_')) return 'subgroups'
-  if (token === 'CODIGO_BARRA' || token.startsWith('CODIGO_BARRA_')) return 'barcodes'
+  if (
+    token === 'CODIGO_BARRA' || token.startsWith('CODIGO_BARRA_') ||
+    token === 'CODIGO_BARRAS' || token.startsWith('CODIGO_BARRAS_') ||
+    token === 'COD_BARRA' || token.startsWith('COD_BARRA_')
+  ) return 'barcodes'
 
   return null
 }
@@ -454,7 +458,7 @@ export const getWorkspaceComparisonFileRole = (
           : moduleId === 'subgroups'
             ? 'SUBGRUPO_'
             : moduleId === 'barcodes'
-              ? 'CODIGO_BARRA_'
+              ? ['CODIGO_BARRA_', 'CODIGO_BARRAS_', 'COD_BARRA_'].find(candidate => token.startsWith(candidate)) ?? ''
               : ''
 
   if (!prefix || !token.startsWith(prefix)) return null
@@ -462,7 +466,7 @@ export const getWorkspaceComparisonFileRole = (
   const suffix = token.slice(prefix.length)
   if (!suffix) return null
 
-  if (suffix === 'INTERSOLID' || suffix === 'INTER_SOLID') return 'target'
+  if (suffix === 'INTERSOLID' || suffix === 'INTER_SOLID' || suffix === 'INTERSOL') return 'target'
   return 'origin'
 }
 
@@ -745,6 +749,7 @@ export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMat
   return detected.filter(result => {
     if (result.module.id === 'groups') return hasSections
     if (result.module.id === 'subgroups') return hasSections && hasGroups
+    if (result.module.id === 'barcodes') return getWorkspaceModulePairState(files, 'barcodes').ready
     return true
   })
 }
