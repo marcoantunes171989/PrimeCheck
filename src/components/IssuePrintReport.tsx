@@ -54,10 +54,11 @@ export default function IssuePrintReport({
       <table className="issue-print-table">
         <thead>
           <tr>
-            <th>Código {recordLabel}</th>
             <th>Campo</th>
-            <th>Origem</th>
-            <th>Destino</th>
+            <th>Código produto</th>
+            <th>Código de barras</th>
+            <th>Origem<small>Código de barras</small></th>
+            <th>Destino<small>Código de barras</small></th>
             <th className="print-status-col">Status</th>
             <th>Motivo</th>
           </tr>
@@ -66,12 +67,14 @@ export default function IssuePrintReport({
           {items.map((item, index) => (
             <tr key={item.client.key + '-' + item.field.fieldId + '-' + index}>
               <td>
-                <strong className="mono">{item.client.key}</strong>
-                <small>{item.client.name || '—'}</small>
-              </td>
-              <td>
                 <strong>{item.field.fieldLabel}</strong>
                 <small>{item.field.group}</small>
+              </td>
+              <td>
+                <strong className="mono">{item.client.key}</strong>
+              </td>
+              <td>
+                <strong className="mono">{item.field.fieldId === 'barcode' ? (item.field.originValue || item.field.targetValue || '—') : '—'}</strong>
               </td>
               <td>{item.field.originValue || '—'}</td>
               <td>{item.field.targetValue || '—'}</td>
