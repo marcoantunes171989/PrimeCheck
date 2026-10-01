@@ -254,7 +254,7 @@ function App({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'TODOS' | Severity>('TODOS')
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
-  const [issueDuplicateFilter, setIssueDuplicateFilter] = useState<'TODOS' | 'DUPLICADOS' | 'NAO_DUPLICADOS'>('TODOS')
+  const [issueDuplicateFilter, setIssueDuplicateFilter] = useState<'TODOS' | 'DUPLICADOS' | 'NAO_DUPLICADOS' | 'SEM_CODIGO_BARRAS_ORIGEM'>('TODOS')
   const [clientColumnFilters, setClientColumnFilters] = useState({
     code: '',
     name: '',
@@ -609,9 +609,14 @@ function App({
       if (statusFilter !== 'TODOS' && item.field.status !== statusFilter) return false
       if (issueDuplicateFilter === 'DUPLICADOS' && !item.duplicate) return false
       if (issueDuplicateFilter === 'NAO_DUPLICADOS' && item.duplicate) return false
+      if (issueDuplicateFilter === 'SEM_CODIGO_BARRAS_ORIGEM') {
+        if (resultProfile.id !== 'workspace:barcodes') return false
+        if (item.field.fieldId !== 'barcode') return false
+        if (String(item.field.originValue ?? '').trim() !== '0') return false
+      }
       return true
     })
-  }, [report, issueFieldFilter, statusFilter, issueDuplicateFilter, originDuplicateLookup])
+  }, [report, issueFieldFilter, statusFilter, issueDuplicateFilter, originDuplicateLookup, resultProfile.id])
 
   const issues = useMemo(() => {
     const term = search.trim().toLocaleUpperCase('pt-BR')
@@ -844,7 +849,13 @@ function App({
       ? 'Todos os campos'
       : resultProfile.fields.find(field => field.id === issueFieldFilter)?.label || issueFieldFilter,
     statusFilter === 'TODOS' ? 'Divergências e atenções' : statusFilter,
-    issueDuplicateFilter === 'DUPLICADOS' ? 'Somente duplicados' : issueDuplicateFilter === 'NAO_DUPLICADOS' ? 'Sem duplicidade' : '',
+    issueDuplicateFilter === 'DUPLICADOS'
+      ? 'Somente duplicados'
+      : issueDuplicateFilter === 'NAO_DUPLICADOS'
+        ? 'Sem duplicidade'
+        : issueDuplicateFilter === 'SEM_CODIGO_BARRAS_ORIGEM'
+          ? 'Sem código de barras na origem (valor literal 0)'
+          : '',
     search.trim() ? 'Pesquisa: ' + search.trim() : '',
   ].filter(Boolean).join(' · ')
 
@@ -1108,6 +1119,9 @@ function App({
                     <option value="TODOS">Todos · duplicidade</option>
                     <option value="DUPLICADOS">Somente duplicados</option>
                     <option value="NAO_DUPLICADOS">Sem duplicidade</option>
+                    {resultProfile.id === 'workspace:barcodes' && (
+                      <option value="SEM_CODIGO_BARRAS_ORIGEM">Sem código de barras na origem (0)</option>
+                    )}
                   </select>
                 )}
                 <span className="page-size-fixed">20 por página</span>
