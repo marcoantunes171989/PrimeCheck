@@ -2926,6 +2926,7 @@ function DuplicatesView({
                           codes={dup.records.map(record => record.key)}
                           expanded={expandedCodes.has(rowId)}
                           onToggle={() => setExpandedCodes(current => toggleSet(current, rowId))}
+                          highlightVerifier={profile.id === 'workspace:barcodes'}
                         />
                       </td>
                       <td>
