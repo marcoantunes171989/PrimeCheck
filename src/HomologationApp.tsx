@@ -2894,7 +2894,11 @@ function DuplicatesView({
                       <td>
                         <div className="dup-value">
                           <span>Valor duplicado</span>
-                          <strong className={monoValue ? 'mono' : undefined}>{dup.normalizedValue || '—'}</strong>
+                          <strong className={monoValue ? 'mono' : undefined}>
+                            {profile.id === 'workspace:barcodes' && dup.fieldId === 'codigoProduto'
+                              ? <CodeWithVerifier value={dup.normalizedValue} />
+                              : (dup.normalizedValue || '—')}
+                          </strong>
                         </div>
                       </td>
                       <td>
@@ -2984,7 +2988,13 @@ function DuplicatesView({
                     <td><span className={'dup-side dup-side-' + row.side.toLowerCase()}>{row.side}</span></td>
                     <td><div className="dup-field"><strong>{row.fieldLabel}</strong></div></td>
                     <td><span className="dup-category">{row.category}</span></td>
-                    <td><strong className="mono dup-synthetic-value">{row.normalizedValue || '—'}</strong></td>
+                    <td>
+                      <strong className="mono dup-synthetic-value">
+                        {profile.id === 'workspace:barcodes' && row.fieldId === 'codigoProduto'
+                          ? <CodeWithVerifier value={row.normalizedValue} />
+                          : (row.normalizedValue || '—')}
+                      </strong>
+                    </td>
                     <td><strong className="dup-synthetic-number">{number(row.recordCount)}</strong></td>
                     <td><span className="dup-synthetic-codes">{row.codes.length ? row.codes.join(' · ') : '—'}</span></td>
                   </tr>
