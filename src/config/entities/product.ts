@@ -75,27 +75,6 @@ const fields: FieldDefinition[] = [
     aliases: ['MARCA', 'DES_MARCA', 'COD_MARCA'],
   },
   {
-    id: 'fornecedor',
-    label: 'Fornecedor',
-    group: 'Classificação',
-    kind: 'text',
-    aliases: ['FORNECEDOR', 'COD_FORNECEDOR', 'DES_FORNECEDOR'],
-  },
-  {
-    id: 'precoVenda',
-    label: 'Preço venda',
-    group: 'Valores',
-    kind: 'money',
-    aliases: ['PRECO', 'PRECO_VENDA', 'VLR_VENDA', 'VALOR_VENDA', 'VLR_PRECO'],
-  },
-  {
-    id: 'custo',
-    label: 'Custo',
-    group: 'Valores',
-    kind: 'money',
-    aliases: ['CUSTO', 'PRECO_CUSTO', 'VLR_CUSTO', 'VALOR_CUSTO'],
-  },
-  {
     id: 'estoque',
     label: 'Estoque',
     group: 'Valores',
