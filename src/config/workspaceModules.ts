@@ -658,11 +658,12 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
       return productCode || hasAnyHeader(file, ['DES_PRODUTO', 'DES_REDUZIDA', 'COD_BARRA_PRINCIPAL']) || moduleNameHint
     case 'productStore':
       return productCode && hasAnyHeader(file, ['COD_LOJA', 'CODIGO_LOJA', 'PRODUTO_LOJA', 'TAB_PRODUTO_LOJA'])
-    case 'barcodes': {
-      const role = getWorkspaceComparisonFileRole('barcodes', file.name)
-      if (!role) return false
-      return productCode && hasAnyHeader(file, ['COD_EAN', 'COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
-    }
+    case 'barcodes':
+      // Um único arquivo literal de código de barras habilita exclusivamente este módulo.
+      // Não depende de papel origem/destino nem de existir um segundo arquivo.
+      return getExclusiveWorkspaceModuleFromFileName(file.name) === 'barcodes'
+        && productCode
+        && hasAnyHeader(file, ['COD_EAN', 'COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
     case 'productSupplier':
       return productCode && hasAnyHeader(file, ['COD_FORNECEDOR', 'CODIGO_FORNECEDOR', 'REFERENCIA_FORNECEDOR'])
     case 'similarProducts':
