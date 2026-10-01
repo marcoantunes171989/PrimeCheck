@@ -213,7 +213,7 @@ const modules: WorkspaceModuleDefinition[] = [
     signals: ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
-      field('codigoBarras', 'Código de barras', ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN']),
+      field('codigoBarras', 'Código de barras', ['COD_EAN', 'COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN']),
       field('principal', 'Principal', ['PRINCIPAL', 'FLG_PRINCIPAL', 'COD_BARRA_PRINCIPAL']),
     ],
   },
@@ -410,6 +410,7 @@ export const getExclusiveWorkspaceModuleFromFileName = (fileName: string): Works
   if (token === 'SECAO' || token.startsWith('SECAO_')) return 'sections'
   if (token === 'GRUPO' || token.startsWith('GRUPO_')) return 'groups'
   if (token === 'SUBGRUPO' || token.startsWith('SUBGRUPO_')) return 'subgroups'
+  if (token === 'CODIGO_BARRA' || token.startsWith('CODIGO_BARRA_')) return 'barcodes'
 
   return null
 }
@@ -453,7 +454,9 @@ export const getWorkspaceComparisonFileRole = (
           ? 'GRUPO_'
           : moduleId === 'subgroups'
             ? 'SUBGRUPO_'
-            : ''
+            : moduleId === 'barcodes'
+              ? 'CODIGO_BARRA_'
+              : ''
 
   if (!prefix || !token.startsWith(prefix)) return null
 
@@ -470,6 +473,7 @@ export const WORKSPACE_PAIRED_MODULES: WorkspaceModuleId[] = [
   'sections',
   'groups',
   'subgroups',
+  'barcodes',
 ]
 
 const hasPairCoreStructure = (file: ImportedFile, moduleId: WorkspaceModuleId) => {
@@ -492,6 +496,9 @@ const hasPairCoreStructure = (file: ImportedFile, moduleId: WorkspaceModuleId) =
         && hasExactHeader(file, ['COD_GRUPO'])
         && hasExactHeader(file, ['COD_SUB_GRUPO'])
         && hasExactHeader(file, ['DES_SUB_GRUPO'])
+    case 'barcodes':
+      return hasExactHeader(file, ['COD_PRODUTO'])
+        && hasExactHeader(file, ['COD_EAN', 'COD_BARRA', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
     default:
       return false
   }
@@ -648,8 +655,11 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
       return productCode || hasAnyHeader(file, ['DES_PRODUTO', 'DES_REDUZIDA', 'COD_BARRA_PRINCIPAL']) || moduleNameHint
     case 'productStore':
       return productCode && hasAnyHeader(file, ['COD_LOJA', 'CODIGO_LOJA', 'PRODUTO_LOJA', 'TAB_PRODUTO_LOJA'])
-    case 'barcodes':
-      return productCode && hasAnyHeader(file, ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
+    case 'barcodes': {
+      const role = getWorkspaceComparisonFileRole('barcodes', file.name)
+      if (!role) return false
+      return productCode && hasAnyHeader(file, ['COD_EAN', 'COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
+    }
     case 'productSupplier':
       return productCode && hasAnyHeader(file, ['COD_FORNECEDOR', 'CODIGO_FORNECEDOR', 'REFERENCIA_FORNECEDOR'])
     case 'similarProducts':
