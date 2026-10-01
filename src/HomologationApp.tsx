@@ -37,6 +37,25 @@ const number = (value: number) => value.toLocaleString('pt-BR')
 const pct = (a: number, b: number) => b ? `${(a / b * 100).toFixed(2).replace('.', ',')}%` : '—'
 const plural = (profile: EntityProfile) => profile.label
 
+const barcodeProductCode = (client: ClientComparison) =>
+  String(client.key ?? '').split(' / ')[0]?.trim() ?? ''
+
+const barcodeValue = (client: ClientComparison) =>
+  String(client.name ?? '').trim()
+
+function CodeWithVerifier({ value }: { value: string }) {
+  const code = String(value ?? '').trim()
+  if (!code) return <>—</>
+  if (code.length === 1) return <span className="code-with-dv"><span className="code-dv-separator">—</span><strong className="code-dv">{code}</strong></span>
+  return (
+    <span className="code-with-dv">
+      <span>{code.slice(0, -1)}</span>
+      <span className="code-dv-separator">—</span>
+      <strong className="code-dv">{code.slice(-1)}</strong>
+    </span>
+  )
+}
+
 type SortDirection = 'asc' | 'desc'
 type SortState = { key: string; direction: SortDirection }
 
@@ -1559,7 +1578,11 @@ function App({
                                   aria-label={`Selecionar ${item.client.key} · ${item.field.fieldLabel}`}
                                 />
                               </td>
-                              <td className="mono">{item.client.key}</td>
+                              <td className="mono">
+                                {resultProfile.id === 'workspace:barcodes'
+                                  ? <CodeWithVerifier value={barcodeProductCode(item.client)} />
+                                  : item.client.key}
+                              </td>
                               <td>
                                 <button
                                   type="button"
@@ -1569,7 +1592,9 @@ function App({
                                     openRecord(item.client, item.field.fieldId, occurrenceKey)
                                   }}
                                 >
-                                  {item.client.name || '—'}
+                                  {resultProfile.id === 'workspace:barcodes'
+                                    ? (barcodeValue(item.client) || '—')
+                                    : (item.client.name || '—')}
                                 </button>
                               </td>
                               <td>
