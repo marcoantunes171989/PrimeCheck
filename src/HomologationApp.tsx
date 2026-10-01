@@ -43,6 +43,18 @@ const barcodeProductCode = (client: ClientComparison) =>
 const barcodeValue = (client: ClientComparison) =>
   String(client.name ?? '').trim()
 
+const normalizeBarcodeProductSearch = (value: unknown) =>
+  String(value ?? '').replace(/\D/g, '')
+
+const barcodeProductSearchMatches = (client: ClientComparison, filter: string) => {
+  const typed = normalizeBarcodeProductSearch(filter)
+  if (!typed) return true
+  const code = normalizeBarcodeProductSearch(barcodeProductCode(client))
+  if (!code) return false
+  // Aceita tanto o código completo (incluindo DV) quanto o corpo sem o último DV.
+  return code.includes(typed) || (code.length > 1 && code.slice(0, -1).includes(typed))
+}
+
 function CodeWithVerifier({ value }: { value: string }) {
   const code = String(value ?? '').trim()
   if (!code) return <>—</>
@@ -607,7 +619,9 @@ function App({
       !filter.trim() || String(value ?? '').toLocaleUpperCase('pt-BR').includes(filter.trim().toLocaleUpperCase('pt-BR'))
 
     return issueScope.filter(item => {
-      if (!contains(item.client.key, issueColumnFilters.code)) return false
+      if (resultProfile.id === 'workspace:barcodes') {
+        if (!barcodeProductSearchMatches(item.client, issueColumnFilters.code)) return false
+      } else if (!contains(item.client.key, issueColumnFilters.code)) return false
       if (!contains(item.client.name, issueColumnFilters.name)) return false
       if (!contains(item.field.originValue, issueColumnFilters.origin)) return false
       if (!contains(item.field.targetValue, issueColumnFilters.target)) return false
@@ -621,7 +635,7 @@ function App({
         .toLocaleUpperCase('pt-BR')
       return text.includes(term)
     })
-  }, [issueScope, search, issueColumnFilters])
+  }, [issueScope, search, issueColumnFilters, resultProfile.id])
 
   const issueFieldOptions = useMemo(() => {
     if (!report) return []
