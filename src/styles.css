@@ -12359,3 +12359,63 @@ table {
   color: var(--accent, #ff861c);
   font-weight: 800;
 }
+
+
+/* Códigos de Barras — análise de duplicidades separada por campo */
+.barcode-duplicate-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.barcode-duplicate-card {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #d7e2e8;
+  border-radius: 12px;
+  background: #f8fbfc;
+  color: #12384a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.barcode-duplicate-card:hover {
+  border-color: #9fb9c6;
+  background: #f2f8fa;
+}
+
+.barcode-duplicate-card.active {
+  border-color: #f38525;
+  box-shadow: inset 3px 0 0 #f38525;
+  background: #fffaf5;
+}
+
+.barcode-duplicate-card > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #657b87;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .055em;
+}
+
+.barcode-duplicate-card > strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.barcode-duplicate-card > small {
+  display: block;
+  margin-top: 4px;
+  color: #657b87;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .barcode-duplicate-breakdown {
+    grid-template-columns: 1fr;
+  }
+}
