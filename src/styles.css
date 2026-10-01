@@ -12339,3 +12339,23 @@ table {
 .primecheck-pdf-stage .dup-print-footer {
   display: none !important;
 }
+
+
+/* Códigos de Barras — código do produto com DV visual preservando o valor original */
+.code-with-dv {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.code-dv-separator {
+  color: var(--muted, #657b87);
+  font-weight: 400;
+}
+
+.code-dv {
+  color: var(--accent, #ff861c);
+  font-weight: 800;
+}
