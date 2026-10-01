@@ -297,6 +297,29 @@ export default function WorkspaceImportPage({
         <span>Quantidade livre · CSV, TXT, TSV, XLS, XLSX, XLSM, XLSB e ODS</span>
       </section>
 
+      {(busy || restoring) && (
+        <div className="workspace-loading-overlay" role="status" aria-live="assertive" aria-busy="true">
+          <div className="workspace-loading-dialog">
+            <span className="workspace-loading-spinner" aria-hidden="true" />
+            <div>
+              <strong>{restoring && !busy ? 'Restaurando informações…' : 'Processando arquivos…'}</strong>
+              <span>
+                {restoring && !busy
+                  ? 'Aguarde alguns instantes enquanto o PrimeCheck restaura os dados deste ambiente.'
+                  : 'Aguarde alguns instantes enquanto todos os arquivos são carregados, processados e organizados.'}
+              </span>
+              {busy && importProgress && (
+                <small>
+                  {importProgress.fileName || 'Preparando arquivos'}
+                  {' · '}
+                  {importProgress.overallPercent}% concluído
+                </small>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {importProgress && (
         <ImportProgressBar
           percent={importProgress.overallPercent}
