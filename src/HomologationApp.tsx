@@ -55,6 +55,25 @@ const barcodeProductSearchMatches = (client: ClientComparison, filter: string) =
   return code.includes(typed) || (code.length > 1 && code.slice(0, -1).includes(typed))
 }
 
+type BarcodeValidity = 'VALIDO' | 'INVALIDO'
+
+function validateBarcodeValue(value: unknown): { status: BarcodeValidity; length: number } {
+  const code = String(value ?? '').trim()
+  if (!/^\d+$/.test(code)) return { status: 'INVALIDO', length: Array.from(code).length }
+  const length = code.length
+  if (![8, 12, 13].includes(length)) return { status: 'INVALIDO', length }
+  const digits = code.split('').map(Number)
+  const informedDv = digits[length - 1]
+  const body = digits.slice(0, -1)
+  const sum = body.reduce((total, digit, index) => {
+    const distanceFromRight = body.length - 1 - index
+    const weight = distanceFromRight % 2 === 0 ? 3 : 1
+    return total + digit * weight
+  }, 0)
+  const calculatedDv = (10 - (sum % 10)) % 10
+  return { status: calculatedDv === informedDv ? 'VALIDO' : 'INVALIDO', length }
+}
+
 function CodeWithVerifier({ value }: { value: string }) {
   const code = String(value ?? '').trim()
   if (!code) return <>—</>
@@ -254,6 +273,7 @@ function App({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'TODOS' | Severity>('TODOS')
   const [issueFieldFilter, setIssueFieldFilter] = useState('TODOS')
+  const [barcodeValidityFilter, setBarcodeValidityFilter] = useState<'TODOS' | BarcodeValidity>('TODOS')
   const [issueDuplicateFilter, setIssueDuplicateFilter] = useState<'TODOS' | 'DUPLICADOS' | 'NAO_DUPLICADOS' | 'SEM_CODIGO_BARRAS_ORIGEM'>('TODOS')
   const [clientColumnFilters, setClientColumnFilters] = useState({
     code: '',
@@ -631,6 +651,10 @@ function App({
       if (!contains(item.field.originValue, issueColumnFilters.origin)) return false
       if (!contains(item.field.targetValue, issueColumnFilters.target)) return false
       if (!contains(item.field.reason, issueColumnFilters.reason)) return false
+      if (resultProfile.id === 'workspace:barcodes' && barcodeValidityFilter !== 'TODOS') {
+        const barcode = barcodeValue(item.client)
+        if (validateBarcodeValue(barcode).status !== barcodeValidityFilter) return false
+      }
 
       if (!term) return true
       const duplicateText = item.duplicate
@@ -640,7 +664,7 @@ function App({
         .toLocaleUpperCase('pt-BR')
       return text.includes(term)
     })
-  }, [issueScope, search, issueColumnFilters, resultProfile.id])
+  }, [issueScope, search, issueColumnFilters, resultProfile.id, barcodeValidityFilter])
 
   const issueFieldOptions = useMemo(() => {
     if (!report) return []
@@ -1110,6 +1134,17 @@ function App({
                   <option value="CONFORME">Conforme</option>
                   <option value="NÃO IMPORTADO">Não importado</option>
                 </select>
+                {activeTab === 'issues' && resultProfile.id === 'workspace:barcodes' && (
+                  <select
+                    value={barcodeValidityFilter}
+                    onChange={e => setBarcodeValidityFilter(e.target.value as typeof barcodeValidityFilter)}
+                    aria-label="Filtrar validade do código de barras"
+                  >
+                    <option value="TODOS">Todos · validade</option>
+                    <option value="VALIDO">Somente códigos válidos</option>
+                    <option value="INVALIDO">Somente códigos inválidos</option>
+                  </select>
+                )}
                 {activeTab === 'issues' && (
                   <select
                     value={issueDuplicateFilter}
@@ -1634,6 +1669,9 @@ function App({
                                 <IssueValueCell
                                   label="Origem"
                                   value={item.field.originValue}
+                                  barcodeValidity={resultProfile.id === 'workspace:barcodes' && item.field.fieldId === 'barcode'
+                                    ? validateBarcodeValue(item.field.originValue)
+                                    : undefined}
                                   status={item.field.status}
                                   highlight={highlight}
                                   showCharacterCount={showCharacterCount}
@@ -1910,6 +1948,7 @@ function IssueValueCell({
   showCharacterCount = false,
   duplicate,
   onOpenDuplicate,
+  barcodeValidity,
 }: {
   label: string
   value: string
@@ -1918,6 +1957,7 @@ function IssueValueCell({
   showCharacterCount?: boolean
   duplicate?: IssueDuplicateInfo
   onOpenDuplicate?: () => void
+  barcodeValidity?: { status: BarcodeValidity; length: number }
 }) {
   const tone = highlight
     ? status === 'DIVERGENTE'
@@ -1932,6 +1972,11 @@ function IssueValueCell({
     <div className={`issue-value ${tone}`.trim()}>
       <small>{label}</small>
       <strong>{value || '—'}</strong>
+      {barcodeValidity && (
+        <span className={`barcode-validity-badge ${barcodeValidity.status === 'VALIDO' ? 'valid' : 'invalid'}`}>
+          {barcodeValidity.status === 'VALIDO' ? 'Válido' : 'Inválido'} · {barcodeValidity.length} dígitos
+        </span>
+      )}
       {showCharacterCount && (
         <span className="issue-char-count">
           {length} {length === 1 ? 'caractere' : 'caracteres'}
