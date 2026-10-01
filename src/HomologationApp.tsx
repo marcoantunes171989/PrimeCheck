@@ -2534,6 +2534,24 @@ function DuplicatesView({
     [sorted],
   )
 
+  const barcodeDuplicateBreakdown = useMemo(() => {
+    if (profile.id !== 'workspace:barcodes') return []
+    return [
+      ['codigoProduto', 'Código produto'],
+      ['codigoBarras', 'Código de barras'],
+    ].map(([fieldId, label]) => {
+      const groups = report.duplicates.filter(dup =>
+        dup.fieldId === fieldId && (sideFilter === 'TODOS' || dup.side === sideFilter),
+      )
+      return {
+        fieldId,
+        label,
+        groups: groups.length,
+        records: groups.reduce((total, dup) => total + dup.count, 0),
+      }
+    })
+  }, [profile.id, report.duplicates, sideFilter])
+
   useEffect(() => setPage(1), [search, fieldFilter, sideFilter, duplicateColumnFilters, sort.key, sort.direction])
   useEffect(() => setPage(1), [reportMode])
 
@@ -2734,6 +2752,38 @@ function DuplicatesView({
           <div><span>Registros envolvidos</span><strong>{number(syntheticRecordCount)}</strong></div>
           <div><span>Campos com duplicidade</span><strong>{number(syntheticFieldCount)}</strong></div>
         </div>
+
+        {barcodeDuplicateBreakdown.length > 0 && (
+          <div className="barcode-duplicate-breakdown" aria-label="Duplicidades separadas por campo">
+            {barcodeDuplicateBreakdown.map(item => (
+              <button
+                key={item.fieldId}
+                type="button"
+                className={'barcode-duplicate-card' + (fieldFilter === item.fieldId ? ' active' : '')}
+                onClick={() => {
+                  setFieldFilter(item.fieldId)
+                  setPage(1)
+                }}
+              >
+                <span>VALIDAÇÃO DE DUPLICIDADE</span>
+                <strong>{item.label}</strong>
+                <small>{number(item.groups)} {item.groups === 1 ? 'grupo duplicado' : 'grupos duplicados'} · {number(item.records)} registros envolvidos</small>
+              </button>
+            ))}
+            <button
+              type="button"
+              className={'barcode-duplicate-card all' + (fieldFilter === 'TODOS' ? ' active' : '')}
+              onClick={() => {
+                setFieldFilter('TODOS')
+                setPage(1)
+              }}
+            >
+              <span>VISÃO CONJUNTA</span>
+              <strong>Todos os campos</strong>
+              <small>Analisar Código produto e Código de barras no mesmo ambiente</small>
+            </button>
+          </div>
+        )}
 
         <div className="table-toolbar searchable-toolbar duplicates-toolbar">
           <div className="screen-search inline-search">
