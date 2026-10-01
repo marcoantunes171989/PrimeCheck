@@ -688,12 +688,34 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
 
 const moduleScoreForFile = (file: ImportedFile, module: WorkspaceModuleDefinition) => {
   const exclusiveModule = getExclusiveWorkspaceModuleFromFileName(file.name)
-  if (exclusiveModule && exclusiveModule !== module.id) {
-    return {
-      score: 0,
-      matched: false,
-      fieldHits: 0,
-      signalHits: 0,
+
+  // Arquivos com nome de módulo dedicado são estritamente exclusivos.
+  // Para CODIGO_BARRA_*, o nome literal é a autoridade: ele nunca pode
+  // alimentar Cadastro Base, Produtos Similares ou qualquer outro módulo.
+  if (exclusiveModule) {
+    if (exclusiveModule !== module.id) {
+      return {
+        score: 0,
+        matched: false,
+        fieldHits: 0,
+        signalHits: 0,
+      }
+    }
+
+    if (exclusiveModule === 'barcodes') {
+      const fieldHits = module.fields.filter(item =>
+        file.headers.some(header => headerMatches(header, item.aliases)),
+      ).length
+      const signalHits = module.signals.filter(signal =>
+        file.headers.some(header => headerMatches(header, [signal])),
+      ).length
+
+      return {
+        score: 99,
+        matched: true,
+        fieldHits,
+        signalHits,
+      }
     }
   }
 
