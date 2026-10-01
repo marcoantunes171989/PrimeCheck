@@ -210,11 +210,10 @@ const modules: WorkspaceModuleDefinition[] = [
     singular: 'Código de Barras',
     group: 'products',
     description: 'Códigos EAN/GTIN vinculados ao produto, com suporte futuro a múltiplos códigos, duplicidades e análises por loja.',
-    signals: ['COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'],
+    signals: ['COD_EAN', 'COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'],
     fields: [
       field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
       field('codigoBarras', 'Código de barras', ['COD_EAN', 'COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN']),
-      field('principal', 'Principal', ['PRINCIPAL', 'FLG_PRINCIPAL', 'COD_BARRA_PRINCIPAL']),
     ],
   },
   {
