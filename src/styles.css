@@ -12499,3 +12499,39 @@ table {
     font-size: inherit !important;
   }
 }
+
+
+/* Impressão — Códigos de Barras: ordem semântica das colunas */
+@media print {
+  .issue-print-table th > small {
+    display: block !important;
+    margin-top: 2px !important;
+    color: #657b87 !important;
+    font-size: 7px !important;
+    font-weight: 600 !important;
+    line-height: 1.15 !important;
+    text-transform: none !important;
+  }
+
+  .issue-print-table th:nth-child(1),
+  .issue-print-table td:nth-child(1) { width: 12% !important; }
+
+  .issue-print-table th:nth-child(2),
+  .issue-print-table td:nth-child(2) { width: 12% !important; }
+
+  .issue-print-table th:nth-child(3),
+  .issue-print-table td:nth-child(3) { width: 14% !important; }
+
+  .issue-print-table th:nth-child(4),
+  .issue-print-table td:nth-child(4) { width: 12% !important; }
+
+  .issue-print-table th:nth-child(5),
+  .issue-print-table td:nth-child(5) { width: 12% !important; }
+
+  .issue-print-table th:nth-child(6),
+  .issue-print-table td:nth-child(6),
+  .issue-print-table .print-status-col { width: 11% !important; }
+
+  .issue-print-table th:nth-child(7),
+  .issue-print-table td:nth-child(7) { width: 27% !important; }
+}
