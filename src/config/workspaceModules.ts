@@ -820,7 +820,7 @@ const COMPARISON_META: Record<WorkspaceModuleId, {
   subgroups: { keyFieldIds: ['codigoSecao', 'codigoGrupo', 'codigoSubgrupo'], nameFieldId: 'descricaoSubgrupo', duplicateFieldIds: [] },
   products: { keyFieldIds: ['codigoInterno'], nameFieldId: 'nome', duplicateFieldIds: ['codigoBarras'] },
   productStore: { keyFieldIds: ['codigoLoja', 'codigoProduto'], nameFieldId: 'codigoProduto', duplicateFieldIds: [] },
-  barcodes: { keyFieldIds: ['codigoProduto', 'codigoBarras'], nameFieldId: 'codigoBarras', duplicateFieldIds: ['codigoBarras'] },
+  barcodes: { keyFieldIds: ['codigoProduto', 'codigoBarras'], nameFieldId: 'codigoBarras', duplicateFieldIds: ['codigoProduto', 'codigoBarras'] },
   productSupplier: { keyFieldIds: ['codigoProduto', 'codigoFornecedor'], nameFieldId: 'fornecedor', duplicateFieldIds: [] },
   similarProducts: { keyFieldIds: ['codigoProduto', 'codigoSimilar'], nameFieldId: 'descricaoSimilar', duplicateFieldIds: [] },
   ncm: { keyFieldIds: ['ncm'], nameFieldId: 'descricao', duplicateFieldIds: ['ncm'] },
