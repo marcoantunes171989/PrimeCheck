@@ -659,11 +659,10 @@ const moduleHasRequiredStructure = (file: ImportedFile, module: WorkspaceModuleD
     case 'productStore':
       return productCode && hasAnyHeader(file, ['COD_LOJA', 'CODIGO_LOJA', 'PRODUTO_LOJA', 'TAB_PRODUTO_LOJA'])
     case 'barcodes':
-      // Um único arquivo literal de código de barras habilita exclusivamente este módulo.
-      // Não depende de papel origem/destino nem de existir um segundo arquivo.
+      // Código de barras é dirigido pelo arquivo literal dedicado. A presença
+      // de um único CODIGO_BARRA_* já habilita exclusivamente este módulo,
+      // independentemente da quantidade/nome das colunas internas.
       return getExclusiveWorkspaceModuleFromFileName(file.name) === 'barcodes'
-        && productCode
-        && hasAnyHeader(file, ['COD_EAN', 'COD_BARRA', 'COD_BARRA_PRINCIPAL', 'CODIGO_BARRAS', 'EAN', 'GTIN'])
     case 'productSupplier':
       return productCode && hasAnyHeader(file, ['COD_FORNECEDOR', 'CODIGO_FORNECEDOR', 'REFERENCIA_FORNECEDOR'])
     case 'similarProducts':
@@ -755,10 +754,7 @@ export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMat
     // já o habilita. O nome exclusivo impede que COD_PRODUTO/COD_EAN habilitem
     // Cadastro Base, Produtos Similares ou qualquer outro módulo.
     if (result.module.id === 'barcodes') {
-      return files.some(file =>
-        getExclusiveWorkspaceModuleFromFileName(file.name) === 'barcodes'
-        && hasPairCoreStructure(file, 'barcodes'),
-      )
+      return files.some(file => getExclusiveWorkspaceModuleFromFileName(file.name) === 'barcodes')
     }
 
     return true
