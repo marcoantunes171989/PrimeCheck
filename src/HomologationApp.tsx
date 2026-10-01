@@ -2459,11 +2459,22 @@ function DuplicatesView({
 
   const fieldOptions = useMemo(() => {
     const map = new Map<string, string>()
+
+    // No módulo de Códigos de Barras, os dois campos homologados fazem parte
+    // da validação de duplicidade e devem permanecer selecionáveis mesmo
+    // quando um deles não possuir grupo duplicado no resultado atual.
+    if (profile.id === 'workspace:barcodes') {
+      for (const fieldId of ['codigoProduto', 'codigoBarras']) {
+        const field = profile.fields.find(item => item.id === fieldId)
+        if (field) map.set(field.id, field.label)
+      }
+    }
+
     for (const dup of report.duplicates) {
       if (!map.has(dup.fieldId)) map.set(dup.fieldId, dup.fieldLabel)
     }
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
-  }, [report.duplicates])
+  }, [profile, report.duplicates])
 
   const rowIdOf = (dup: ComparisonReport['duplicates'][number]) =>
     [dup.side, dup.fieldId, dup.normalizedValue].join('::')
