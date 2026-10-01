@@ -240,7 +240,6 @@ const modules: WorkspaceModuleDefinition[] = [
     description: 'Cadastro e vínculos de produtos similares/substitutos, preparado para posterior associação ao Produto por Loja.',
     signals: ['PRODUTO_SIMILAR', 'COD_PRODUTO_SIMILAR', 'SIMILAR'],
     fields: [
-      field('codigoProduto', 'Código produto', ['COD_PRODUTO', 'CODIGO_PRODUTO']),
       field('codigoSimilar', 'Código produto similar', ['COD_PRODUTO_SIMILAR', 'COD_SIMILAR', 'PRODUTO_SIMILAR']),
       field('descricaoSimilar', 'Descrição similar', ['DES_PRODUTO_SIMILAR', 'DES_SIMILAR']),
     ],
