@@ -12,9 +12,11 @@ const CODE_PREVIEW = 4
 function CodeWithVerifier({ value }: { value: string }) {
   const code = String(value ?? '').trim()
   if (!code) return <>—</>
-  const parts = code.split(' / ')
-  const productCode = parts[0]?.trim() ?? ''
-  const suffix = parts.length > 1 ? ` / ${parts.slice(1).join(' / ')}` : ''
+  // record.key usa "codigoProduto / codigoBarras", mas alguns fluxos
+  // persistidos podem chegar sem espaços. Aceitar ambos sem alterar o valor.
+  const separatorIndex = code.indexOf('/')
+  const productCode = (separatorIndex >= 0 ? code.slice(0, separatorIndex) : code).trim()
+  const suffix = separatorIndex >= 0 ? ` / ${code.slice(separatorIndex + 1).trim()}` : ''
   if (!productCode) return <>{code}</>
   if (productCode.length === 1) {
     return <><span className="code-dv-separator">—</span><strong className="code-dv">{productCode}</strong>{suffix}</>
