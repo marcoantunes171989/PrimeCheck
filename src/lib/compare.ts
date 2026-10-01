@@ -535,7 +535,9 @@ const duplicateScan = (
       // equivalentes no mesmo grupo (inclusive valores vindos de CSV/XLS como
       // 326292 e 326292.0). O valor bruto continua preservado em rawValue para
       // exibição, e o último caractere é apresentado como DV na interface.
-      const normalized = normalizeForField(row[header], field)
+      const normalized = profile.id === 'workspace:barcodes' && fieldId === 'codigoProduto'
+        ? rawValue.replace(/\.0+$/, '').replace(/\D/g, '')
+        : normalizeForField(row[header], field)
       if (!normalized || normalized === 'ISENTO' || normalized === 'ISENTA') return
       const arr = groups.get(normalized) ?? []
       arr.push(row)
