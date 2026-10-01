@@ -9,14 +9,34 @@ import {
 const RECORD_PREVIEW = 2
 const CODE_PREVIEW = 4
 
+function CodeWithVerifier({ value }: { value: string }) {
+  const code = String(value ?? '').trim()
+  if (!code) return <>—</>
+  const parts = code.split(' / ')
+  const productCode = parts[0]?.trim() ?? ''
+  const suffix = parts.length > 1 ? ` / ${parts.slice(1).join(' / ')}` : ''
+  if (!productCode) return <>{code}</>
+  if (productCode.length === 1) {
+    return <><span className="code-dv-separator">—</span><strong className="code-dv">{productCode}</strong>{suffix}</>
+  }
+  return <>
+    <span>{productCode.slice(0, -1)}</span>
+    <span className="code-dv-separator">—</span>
+    <strong className="code-dv">{productCode.slice(-1)}</strong>
+    {suffix}
+  </>
+}
+
 export function DuplicateCodeList({
   codes,
   expanded,
   onToggle,
+  highlightVerifier = false,
 }: {
   codes: string[]
   expanded: boolean
   onToggle: () => void
+  highlightVerifier?: boolean
 }) {
   const usable = codes.filter(Boolean)
   if (usable.length === 0) return <span className="muted-cell">—</span>
@@ -28,7 +48,9 @@ export function DuplicateCodeList({
   return (
     <div className="dup-codes">
       {visible.map((code, index) => (
-        <span key={`${code}-${index}`} className="dup-code-chip">{code}</span>
+        <span key={`${code}-${index}`} className="dup-code-chip">
+          {highlightVerifier ? <CodeWithVerifier value={code} /> : code}
+        </span>
       ))}
       {usable.length > CODE_PREVIEW && (
         <button
