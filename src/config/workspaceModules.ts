@@ -749,7 +749,17 @@ export const analyzeWorkspaceFiles = (files: ImportedFile[]): WorkspaceModuleMat
   return detected.filter(result => {
     if (result.module.id === 'groups') return hasSections
     if (result.module.id === 'subgroups') return hasSections && hasGroups
-    if (result.module.id === 'barcodes') return getWorkspaceModulePairState(files, 'barcodes').ready
+
+    // Código de barras é um módulo de arquivo literal: um único arquivo dedicado
+    // já o habilita. O nome exclusivo impede que COD_PRODUTO/COD_EAN habilitem
+    // Cadastro Base, Produtos Similares ou qualquer outro módulo.
+    if (result.module.id === 'barcodes') {
+      return files.some(file =>
+        getExclusiveWorkspaceModuleFromFileName(file.name) === 'barcodes'
+        && hasPairCoreStructure(file, 'barcodes'),
+      )
+    }
+
     return true
   })
 }
