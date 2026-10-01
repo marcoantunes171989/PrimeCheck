@@ -47,13 +47,6 @@ const fields: FieldDefinition[] = [
     aliases: ['UNIDADE', 'DES_UNIDADE', 'UNIDADE_VENDA', 'DES_UNIDADE_VENDA', 'UND', 'UN'],
   },
   {
-    id: 'departamento',
-    label: 'Departamento',
-    group: 'Classificação',
-    kind: 'text',
-    aliases: ['DEPARTAMENTO', 'DES_DEPARTAMENTO', 'COD_DEPARTAMENTO'],
-  },
-  {
     id: 'secao',
     label: 'Seção',
     group: 'Classificação',
