@@ -632,7 +632,10 @@ function App({
       if (issueDuplicateFilter === 'SEM_CODIGO_BARRAS_ORIGEM') {
         if (resultProfile.id !== 'workspace:barcodes') return false
         if (item.field.fieldId !== 'barcode') return false
-        if (String(item.field.originValue ?? '').trim() !== '0') return false
+        const originBarcode = String(item.field.originValue ?? '').trim()
+        // "Sem código de barras na origem" significa exclusivamente o valor literal 0:
+        // exatamente 1 caractere e esse caractere deve ser o algarismo zero.
+        if (originBarcode.length !== 1 || originBarcode !== '0') return false
       }
       return true
     })
