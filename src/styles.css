@@ -12535,3 +12535,25 @@ table {
   .issue-print-table th:nth-child(7),
   .issue-print-table td:nth-child(7) { width: 27% !important; }
 }
+
+
+/* Impressão — destaque do DV do código interno do produto */
+@media print {
+  .issue-print-table .print-product-code {
+    display: inline-flex !important;
+    align-items: baseline !important;
+    gap: 2px !important;
+    white-space: nowrap !important;
+  }
+
+  .issue-print-table .print-product-code .code-dv-separator,
+  .issue-print-table .print-product-code .code-dv {
+    color: #f38525 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .issue-print-table .print-product-code .code-dv {
+    font-weight: 800 !important;
+  }
+}
